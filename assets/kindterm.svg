@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- kindterm app icon: Kind Night tile with the prompt chevron and cursor -->
+  <defs>
+    <clipPath id="r"><rect x="16" y="16" width="224" height="224" rx="48" ry="48"/></clipPath>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="48" ry="48" fill="#1b1f27"/>
+  <g clip-path="url(#r)">
+    <rect x="16" y="16" width="224" height="44" fill="#12151b"/>
+    <rect x="16" y="16" width="72" height="44" fill="#1b1f27"/>
+    <rect x="16" y="16" width="72" height="4" fill="#7aa2f7"/>
+    <circle cx="112" cy="38" r="4" fill="#34405a"/>
+    <circle cx="130" cy="38" r="4" fill="#34405a"/>
+  </g>
+  <rect x="16" y="16" width="224" height="224" rx="48" ry="48" fill="none" stroke="#34405a" stroke-width="4"/>
+  <!-- prompt chevron -->
+  <path d="M64 100 L124 146 L64 192" fill="none" stroke="#7aa2f7" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- cursor block -->
+  <rect x="146" y="164" width="44" height="30" rx="6" fill="#e5c07b"/>
+</svg>

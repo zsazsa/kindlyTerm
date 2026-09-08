@@ -1,0 +1,29 @@
+[package]
+name = "kindterm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+alacritty_terminal = "0.26"
+anyhow = "1"
+bytemuck = { version = "1", features = ["derive"] }
+arboard = "3"
+dirs = "7"
+env_logger = "0.11"
+fontdb = "0.24.0"
+log = "0.4"
+nucleo-matcher = "0.3"
+pollster = "1"
+serde = { version = "1", features = ["derive"] }
+swash = "0.2"
+toml = "1"
+wgpu = "30"
+winit = "0.30"
+png = "0.18"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+
+[profile.dev.package."*"]
+opt-level = 2

@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&family=Fira+Code:wght@400;500&family=Space+Mono:wght@400&family=Source+Code+Pro:wght@400&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#0d0f13; }
+  a { color:#7aa2f7; text-decoration:none; }
+  a:hover { color:#74bdf7; }
+  @keyframes ktcaret { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+  @keyframes ktbind { 0%,100%{border-color:#7aa2f7} 50%{border-color:#34405a} }
+</style>
+</helmet>
+
+<section style="display:flex;flex-direction:column;gap:56px;padding:56px;font-family:'JetBrains Mono','DejaVu Sans Mono',monospace;color:#d8dee9">
+
+  <div style="display:flex;align-items:baseline;gap:14px">
+    <div style="font-size:20px;font-weight:700">Scale: hundreds of shortcuts</div>
+    <div style="font-size:11px;color:#6b7280">list-first Deck · fuzzy quick-run · per-shortcut launch target</div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:56px">
+
+    <!-- ===== 2a · DECK HOME AT SCALE ===== -->
+    <div id="2a" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="border:1px solid #7aa2f7;color:#7aa2f7;font-size:11px;padding:3px 8px;border-radius:4px">2a</div>
+        <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">DECK HOME · 214 SHORTCUTS</div>
+      </div>
+      <div data-screen-label="2a" style="position:relative;width:1280px;height:800px;background:#1b1f27;border:1px solid #34405a;overflow:hidden">
+        <div style="display:flex;align-items:stretch;height:40px;background:#12151b;border-bottom:1px solid #34405a;font-size:12px">
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;background:#1b1f27;border-top:2px solid #7aa2f7;border-right:1px solid #34405a"><span style="color:#98c379">1</span><span>ssh homelab</span><span style="color:#6b7280">×</span></div>
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;border-top:2px solid transparent;border-right:1px solid #232833;color:#abb2bf"><span style="color:#6b7280">2</span><span>grafana</span><span style="color:#6b7280">×</span></div>
+          <div style="display:flex;align-items:center;padding:0 12px;color:#6b7280;border-right:1px solid #232833">+</div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;gap:16px;padding:0 14px;font-size:11px;color:#6b7280"><span>214 shortcuts</span><span style="color:#abb2bf">12:14</span></div>
+          <div style="display:flex;align-items:center;padding:0 12px"><div style="width:26px;height:26px;border:1px solid #7aa2f7;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#7aa2f7;font-size:14px;background:#232833">⚙</div></div>
+        </div>
+        <div style="padding:18px 20px 18px 400px;font-size:13px;line-height:20px;color:#abb2bf">
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> kindterm deck ls | wc -l</div>
+          <div>214</div>
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> <span style="display:inline-block;width:8px;height:16px;background:#e5c07b;vertical-align:-3px"></span></div>
+        </div>
+        <div style="position:absolute;left:360px;top:40px;right:0;bottom:0;background:rgba(18,21,27,0.55)"></div>
+
+        <div style="position:absolute;left:0;top:40px;width:360px;bottom:0;background:#232833;border-right:1px solid #34405a;display:flex;flex-direction:column">
+          <div style="padding:10px 16px 8px 16px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;background:#1b1f27;border:1px solid #7aa2f7;border-radius:4px">
+              <span style="color:#7aa2f7;font-size:13px">❯</span>
+              <span style="flex:1;font-size:12px;color:#6b7280">type to filter 214 shortcuts</span>
+              <span style="display:inline-block;width:7px;height:15px;background:#e5c07b;animation:ktcaret 1.1s step-end infinite"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="height:20px;padding:0 8px;border-radius:4px;background:#34405a;color:#d8dee9;font-size:10px;display:flex;align-items:center">All 214</div>
+              <div style="height:20px;padding:0 8px;border-radius:4px;border:1px solid #34405a;color:#abb2bf;font-size:10px;display:flex;align-items:center">Hosts 41</div>
+              <div style="height:20px;padding:0 8px;border-radius:4px;border:1px solid #34405a;color:#abb2bf;font-size:10px;display:flex;align-items:center">Local 63</div>
+              <div style="flex:1"></div>
+              <div style="display:flex;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+                <div style="width:22px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;background:#34405a">≡</div>
+                <div style="width:22px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#6b7280">▦</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:2px 16px 0 16px;display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">PINNED</div>
+            <div style="font-size:10px;color:#6b7280">⌥1…6</div>
+          </div>
+          <div style="padding:8px 16px 10px 16px;display:grid;grid-template-columns:repeat(6,1fr);gap:10px 5px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:46px;height:46px;border-radius:6px;background:#61afef;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:21px">⌂</div><div style="font-size:10px;color:#abb2bf">homelab</div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:46px;height:46px;border-radius:6px;background:#e06c75;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:21px">⛁</div><div style="font-size:10px;color:#abb2bf">prod-db</div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:46px;height:46px;border-radius:6px;background:#e5c07b;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:20px">≡</div><div style="font-size:10px;color:#abb2bf">logs</div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:46px;height:46px;border-radius:6px;background:#98c379;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:21px">∿</div><div style="font-size:10px;color:#abb2bf">htop</div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:46px;height:46px;border-radius:6px;background:#c678dd;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:19px">⚒</div><div style="font-size:10px;color:#abb2bf">build</div></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:46px;height:46px;border-radius:6px;background:#56b6c2;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:20px">▦</div><div style="font-size:10px;color:#abb2bf">edge-01</div></div>
+          </div>
+
+          <div style="flex:1;display:flex;overflow:hidden">
+            <div style="flex:1;overflow:hidden;padding:0 4px 0 16px;display:flex;flex-direction:column">
+              <div style="display:flex;align-items:center;justify-content:space-between;height:20px"><div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">RECENT</div><div style="font-size:10px;color:#6b7280">⌃R</div></div>
+              <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;border-bottom:1px solid #232833;border-left:3px solid #7aa2f7;background:#2a3040">
+                  <div style="width:22px;height:22px;border-radius:6px;background:#c678dd;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">◐</div>
+                  <div style="flex:1;font-size:11px">grafana</div><div style="font-size:9px;color:#6b7280">2 m ago</div><div style="font-size:9px;color:#7aa2f7;width:34px;text-align:right">⏎</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;border-bottom:1px solid #232833">
+                  <div style="width:22px;height:22px;border-radius:6px;background:#e06c75;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">⛁</div>
+                  <div style="flex:1;font-size:11px">prod-db-primary</div><div style="font-size:9px;color:#6b7280">18 m</div><div style="font-size:9px;color:#6b7280;width:34px;text-align:right">⌥⏎</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px">
+                  <div style="width:22px;height:22px;border-radius:6px;background:#a6d189;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">❯</div>
+                  <div style="flex:1;font-size:11px">k8s · rollout status</div><div style="font-size:9px;color:#6b7280">1 h</div><div style="font-size:9px;color:#6b7280;width:34px;text-align:right">⌘⏎</div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;height:22px;margin-top:8px"><div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">FOLDERS · 9</div><div style="font-size:10px;color:#6b7280">→ opens</div></div>
+              <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;border-bottom:1px solid #232833">
+                  <div style="width:22px;height:22px;border-radius:6px;background:#2a3040;border:1px solid #34405a;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;padding:3px;box-sizing:border-box"><div style="border-radius:1px;background:#74bdf7"></div><div style="border-radius:1px;background:#56b6c2"></div><div style="border-radius:1px;background:#ef7a82"></div><div style="border-radius:1px;background:#5c6370"></div></div>
+                  <div style="flex:1;font-size:11px">aws</div><div style="font-size:9px;color:#6b7280">12</div><div style="color:#6b7280;font-size:11px">›</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;border-bottom:1px solid #232833">
+                  <div style="width:22px;height:22px;border-radius:6px;background:#2a3040;border:1px solid #34405a;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;padding:3px;box-sizing:border-box"><div style="border-radius:1px;background:#a6d189"></div><div style="border-radius:1px;background:#f0d197"></div><div style="border-radius:1px;background:#d48ce6"></div><div style="border-radius:1px;background:#5c6370"></div></div>
+                  <div style="flex:1;font-size:11px">k8s</div><div style="font-size:9px;color:#6b7280">28</div><div style="color:#6b7280;font-size:11px">›</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px">
+                  <div style="width:22px;height:22px;border-radius:6px;background:#2a3040;border:1px solid #34405a;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;padding:3px;box-sizing:border-box"><div style="border-radius:1px;background:#e06c75"></div><div style="border-radius:1px;background:#61afef"></div><div style="border-radius:1px;background:#98c379"></div><div style="border-radius:1px;background:#abb2bf"></div></div>
+                  <div style="flex:1;font-size:11px">clients</div><div style="font-size:9px;color:#6b7280">31</div><div style="color:#6b7280;font-size:11px">›</div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;height:22px;margin-top:8px"><div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">ALL · A–Z</div><div style="font-size:10px;color:#6b7280">214</div></div>
+              <div style="flex:1;overflow:hidden;background:#1b1f27;border:1px solid #34405a;border-radius:4px">
+                <div style="height:18px;padding:0 9px;display:flex;align-items:center;font-size:9px;color:#7aa2f7;background:#232833;border-bottom:1px solid #34405a">A</div>
+                <div style="display:flex;align-items:center;gap:9px;height:28px;padding:0 9px;border-bottom:1px solid #232833"><div style="width:22px;height:22px;border-radius:6px;background:#74bdf7;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">☁</div><div style="flex:1;font-size:11px">alb-tail</div><div style="font-size:9px;color:#6b7280">aws · new tab</div></div>
+                <div style="display:flex;align-items:center;gap:9px;height:28px;padding:0 9px;border-bottom:1px solid #232833"><div style="width:22px;height:22px;border-radius:6px;background:#6cc7d1;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">▦</div><div style="flex:1;font-size:11px">ansible-play</div><div style="font-size:9px;color:#6b7280">local</div></div>
+                <div style="height:18px;padding:0 9px;display:flex;align-items:center;font-size:9px;color:#7aa2f7;background:#232833;border-bottom:1px solid #34405a;border-top:1px solid #34405a">B</div>
+                <div style="display:flex;align-items:center;gap:9px;height:28px;padding:0 9px;border-bottom:1px solid #232833"><div style="width:22px;height:22px;border-radius:6px;background:#c678dd;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">⚒</div><div style="flex:1;font-size:11px">build-release</div><div style="font-size:9px;color:#6b7280">local · window</div></div>
+                <div style="display:flex;align-items:center;gap:9px;height:28px;padding:0 9px;border-bottom:1px solid #232833"><div style="width:22px;height:22px;border-radius:6px;background:#ef7a82;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">⚿</div><div style="flex:1;font-size:11px">bastion-eu</div><div style="font-size:9px;color:#6b7280">ssh · eu-1</div></div>
+                <div style="height:18px;padding:0 9px;display:flex;align-items:center;font-size:9px;color:#7aa2f7;background:#232833;border-bottom:1px solid #34405a;border-top:1px solid #34405a">C</div>
+                <div style="display:flex;align-items:center;gap:9px;height:28px;padding:0 9px"><div style="width:22px;height:22px;border-radius:6px;background:#f0d197;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">⚷</div><div style="flex:1;font-size:11px">cert-renew</div><div style="font-size:9px;color:#6b7280">confirm first</div></div>
+              </div>
+            </div>
+
+            <div style="width:20px;padding:22px 0 8px 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;font-size:8px;color:#6b7280">
+              <div style="color:#7aa2f7">A</div><div style="color:#7aa2f7">B</div><div style="color:#7aa2f7">C</div><div>D</div><div>E</div><div>F</div><div>G</div><div>H</div><div>I</div><div>K</div><div>L</div><div>M</div><div>N</div><div>O</div><div>P</div><div>R</div><div>S</div><div>T</div><div>U</div><div>V</div><div>W</div><div>Z</div><div>#</div>
+            </div>
+          </div>
+
+          <div style="height:44px;border-top:1px solid #34405a;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:10px;color:#6b7280">
+            <span><span style="color:#7aa2f7">↑↓</span> select · <span style="color:#7aa2f7">⏎</span> run</span>
+            <span><span style="color:#7aa2f7">⌥⏎</span> new tab · <span style="color:#7aa2f7">⌘⏎</span> new window</span>
+          </div>
+        </div>
+      </div>
+      <div style="width:1280px;font-size:10px;color:#6b7280;line-height:16px">Grid gives way to a list once a folder holds more than 12 items; pinned stays a single row of six. Sticky letter headers and the right-edge index make 214 items reachable without a mouse, but the intended path is always the search field — the list is the fallback, not the workflow.</div>
+    </div>
+
+    <!-- ===== 2b · QUICK-RUN ===== -->
+    <div id="2b" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="border:1px solid #7aa2f7;color:#7aa2f7;font-size:11px;padding:3px 8px;border-radius:4px">2b</div>
+        <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">QUICK-RUN · TYPE, ARROW, ENTER</div>
+      </div>
+      <div data-screen-label="2b" style="width:1280px;height:800px;background:#12151b;border:1px solid #34405a;padding:36px;box-sizing:border-box;display:flex;flex-direction:column;gap:20px">
+        <div style="font-size:16px;font-weight:700">Four keystrokes, 214 candidates</div>
+
+        <div style="display:flex;gap:14px;align-items:stretch">
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:16px;height:16px;border-radius:4px;background:#7aa2f7;color:#12151b;font-size:9px;display:flex;align-items:center;justify-content:center">1</span><span style="font-size:11px;color:#7aa2f7">Ctrl+Shift+,</span></div>
+            <div style="height:430px;background:#232833;border:1px solid #34405a;padding:10px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:7px;height:28px;padding:0 8px;background:#1b1f27;border:1px solid #7aa2f7;border-radius:4px">
+                <span style="color:#7aa2f7;font-size:12px">❯</span><span style="flex:1;font-size:11px;color:#6b7280">type to filter</span><span style="display:inline-block;width:6px;height:13px;background:#e5c07b;animation:ktcaret 1.1s step-end infinite"></span>
+              </div>
+              <div style="font-size:9px;color:#6b7280">RECENT · then A–Z</div>
+              <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;border-bottom:1px solid #232833;border-left:3px solid #7aa2f7;background:#2a3040"><div style="width:18px;height:18px;border-radius:4px;background:#c678dd;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">◐</div><div style="flex:1;font-size:10px">grafana</div></div>
+                <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;border-bottom:1px solid #232833"><div style="width:18px;height:18px;border-radius:4px;background:#e06c75;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">⛁</div><div style="flex:1;font-size:10px;color:#abb2bf">prod-db-primary</div></div>
+                <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;border-bottom:1px solid #232833"><div style="width:18px;height:18px;border-radius:4px;background:#a6d189;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">❯</div><div style="flex:1;font-size:10px;color:#abb2bf">k8s · rollout status</div></div>
+                <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;border-bottom:1px solid #232833"><div style="width:18px;height:18px;border-radius:4px;background:#74bdf7;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">☁</div><div style="flex:1;font-size:10px;color:#abb2bf">alb-tail</div></div>
+                <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;border-bottom:1px solid #232833"><div style="width:18px;height:18px;border-radius:4px;background:#6cc7d1;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">▦</div><div style="flex:1;font-size:10px;color:#abb2bf">ansible-play</div></div>
+                <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;border-bottom:1px solid #232833"><div style="width:18px;height:18px;border-radius:4px;background:#c678dd;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">⚒</div><div style="flex:1;font-size:10px;color:#abb2bf">build-release</div></div>
+                <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;border-bottom:1px solid #232833"><div style="width:18px;height:18px;border-radius:4px;background:#ef7a82;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">⚿</div><div style="flex:1;font-size:10px;color:#abb2bf">bastion-eu</div></div>
+                <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 8px;border-bottom:1px solid #232833"><div style="width:18px;height:18px;border-radius:4px;background:#f0d197;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">⚷</div><div style="flex:1;font-size:10px;color:#abb2bf">cert-renew</div></div>
+                <div style="display:flex;align-items:center;gap:8px;height:26px;padding:0 8px"><div style="width:18px;height:18px;border-radius:4px;background:#61afef;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">⌂</div><div style="flex:1;font-size:10px;color:#abb2bf">homelab</div></div>
+              </div>
+              <div style="flex:1"></div>
+              <div style="font-size:9px;color:#6b7280">214 shortcuts · 9 shown · scroll or type</div>
+            </div>
+            <div style="font-size:11px">Deck opens with the field focused</div>
+            <div style="font-size:10px;color:#6b7280">No mouse required and nothing to aim at: recents first, because the next thing you run is usually the last thing you ran.</div>
+          </div>
+
+          <div style="display:flex;align-items:center;color:#34405a;font-size:18px;padding-top:200px">→</div>
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:16px;height:16px;border-radius:4px;background:#7aa2f7;color:#12151b;font-size:9px;display:flex;align-items:center;justify-content:center">2</span><span style="font-size:11px;color:#7aa2f7">g r a</span></div>
+            <div style="height:430px;background:#232833;border:1px solid #34405a;padding:10px;box-sizing:border-box;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:7px;height:28px;padding:0 8px;background:#1b1f27;border:1px solid #7aa2f7;border-radius:4px">
+                <span style="color:#7aa2f7;font-size:12px">❯</span><span style="font-size:11px;color:#d8dee9">gra</span><span style="display:inline-block;width:6px;height:13px;background:#e5c07b;animation:ktcaret 1.1s step-end infinite"></span><span style="flex:1"></span><span style="font-size:9px;color:#6b7280">4 of 214</span>
+              </div>
+              <div style="font-size:9px;color:#6b7280">RANKED · exact prefix, then subsequence</div>
+              <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:8px;height:34px;padding:0 8px;border-bottom:1px solid #232833">
+                  <div style="width:20px;height:20px;border-radius:4px;background:#c678dd;color:#12151b;font-size:11px;display:flex;align-items:center;justify-content:center">◐</div>
+                  <div style="flex:1"><div style="font-size:11px"><span style="color:#7aa2f7">gra</span>fana</div><div style="font-size:8px;color:#6b7280">ssh metrics-01 · new tab</div></div>
+                  <div style="font-size:9px;color:#6b7280">⌥1</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;height:34px;padding:0 8px;border-bottom:1px solid #232833;border-left:3px solid #7aa2f7;background:#34405a">
+                  <div style="width:20px;height:20px;border-radius:4px;background:#56b6c2;color:#12151b;font-size:11px;display:flex;align-items:center;justify-content:center">▦</div>
+                  <div style="flex:1"><div style="font-size:11px"><span style="color:#7aa2f7">gra</span>phql-gw</div><div style="font-size:8px;color:#6b7280">ssh gw-eu-1 · new window</div></div>
+                  <div style="font-size:9px;color:#7aa2f7">⏎</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;height:34px;padding:0 8px;border-bottom:1px solid #232833">
+                  <div style="width:20px;height:20px;border-radius:4px;background:#e06c75;color:#12151b;font-size:11px;display:flex;align-items:center;justify-content:center">⛁</div>
+                  <div style="flex:1"><div style="font-size:11px">prod-<span style="color:#7aa2f7">gra</span>ph</div><div style="font-size:8px;color:#6b7280">clients/ · confirm first</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;height:34px;padding:0 8px">
+                  <div style="width:20px;height:20px;border-radius:4px;background:#e5c07b;color:#12151b;font-size:11px;display:flex;align-items:center;justify-content:center">≡</div>
+                  <div style="flex:1"><div style="font-size:11px"><span style="color:#7aa2f7">g</span>rep-<span style="color:#7aa2f7">ra</span>ils-log</div><div style="font-size:8px;color:#6b7280">local · this tab</div></div>
+                </div>
+              </div>
+              <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:8px">
+                <div style="font-size:8px;color:#6b7280;letter-spacing:0.14em;margin-bottom:5px">SELECTED</div>
+                <div style="font-size:10px;line-height:15px"><span style="color:#98c379">ssh</span> -A dev@<span style="color:#74bdf7">gw-eu-1</span> -t <span style="color:#e5c07b">"journalctl -fu graphql"</span></div>
+              </div>
+              <div style="flex:1"></div>
+              <div style="font-size:9px;color:#6b7280">↓ moved selection · matched chars in accent</div>
+            </div>
+            <div style="font-size:11px">Filter narrows, ↑↓ walks the result</div>
+            <div style="font-size:10px;color:#6b7280">Selection carries the shortcut's command into the preview strip, so you confirm what will run before it runs.</div>
+          </div>
+
+          <div style="display:flex;align-items:center;color:#34405a;font-size:18px;padding-top:200px">→</div>
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:16px;height:16px;border-radius:4px;background:#7aa2f7;color:#12151b;font-size:9px;display:flex;align-items:center;justify-content:center">3</span><span style="font-size:11px;color:#7aa2f7">⏎</span></div>
+            <div style="height:430px;background:#1b1f27;border:1px solid #34405a;position:relative;overflow:hidden">
+              <div style="height:22px;background:#12151b;border-bottom:1px solid #34405a;display:flex;align-items:center;padding:0 7px;gap:7px;font-size:9px">
+                <span style="color:#6b7280">1</span><span style="color:#6b7280">ssh homelab</span>
+                <span style="color:#98c379;border-top:1px solid #7aa2f7">2</span><span style="color:#d8dee9">graphql-gw</span><span style="flex:1"></span><span style="color:#6b7280">⚙</span>
+              </div>
+              <div style="padding:9px;font-size:9px;line-height:14px">
+                <div><span style="color:#98c379">dev@kindly</span><span style="color:#6b7280">:~$</span> ssh -A dev@gw-eu-1 -t "journalctl -fu graphql"</div>
+                <div style="color:#abb2bf">-- Logs begin at Mon 2026-08-31 04:11:02 UTC --</div>
+                <div><span style="color:#6b7280">12:14:41</span> gw-eu-1 graphql[4411]: <span style="color:#98c379">ready</span> :4000</div>
+                <div><span style="color:#6b7280">12:14:44</span> gw-eu-1 graphql[4411]: query <span style="color:#74bdf7">viewer</span> 41 ms</div>
+                <div><span style="color:#6b7280">12:14:46</span> gw-eu-1 graphql[4411]: query <span style="color:#74bdf7">deck</span> 12 ms</div>
+                <div><span style="color:#6b7280">12:14:49</span> gw-eu-1 graphql[4411]: <span style="color:#e5c07b">warn</span> slow field metrics 812 ms</div>
+                <div><span style="color:#6b7280">12:14:52</span> gw-eu-1 graphql[4411]: query <span style="color:#74bdf7">viewer</span> 38 ms</div>
+                <div><span style="color:#6b7280">12:14:55</span> gw-eu-1 graphql[4411]: query <span style="color:#74bdf7">shortcuts</span> 9 ms</div>
+                <div style="color:#6b7280">…following</div>
+              </div>
+              <div style="position:absolute;left:8px;bottom:8px;right:8px;height:26px;background:#232833;border:1px solid #98c379;border-radius:4px;display:flex;align-items:center;gap:7px;padding:0 8px">
+                <div style="width:15px;height:15px;border-radius:4px;background:#56b6c2;color:#12151b;font-size:9px;display:flex;align-items:center;justify-content:center">▦</div>
+                <div style="font-size:9px;color:#d8dee9">graphql-gw → new window</div><div style="flex:1"></div><div style="font-size:8px;color:#6b7280">⌃Z undo</div>
+              </div>
+            </div>
+            <div style="font-size:11px">Enter honours the shortcut's own target</div>
+            <div style="font-size:10px;color:#6b7280">graphql-gw is set to <span style="color:#abb2bf">new window</span>, so ⏎ opens one. Modifiers override for this run only; the toast names the target and offers undo.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:14px;border-top:1px solid #232833;padding-top:16px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">KEYS</div>
+            <div style="font-size:10px;line-height:17px;color:#abb2bf">
+              <div><span style="color:#7aa2f7">⏎</span> run using the shortcut's saved target</div>
+              <div><span style="color:#7aa2f7">⌥⏎</span> force new tab &nbsp; <span style="color:#7aa2f7">⌘⏎</span> force new window</div>
+              <div><span style="color:#7aa2f7">⇧⏎</span> run here, in the current tab</div>
+              <div><span style="color:#7aa2f7">Tab</span> completes to the top match &nbsp; <span style="color:#7aa2f7">→</span> enters a folder</div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">RANKING</div>
+            <div style="font-size:10px;line-height:17px;color:#abb2bf">
+              <div>1 · exact name &nbsp; 2 · name prefix &nbsp; 3 · word-boundary initials (<span style="color:#7aa2f7">pdp</span> → prod-db-primary)</div>
+              <div>4 · name subsequence &nbsp; 5 · host match &nbsp; 6 · command body</div>
+              <div>ties break by recency, then by run count</div>
+              <div>query is also matched against folder names, scoped with <span style="color:#7aa2f7">aws/</span></div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">AT 214 ITEMS</div>
+            <div style="font-size:10px;line-height:17px;color:#abb2bf">
+              <div>results cap at 9 rows; count shows <span style="color:#abb2bf">4 of 214</span></div>
+              <div>match runs are highlighted, never bolded — weight stays for hierarchy</div>
+              <div>no match: one row offering <span style="color:#98c379">run "gra" as a command</span></div>
+              <div>filter is cleared on close, so the Deck always reopens at rest</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2c · LAUNCH TARGET ===== -->
+    <div id="2c" style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="border:1px solid #7aa2f7;color:#7aa2f7;font-size:11px;padding:3px 8px;border-radius:4px">2c</div>
+        <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">SHORTCUT EDITOR · LAUNCH TARGET</div>
+      </div>
+      <div data-screen-label="2c" style="position:relative;width:1280px;height:800px;background:#1b1f27;border:1px solid #34405a;overflow:hidden">
+        <div style="display:flex;align-items:stretch;height:40px;background:#12151b;border-bottom:1px solid #34405a;font-size:12px">
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;background:#1b1f27;border-top:2px solid #7aa2f7;border-right:1px solid #34405a"><span style="color:#98c379">1</span><span>ssh homelab</span><span style="color:#6b7280">×</span></div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;padding:0 14px;font-size:11px;color:#6b7280">12:16</div>
+        </div>
+        <div style="padding:18px 20px 18px 400px;font-size:13px;line-height:20px;color:#abb2bf">
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> kindterm deck get graphql-gw</div>
+          <div>name    = "graphql-gw"</div>
+          <div>launch  = <span style="color:#e5c07b">"new-window"</span></div>
+          <div>hotkey  = "Alt+G"</div>
+        </div>
+        <div style="position:absolute;left:360px;top:40px;right:0;bottom:0;background:rgba(18,21,27,0.55)"></div>
+
+        <div style="position:absolute;left:0;top:40px;width:360px;bottom:0;background:#232833;border-right:1px solid #34405a;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-bottom:1px solid #34405a">
+            <span style="color:#7aa2f7;font-size:13px">‹</span><span style="font-size:12px;color:#7aa2f7">Manage</span>
+            <span style="flex:1;font-size:13px;font-weight:700;text-align:center">graphql-gw</span>
+            <span style="font-size:10px;color:#6b7280">⌘S</span>
+          </div>
+
+          <div style="flex:1;overflow:hidden;padding:10px 16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:10px;align-items:center">
+              <div style="width:46px;height:46px;border-radius:6px;background:#56b6c2;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:21px">▦</div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+                <div style="height:26px;padding:0 9px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;display:flex;align-items:center;font-size:12px">graphql-gw</div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <div style="border:1px solid #98c379;border-radius:4px;padding:1px 6px;font-size:9px;color:#98c379">HOST gw-eu-1</div>
+                  <div style="border:1px solid #34405a;border-radius:4px;padding:1px 6px;font-size:9px;color:#abb2bf">folder: infra</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em">COMMAND</div>
+              <div style="min-height:44px;padding:7px 9px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;font-size:11px;line-height:17px">
+                <div><span style="color:#98c379">ssh</span> -A dev@<span style="color:#74bdf7">gw-eu-1</span> \</div>
+                <div>  -t <span style="color:#e5c07b">"journalctl -fu graphql"</span></div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em">RUN IN</div>
+                <div style="font-size:9px;color:#6b7280">↑↓ then ⏎</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;background:#1b1f27;border:1px solid #34405a;border-radius:4px">
+                  <div style="width:20px;height:20px;border-radius:4px;background:#34405a;color:#abb2bf;font-size:10px;display:flex;align-items:center;justify-content:center">▤</div>
+                  <div style="flex:1;font-size:11px;color:#abb2bf">This tab — replace what's running</div>
+                  <div style="font-size:9px;color:#6b7280">⇧⏎</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;background:#1b1f27;border:1px solid #34405a;border-radius:4px">
+                  <div style="width:20px;height:20px;border-radius:4px;background:#34405a;color:#abb2bf;font-size:10px;display:flex;align-items:center;justify-content:center">▥</div>
+                  <div style="flex:1;font-size:11px;color:#abb2bf">New tab</div>
+                  <div style="font-size:9px;color:#6b7280">⌥⏎</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;background:#1b1f27;border:2px solid #7aa2f7;border-radius:4px;box-sizing:border-box">
+                  <div style="width:20px;height:20px;border-radius:4px;background:#7aa2f7;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">❐</div>
+                  <div style="flex:1;font-size:11px">New window</div>
+                  <div style="font-size:9px;color:#7aa2f7">⌘⏎ ✓</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;height:30px;padding:0 9px;background:#1b1f27;border:1px solid #34405a;border-radius:4px">
+                  <div style="width:20px;height:20px;border-radius:4px;background:#34405a;color:#abb2bf;font-size:10px;display:flex;align-items:center;justify-content:center">◫</div>
+                  <div style="flex:1;font-size:11px;color:#abb2bf">Split right</div>
+                  <div style="font-size:9px;color:#6b7280">⌃⏎</div>
+                </div>
+              </div>
+              <div style="font-size:9px;color:#6b7280">Saved target is what ⏎ does from the Deck. Modifiers override for a single run.</div>
+            </div>
+
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:10px;height:30px;padding:0 9px;border-bottom:1px solid #232833">
+                <div style="flex:1;font-size:11px">Focus the new tab / window</div>
+                <div style="width:32px;height:17px;border-radius:6px;background:#7aa2f7;display:flex;align-items:center;justify-content:flex-end;padding:2px;box-sizing:border-box"><div style="width:13px;height:13px;border-radius:4px;background:#12151b"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:30px;padding:0 9px;border-bottom:1px solid #232833">
+                <div style="flex:1;font-size:11px">Reuse an existing window for this host</div>
+                <div style="width:32px;height:17px;border-radius:6px;background:#7aa2f7;display:flex;align-items:center;justify-content:flex-end;padding:2px;box-sizing:border-box"><div style="width:13px;height:13px;border-radius:4px;background:#12151b"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:30px;padding:0 9px;border-bottom:1px solid #232833">
+                <div style="flex:1;font-size:11px">Keep open after exit</div>
+                <div style="width:32px;height:17px;border-radius:6px;background:#34405a;display:flex;align-items:center;padding:2px;box-sizing:border-box"><div style="width:13px;height:13px;border-radius:4px;background:#6b7280"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:30px;padding:0 9px">
+                <div style="flex:1;font-size:11px">Confirm before running</div>
+                <div style="width:32px;height:17px;border-radius:6px;background:#34405a;display:flex;align-items:center;padding:2px;box-sizing:border-box"><div style="width:13px;height:13px;border-radius:4px;background:#6b7280"></div></div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+                <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em">HOTKEY</div>
+                <div style="height:26px;padding:0 9px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px">Alt+G</span><span style="font-size:9px;color:#6b7280">rebind</span></div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+                <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em">ALIAS</div>
+                <div style="height:26px;padding:0 9px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px">gw</span><span style="font-size:9px;color:#6b7280">matches first</span></div>
+              </div>
+            </div>
+
+            <div style="height:28px;border:1px solid #e06c75;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#e06c75">Delete shortcut</div>
+          </div>
+
+          <div style="height:48px;border-top:1px solid #34405a;display:flex;align-items:center;gap:10px;padding:0 16px">
+            <div style="flex:1;height:28px;border:1px solid #34405a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#abb2bf">Cancel <span style="color:#6b7280;margin-left:8px;font-size:9px">Esc</span></div>
+            <div style="flex:1;height:28px;border-radius:4px;background:#7aa2f7;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">Save <span style="margin-left:8px;font-size:9px;font-weight:400">⏎</span></div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:400px;top:340px;width:840px;background:#12151b;border:1px solid #34405a;border-radius:4px;padding:16px;box-sizing:border-box">
+          <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;margin-bottom:10px">TARGET RESOLUTION</div>
+          <div style="display:flex;gap:20px">
+            <div style="flex:1;font-size:10px;line-height:17px;color:#abb2bf">
+              <div><span style="color:#d8dee9">Saved target</span> wins unless a modifier is held.</div>
+              <div><span style="color:#d8dee9">Reuse window per host</span> pulls a second gw-eu-1 launch into the existing window as a tab.</div>
+              <div>A shortcut whose command is <span style="color:#e06c75">destructive</span> may not save "This tab".</div>
+            </div>
+            <div style="flex:1;font-size:10px;line-height:17px;color:#abb2bf">
+              <div><span style="color:#d8dee9">New window</span> inherits theme, font, and cwd from the launching window.</div>
+              <div>Windows are named after the shortcut, so ⌘` cycling stays legible at 20+ windows.</div>
+              <div><span style="color:#7aa2f7">⌃Z</span> immediately after a launch closes the tab or window it created.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:56px;padding:0 56px 56px 56px;font-family:'JetBrains Mono','DejaVu Sans Mono',monospace;color:#d8dee9">
+
+  <div id="1a" style="display:flex;flex-direction:column;gap:56px">
+
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <div style="border:1px solid #7aa2f7;color:#7aa2f7;font-size:11px;padding:3px 8px;border-radius:4px">1a</div>
+      <div style="font-size:20px;font-weight:700;letter-spacing:-0.01em">kindterm — Control Deck</div>
+      <div style="font-size:11px;color:#6b7280">6 artboards · 1280×800 · tokens · icon sheet</div>
+    </div>
+
+    <!-- ============ 01 TERMINAL, DECK CLOSED ============ -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">01 · TERMINAL — DECK CLOSED</div>
+      <div data-screen-label="01" style="position:relative;width:1280px;height:800px;background:#1b1f27;border:1px solid #34405a;overflow:hidden">
+        <sc-if value="{{ cellGrid }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,rgba(122,162,247,0.10) 0 1px,transparent 1px 8px),repeating-linear-gradient(to bottom,rgba(122,162,247,0.10) 0 1px,transparent 1px 16px);pointer-events:none;z-index:5"></div></sc-if>
+
+        <div style="display:flex;align-items:stretch;height:40px;background:#12151b;border-bottom:1px solid #34405a;font-size:12px">
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;background:#1b1f27;border-top:2px solid #7aa2f7;border-right:1px solid #34405a">
+            <span style="color:#98c379">1</span><span>ssh homelab</span><span style="color:#6b7280">×</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;border-top:2px solid transparent;border-right:1px solid #232833;color:#abb2bf;background:#2a3040">
+            <span style="color:#6b7280">2</span><span>build</span><span style="color:#6b7280">×</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;border-top:2px solid transparent;border-right:1px solid #232833;color:#abb2bf">
+            <span style="color:#6b7280">3</span><span>logs — journalctl -f</span><span style="color:#6b7280">×</span>
+          </div>
+          <div style="display:flex;align-items:center;padding:0 12px;color:#6b7280;border-right:1px solid #232833">+</div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;gap:16px;padding:0 14px;font-size:11px;color:#6b7280">
+            <span><span style="color:#98c379">⎇</span> main ✓</span>
+            <span>cpu 12%</span>
+            <span>0.9.3</span>
+            <span style="color:#abb2bf">12:04</span>
+          </div>
+          <div style="display:flex;align-items:center;padding:0 12px">
+            <div style="width:26px;height:26px;border:1px solid #34405a;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#7aa2f7;font-size:14px">⚙</div>
+          </div>
+        </div>
+
+        <div style="padding:18px 20px;font-size:13px;line-height:20px">
+          <div><span style="color:#98c379">dev@kindly</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> ssh dev@homelab.lan</div>
+          <div style="color:#abb2bf">Last login: Tue Sep  8 11:58:14 2026 from 10.0.0.4</div>
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> systemctl --failed</div>
+          <div style="color:#6b7280">  UNIT                LOAD   ACTIVE SUB    DESCRIPTION</div>
+          <div><span style="color:#e06c75">● prometheus.service</span><span style="color:#abb2bf"> loaded </span><span style="color:#e06c75">failed failed</span><span style="color:#abb2bf"> Prometheus</span></div>
+          <div style="color:#6b7280">1 loaded unit listed.</div>
+          <div style="height:20px"></div>
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">/srv/kindterm</span><span style="color:#6b7280">$</span> cargo build --release</div>
+          <div><span style="color:#56b6c2">   Compiling</span> kindterm v0.9.3 (/srv/kindterm)</div>
+          <div><span style="color:#56b6c2">   Compiling</span> wgpu-hal v0.19.2</div>
+          <div><span style="color:#e5c07b">warning</span><span style="color:#abb2bf">: unused variable: </span><span style="color:#c678dd">`atlas_pad`</span></div>
+          <div style="color:#6b7280">   --&gt; src/render/text.rs:214:9</div>
+          <div><span style="color:#98c379">    Finished</span> `release` profile [optimized] target(s) in 41.20s</div>
+          <div style="height:20px"></div>
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">/srv/kindterm</span><span style="color:#6b7280">$</span> journalctl -u kindtermd -n 3</div>
+          <div><span style="color:#6b7280">Sep 08 12:03:51</span> <span style="color:#74bdf7">homelab</span> kindtermd[911]: <span style="color:#98c379">gpu: vulkan / AMD RADV NAVI23</span></div>
+          <div><span style="color:#6b7280">Sep 08 12:03:51</span> <span style="color:#74bdf7">homelab</span> kindtermd[911]: atlas 2048² · 1 draw call</div>
+          <div><span style="color:#6b7280">Sep 08 12:03:52</span> <span style="color:#74bdf7">homelab</span> kindtermd[911]: deck: 7 shortcuts, 2 folders</div>
+          <div style="height:20px"></div>
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">/srv/kindterm</span><span style="color:#6b7280">$</span> <span style="display:inline-block;width:8px;height:16px;background:#e5c07b;vertical-align:-3px;animation:ktcaret 1.1s step-end infinite"></span></div>
+        </div>
+
+        <div style="position:absolute;left:20px;bottom:18px;font-size:11px;color:#6b7280">⚙ or <span style="color:#7aa2f7">Ctrl+Shift+,</span> opens the Control Deck</div>
+      </div>
+    </div>
+
+    <!-- ============ 02 DECK HOME ============ -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">02 · DECK HOME — LAUNCHER + SETTINGS</div>
+      <div data-screen-label="02" style="position:relative;width:1280px;height:800px;background:#1b1f27;border:1px solid #34405a;overflow:hidden">
+        <sc-if value="{{ cellGrid }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;background-image:repeating-linear-gradient(to right,rgba(122,162,247,0.10) 0 1px,transparent 1px 8px),repeating-linear-gradient(to bottom,rgba(122,162,247,0.10) 0 1px,transparent 1px 16px);pointer-events:none;z-index:5"></div></sc-if>
+
+        <div style="display:flex;align-items:stretch;height:40px;background:#12151b;border-bottom:1px solid #34405a;font-size:12px">
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;background:#1b1f27;border-top:2px solid #7aa2f7;border-right:1px solid #34405a"><span style="color:#98c379">1</span><span>ssh homelab</span><span style="color:#6b7280">×</span></div>
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;border-top:2px solid transparent;border-right:1px solid #232833;color:#abb2bf"><span style="color:#6b7280">2</span><span>build</span><span style="color:#6b7280">×</span></div>
+          <div style="display:flex;align-items:center;padding:0 12px;color:#6b7280;border-right:1px solid #232833">+</div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;gap:16px;padding:0 14px;font-size:11px;color:#6b7280"><span><span style="color:#98c379">⎇</span> main ✓</span><span>cpu 12%</span><span style="color:#abb2bf">12:04</span></div>
+          <div style="display:flex;align-items:center;padding:0 12px"><div style="width:26px;height:26px;border:1px solid #7aa2f7;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#7aa2f7;font-size:14px;background:#232833">⚙</div></div>
+        </div>
+
+        <div style="padding:18px 20px 18px 400px;font-size:13px;line-height:20px">
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">/srv/kindterm</span><span style="color:#6b7280">$</span> cargo build --release</div>
+          <div><span style="color:#56b6c2">   Compiling</span> kindterm v0.9.3 (/srv/kindterm)</div>
+          <div><span style="color:#98c379">    Finished</span> `release` profile [optimized] target(s) in 41.20s</div>
+          <div style="height:20px"></div>
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">/srv/kindterm</span><span style="color:#6b7280">$</span> htop</div>
+          <div style="color:#abb2bf">  1  [<span style="color:#98c379">|||||||</span>          12.4%]   Tasks: 214, 611 thr</div>
+          <div style="color:#abb2bf">  2  [<span style="color:#98c379">||||</span>              7.1%]   Load avg: 0.41 0.38</div>
+          <div style="color:#abb2bf">  Mem[<span style="color:#98c379">||||||||||||</span> 5.9G/32G]  Uptime: 41 days</div>
+        </div>
+        <div style="position:absolute;left:360px;top:40px;right:0;bottom:0;background:rgba(18,21,27,0.55)"></div>
+
+        <!-- deck panel -->
+        <div style="position:absolute;left:0;top:40px;width:360px;bottom:0;background:#232833;border-right:1px solid #34405a;display:flex;flex-direction:column">
+          <div style="padding:10px 16px 8px 16px">
+            <div style="display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;background:#1b1f27;border:1px solid #7aa2f7;border-radius:4px">
+              <span style="color:#7aa2f7;font-size:13px">❯</span>
+              <span style="flex:1;font-size:12px;color:#6b7280">type to filter, Esc closes</span>
+              <span style="display:inline-block;width:7px;height:15px;background:#e5c07b;animation:ktcaret 1.1s step-end infinite"></span>
+            </div>
+          </div>
+
+          <div style="padding:2px 16px 0 16px;display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">SHORTCUTS</div>
+            <div style="font-size:10px;color:#6b7280">⏎ launch · ⌥⏎ new tab</div>
+          </div>
+          <div style="padding:8px 16px 10px 16px;display:grid;grid-template-columns:repeat(6,1fr);gap:10px 5px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:46px;height:46px;border-radius:6px;background:#61afef;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:21px;outline:2px solid #7aa2f7;outline-offset:3px;transform:scale(1.04)">⌂</div>
+              <div style="font-size:10px;color:#d8dee9">homelab</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:46px;height:46px;border-radius:6px;background:#e06c75;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:21px">⛁</div>
+              <div style="font-size:10px;color:#abb2bf">prod-db</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:46px;height:46px;border-radius:6px;background:#e5c07b;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:20px">≡</div>
+              <div style="font-size:10px;color:#abb2bf">logs</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:46px;height:46px;border-radius:6px;background:#98c379;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:21px">∿</div>
+              <div style="font-size:10px;color:#abb2bf">htop</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:46px;height:46px;border-radius:6px;background:#c678dd;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:19px">⚒</div>
+              <div style="font-size:10px;color:#abb2bf">build</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:46px;height:46px;border-radius:6px;background:#2a3040;border:1px solid #34405a;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:3px;padding:6px;box-sizing:border-box">
+                <div style="border-radius:2px;background:#74bdf7"></div><div style="border-radius:2px;background:#56b6c2"></div><div style="border-radius:2px;background:#ef7a82"></div><div style="border-radius:2px;background:#5c6370"></div>
+              </div>
+              <div style="font-size:10px;color:#abb2bf">aws</div>
+            </div>
+          </div>
+
+          <div style="flex:1;overflow:hidden;padding:0 16px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;padding:4px 0 4px 0">APPEARANCE</div>
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;border-bottom:1px solid #232833;border-left:3px solid #7aa2f7">
+                <div style="width:24px;height:24px;border-radius:6px;background:#c678dd;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:13px">◐</div>
+                <div style="flex:1;font-size:12px">Theme</div><div style="font-size:11px;color:#6b7280">Kind Night</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;border-bottom:1px solid #232833;background:#2a3040">
+                <div style="width:24px;height:24px;border-radius:6px;background:#61afef;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">A</div>
+                <div style="flex:1;font-size:12px">Font</div><div style="font-size:11px;color:#6b7280">JetBrains Mono</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;border-bottom:1px solid #232833">
+                <div style="width:24px;height:24px;border-radius:6px;background:#56b6c2;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">↕</div>
+                <div style="flex:1;font-size:12px">Size</div><div style="font-size:11px;color:#6b7280">13 pt</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;border-bottom:1px solid #232833">
+                <div style="width:24px;height:24px;border-radius:6px;background:#abb2bf;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">▣</div>
+                <div style="flex:1;font-size:12px">Padding</div><div style="font-size:11px;color:#6b7280">16 px</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px">
+                <div style="width:24px;height:24px;border-radius:6px;background:#e5c07b;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">▊</div>
+                <div style="flex:1;font-size:12px">Cursor</div><div style="font-size:11px;color:#6b7280">Block · blink</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+            </div>
+
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;padding:8px 0 4px 0">TERMINAL</div>
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;border-bottom:1px solid #232833">
+                <div style="width:24px;height:24px;border-radius:6px;background:#98c379;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">❯</div>
+                <div style="flex:1;font-size:12px">Shell</div><div style="font-size:11px;color:#6b7280">/bin/zsh</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;border-bottom:1px solid #232833">
+                <div style="width:24px;height:24px;border-radius:6px;background:#5c6370;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">⇕</div>
+                <div style="flex:1;font-size:12px">Scrollback</div><div style="font-size:11px;color:#6b7280">100 000 lines</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px">
+                <div style="width:24px;height:24px;border-radius:6px;background:#74bdf7;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">▤</div>
+                <div style="flex:1;font-size:12px">Tabs</div><div style="font-size:11px;color:#6b7280">Top · titles</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+            </div>
+
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;padding:8px 0 4px 0">INPUT</div>
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;border-bottom:1px solid #232833">
+                <div style="width:24px;height:24px;border-radius:6px;background:#6cc7d1;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">⌨</div>
+                <div style="flex:1;font-size:12px">Keyboard</div><div style="font-size:11px;color:#6b7280">42 bindings</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px">
+                <div style="width:24px;height:24px;border-radius:6px;background:#f0d197;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">⎘</div>
+                <div style="flex:1;font-size:12px">Clipboard</div><div style="font-size:11px;color:#6b7280">Copy on select</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+            </div>
+
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;padding:8px 0 4px 0">SHORTCUTS</div>
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;border-bottom:1px solid #232833">
+                <div style="width:24px;height:24px;border-radius:6px;background:#d48ce6;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">★</div>
+                <div style="flex:1;font-size:12px">Manage</div><div style="font-size:11px;color:#6b7280">7 · 2 folders</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px;border-bottom:1px solid #232833">
+                <div style="width:24px;height:24px;border-radius:6px;background:#a6d189;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">⇅</div>
+                <div style="flex:1;font-size:12px">Import / Export</div><div style="font-size:11px;color:#6b7280">deck.toml</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+            </div>
+
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;padding:8px 0 4px 0">ABOUT</div>
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:10px;height:28px;padding:0 10px">
+                <div style="width:24px;height:24px;border-radius:6px;background:#7aa2f7;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px">i</div>
+                <div style="flex:1;font-size:12px">kindterm</div><div style="font-size:11px;color:#6b7280">0.9.3 · vulkan</div><div style="color:#6b7280;font-size:12px">›</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;border-top:1px solid #34405a;background:#232833">
+            <div style="display:flex;gap:8px">
+              <div style="width:22px;height:22px;border-radius:6px;background:#1b1f27;border:2px solid #7aa2f7"></div>
+              <div style="width:22px;height:22px;border-radius:6px;background:#d8dee9;border:1px solid #34405a"></div>
+              <div style="width:22px;height:22px;border-radius:6px;background:#e06c75;border:1px solid #34405a"></div>
+            </div>
+            <div style="font-size:10px;color:#6b7280"><span style="color:#7aa2f7">Ctrl+Shift+,</span> toggles Deck</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 03 THEME ============ -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">03 · APPEARANCE → THEME</div>
+      <div data-screen-label="03" style="position:relative;width:1280px;height:800px;background:#1b1f27;border:1px solid #34405a;overflow:hidden">
+        <div style="display:flex;align-items:stretch;height:40px;background:#12151b;border-bottom:1px solid #34405a;font-size:12px">
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;background:#1b1f27;border-top:2px solid #7aa2f7;border-right:1px solid #34405a"><span style="color:#98c379">1</span><span>ssh homelab</span><span style="color:#6b7280">×</span></div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;padding:0 14px;font-size:11px;color:#6b7280">12:04</div>
+        </div>
+        <div style="padding:18px 20px 18px 400px;font-size:13px;line-height:20px;color:#abb2bf">
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> tail -f /var/log/nginx/access.log</div>
+          <div>10.0.0.9 - - [08/Sep/2026:12:03:44] "GET /health" <span style="color:#98c379">200</span> 2</div>
+          <div>10.0.0.4 - - [08/Sep/2026:12:03:49] "POST /deck" <span style="color:#98c379">201</span> 41</div>
+          <div>10.0.0.7 - - [08/Sep/2026:12:03:55] "GET /atlas" <span style="color:#e06c75">404</span> 0</div>
+        </div>
+        <div style="position:absolute;left:360px;top:40px;right:0;bottom:0;background:rgba(18,21,27,0.55)"></div>
+
+        <div style="position:absolute;left:0;top:40px;width:360px;bottom:0;background:#232833;border-right:1px solid #34405a;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-bottom:1px solid #34405a">
+            <span style="color:#7aa2f7;font-size:13px">‹</span>
+            <span style="font-size:12px;color:#7aa2f7">Back</span>
+            <span style="flex:1;font-size:13px;font-weight:700;text-align:center">Theme</span>
+            <span style="font-size:10px;color:#6b7280">Esc</span>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:10px 16px;display:flex;flex-direction:column;gap:8px">
+
+            <div style="border:2px solid #7aa2f7;border-radius:6px;background:#1b1f27;padding:6px;box-sizing:border-box">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:11px;font-weight:700">Kind Night <span style="color:#6b7280;font-weight:400">· default</span></div>
+                <div style="color:#7aa2f7;font-size:12px">✓</div>
+              </div>
+              <div style="font-size:8px;line-height:12px;background:#1b1f27">
+                <div><span style="color:#98c379">dev@kindly</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> git status -sb</div>
+                <div><span style="color:#e5c07b">## main...origin/main</span></div>
+                <div><span style="color:#98c379">M</span><span style="color:#d8dee9"> src/render/deck.rs</span></div>
+                <div><span style="color:#6b7280">$</span> <span style="display:inline-block;width:5px;height:9px;background:#e5c07b;vertical-align:-1px"></span></div>
+              </div>
+              <div style="display:flex;gap:2px;margin-top:6px">
+                <div style="flex:1;height:8px;background:#282c34"></div><div style="flex:1;height:8px;background:#e06c75"></div><div style="flex:1;height:8px;background:#98c379"></div><div style="flex:1;height:8px;background:#e5c07b"></div><div style="flex:1;height:8px;background:#61afef"></div><div style="flex:1;height:8px;background:#c678dd"></div><div style="flex:1;height:8px;background:#56b6c2"></div><div style="flex:1;height:8px;background:#abb2bf"></div><div style="flex:1;height:8px;background:#5c6370"></div><div style="flex:1;height:8px;background:#ef7a82"></div><div style="flex:1;height:8px;background:#a6d189"></div><div style="flex:1;height:8px;background:#f0d197"></div><div style="flex:1;height:8px;background:#74bdf7"></div><div style="flex:1;height:8px;background:#d48ce6"></div><div style="flex:1;height:8px;background:#6cc7d1"></div><div style="flex:1;height:8px;background:#ffffff"></div>
+              </div>
+            </div>
+
+            <div style="border:1px solid #34405a;border-radius:6px;background:#f4f2ee;padding:6px;box-sizing:border-box">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div style="font-size:11px;font-weight:700;color:#2b2b2b">Paper <span style="color:#8a8a8a;font-weight:400">· light</span></div>
+              </div>
+              <div style="font-size:8px;line-height:12px;color:#2b2b2b">
+                <div><span style="color:#3f7d3f">dev@kindly</span><span style="color:#8a8a8a">:</span><span style="color:#2a5db0">~</span><span style="color:#8a8a8a">$</span> git status -sb</div>
+                <div><span style="color:#8a6d1f">## main...origin/main</span></div>
+                <div><span style="color:#3f7d3f">M</span> src/render/deck.rs</div>
+                <div><span style="color:#8a8a8a">$</span> <span style="display:inline-block;width:5px;height:9px;background:#2a5db0;vertical-align:-1px"></span></div>
+              </div>
+              <div style="display:flex;gap:2px;margin-top:6px">
+                <div style="flex:1;height:8px;background:#2b2b2b"></div><div style="flex:1;height:8px;background:#c1443b"></div><div style="flex:1;height:8px;background:#3f7d3f"></div><div style="flex:1;height:8px;background:#8a6d1f"></div><div style="flex:1;height:8px;background:#2a5db0"></div><div style="flex:1;height:8px;background:#8a4b9e"></div><div style="flex:1;height:8px;background:#2f7d85"></div><div style="flex:1;height:8px;background:#5c5c5c"></div><div style="flex:1;height:8px;background:#8a8a8a"></div><div style="flex:1;height:8px;background:#d9635a"></div><div style="flex:1;height:8px;background:#5c9c5c"></div><div style="flex:1;height:8px;background:#b08d2a"></div><div style="flex:1;height:8px;background:#4a7fd4"></div><div style="flex:1;height:8px;background:#a86dbd"></div><div style="flex:1;height:8px;background:#4a9ca6"></div><div style="flex:1;height:8px;background:#ffffff"></div>
+              </div>
+            </div>
+
+            <div style="border:1px solid #34405a;border-radius:6px;background:#1a1110;padding:6px;box-sizing:border-box">
+              <div style="font-size:11px;font-weight:700;margin-bottom:6px;color:#f0d0b8">Ember</div>
+              <div style="font-size:8px;line-height:12px;color:#f0d0b8">
+                <div><span style="color:#d98a3a">dev@kindly</span><span style="color:#7a5c4a">:</span><span style="color:#c9603f">~</span><span style="color:#7a5c4a">$</span> git status -sb</div>
+                <div><span style="color:#e0b04a">## main...origin/main</span></div>
+                <div><span style="color:#d98a3a">M</span> src/render/deck.rs</div>
+                <div><span style="color:#7a5c4a">$</span> <span style="display:inline-block;width:5px;height:9px;background:#ff7043;vertical-align:-1px"></span></div>
+              </div>
+              <div style="display:flex;gap:2px;margin-top:6px">
+                <div style="flex:1;height:8px;background:#1a1110"></div><div style="flex:1;height:8px;background:#c9603f"></div><div style="flex:1;height:8px;background:#a8912f"></div><div style="flex:1;height:8px;background:#e0b04a"></div><div style="flex:1;height:8px;background:#b06a3a"></div><div style="flex:1;height:8px;background:#a1566d"></div><div style="flex:1;height:8px;background:#8a7f5a"></div><div style="flex:1;height:8px;background:#f0d0b8"></div><div style="flex:1;height:8px;background:#7a5c4a"></div><div style="flex:1;height:8px;background:#ff7043"></div><div style="flex:1;height:8px;background:#cbb14a"></div><div style="flex:1;height:8px;background:#ffd479"></div><div style="flex:1;height:8px;background:#d98a3a"></div><div style="flex:1;height:8px;background:#d1798f"></div><div style="flex:1;height:8px;background:#b0a678"></div><div style="flex:1;height:8px;background:#fff6ee"></div>
+              </div>
+            </div>
+
+            <div style="border:1px solid #34405a;border-radius:6px;background:#282828;padding:6px;box-sizing:border-box">
+              <div style="font-size:11px;font-weight:700;margin-bottom:6px;color:#ebdbb2">Gruvbox</div>
+              <div style="font-size:8px;line-height:12px;color:#ebdbb2">
+                <div><span style="color:#b8bb26">dev@kindly</span><span style="color:#928374">:</span><span style="color:#83a598">~</span><span style="color:#928374">$</span> git status -sb</div>
+                <div><span style="color:#fabd2f">## main...origin/main</span></div>
+                <div><span style="color:#b8bb26">M</span> src/render/deck.rs</div>
+                <div><span style="color:#928374">$</span> <span style="display:inline-block;width:5px;height:9px;background:#fe8019;vertical-align:-1px"></span></div>
+              </div>
+              <div style="display:flex;gap:2px;margin-top:6px">
+                <div style="flex:1;height:8px;background:#282828"></div><div style="flex:1;height:8px;background:#cc241d"></div><div style="flex:1;height:8px;background:#98971a"></div><div style="flex:1;height:8px;background:#d79921"></div><div style="flex:1;height:8px;background:#458588"></div><div style="flex:1;height:8px;background:#b16286"></div><div style="flex:1;height:8px;background:#689d6a"></div><div style="flex:1;height:8px;background:#a89984"></div><div style="flex:1;height:8px;background:#928374"></div><div style="flex:1;height:8px;background:#fb4934"></div><div style="flex:1;height:8px;background:#b8bb26"></div><div style="flex:1;height:8px;background:#fabd2f"></div><div style="flex:1;height:8px;background:#83a598"></div><div style="flex:1;height:8px;background:#d3869b"></div><div style="flex:1;height:8px;background:#8ec07c"></div><div style="flex:1;height:8px;background:#ebdbb2"></div>
+              </div>
+            </div>
+
+            <div style="border:1px solid #34405a;border-radius:6px;background:#002b36;padding:6px;box-sizing:border-box">
+              <div style="font-size:11px;font-weight:700;margin-bottom:6px;color:#93a1a1">Solarized Dark</div>
+              <div style="font-size:8px;line-height:12px;color:#93a1a1">
+                <div><span style="color:#859900">dev@kindly</span><span style="color:#586e75">:</span><span style="color:#268bd2">~</span><span style="color:#586e75">$</span> git status -sb</div>
+                <div><span style="color:#b58900">## main...origin/main</span></div>
+                <div><span style="color:#859900">M</span> src/render/deck.rs</div>
+                <div><span style="color:#586e75">$</span> <span style="display:inline-block;width:5px;height:9px;background:#cb4b16;vertical-align:-1px"></span></div>
+              </div>
+              <div style="display:flex;gap:2px;margin-top:6px">
+                <div style="flex:1;height:8px;background:#073642"></div><div style="flex:1;height:8px;background:#dc322f"></div><div style="flex:1;height:8px;background:#859900"></div><div style="flex:1;height:8px;background:#b58900"></div><div style="flex:1;height:8px;background:#268bd2"></div><div style="flex:1;height:8px;background:#d33682"></div><div style="flex:1;height:8px;background:#2aa198"></div><div style="flex:1;height:8px;background:#eee8d5"></div><div style="flex:1;height:8px;background:#586e75"></div><div style="flex:1;height:8px;background:#cb4b16"></div><div style="flex:1;height:8px;background:#93a1a1"></div><div style="flex:1;height:8px;background:#839496"></div><div style="flex:1;height:8px;background:#657b83"></div><div style="flex:1;height:8px;background:#6c71c4"></div><div style="flex:1;height:8px;background:#93a1a1"></div><div style="flex:1;height:8px;background:#fdf6e3"></div>
+              </div>
+            </div>
+
+            <div style="border:1px solid #34405a;border-radius:6px;background:#1e1e2e;padding:6px;box-sizing:border-box">
+              <div style="font-size:11px;font-weight:700;margin-bottom:6px;color:#cdd6f4">Catppuccin Mocha</div>
+              <div style="font-size:8px;line-height:12px;color:#cdd6f4">
+                <div><span style="color:#a6e3a1">dev@kindly</span><span style="color:#6c7086">:</span><span style="color:#89b4fa">~</span><span style="color:#6c7086">$</span> git status -sb</div>
+                <div><span style="color:#f9e2af">## main...origin/main</span></div>
+                <div><span style="color:#a6e3a1">M</span> src/render/deck.rs</div>
+                <div><span style="color:#6c7086">$</span> <span style="display:inline-block;width:5px;height:9px;background:#f5e0dc;vertical-align:-1px"></span></div>
+              </div>
+              <div style="display:flex;gap:2px;margin-top:6px">
+                <div style="flex:1;height:8px;background:#45475a"></div><div style="flex:1;height:8px;background:#f38ba8"></div><div style="flex:1;height:8px;background:#a6e3a1"></div><div style="flex:1;height:8px;background:#f9e2af"></div><div style="flex:1;height:8px;background:#89b4fa"></div><div style="flex:1;height:8px;background:#f5c2e7"></div><div style="flex:1;height:8px;background:#94e2d5"></div><div style="flex:1;height:8px;background:#bac2de"></div><div style="flex:1;height:8px;background:#585b70"></div><div style="flex:1;height:8px;background:#f38ba8"></div><div style="flex:1;height:8px;background:#a6e3a1"></div><div style="flex:1;height:8px;background:#f9e2af"></div><div style="flex:1;height:8px;background:#89b4fa"></div><div style="flex:1;height:8px;background:#f5c2e7"></div><div style="flex:1;height:8px;background:#94e2d5"></div><div style="flex:1;height:8px;background:#a6adc8"></div>
+              </div>
+            </div>
+
+            <div style="border:1px dashed #34405a;border-radius:6px;padding:0 10px;height:36px;display:flex;align-items:center;gap:10px;box-sizing:border-box">
+              <div style="width:22px;height:22px;border-radius:6px;background:#2a3040;border:1px solid #34405a;color:#7aa2f7;display:flex;align-items:center;justify-content:center;font-size:12px">◐</div>
+              <div style="flex:1;font-size:12px;color:#abb2bf">Custom…</div>
+              <div style="font-size:10px;color:#6b7280">edit ~/.config/kindterm/theme.toml</div>
+            </div>
+          </div>
+          <div style="height:36px;border-top:1px solid #34405a;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:10px;color:#6b7280">
+            <span>↑↓ move · ⏎ apply</span><span>live preview behind panel</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 04 FONT & SIZE ============ -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">04 · APPEARANCE → FONT &amp; SIZE</div>
+      <div data-screen-label="04" style="position:relative;width:1280px;height:800px;background:#1b1f27;border:1px solid #34405a;overflow:hidden">
+        <div style="display:flex;align-items:stretch;height:40px;background:#12151b;border-bottom:1px solid #34405a;font-size:12px">
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;background:#1b1f27;border-top:2px solid #7aa2f7;border-right:1px solid #34405a"><span style="color:#98c379">1</span><span>ssh homelab</span><span style="color:#6b7280">×</span></div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;padding:0 14px;font-size:11px;color:#6b7280">12:05</div>
+        </div>
+        <div style="padding:18px 20px 18px 400px;font-size:15px;line-height:24px;color:#d8dee9">
+          <div style="color:#6b7280;font-size:11px;margin-bottom:8px">— live: the shell re-renders at the new metrics as you step —</div>
+          <div><span style="color:#98c379">dev@kindly</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> ls -la</div>
+          <div><span style="color:#61afef">drwxr-xr-x</span>  4 dev dev  4096 Sep  8 11:41 <span style="color:#61afef">src</span></div>
+          <div><span style="color:#abb2bf">-rw-r--r--</span>  1 dev dev 21134 Sep  8 12:02 Cargo.lock</div>
+          <div><span style="color:#98c379">-rwxr-xr-x</span>  1 dev dev  8.1M Sep  8 12:03 <span style="color:#98c379">kindterm</span></div>
+        </div>
+        <div style="position:absolute;left:360px;top:40px;right:0;bottom:0;background:rgba(18,21,27,0.55)"></div>
+
+        <div style="position:absolute;left:0;top:40px;width:360px;bottom:0;background:#232833;border-right:1px solid #34405a;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-bottom:1px solid #34405a">
+            <span style="color:#7aa2f7;font-size:13px">‹</span><span style="font-size:12px;color:#7aa2f7">Appearance</span>
+            <span style="flex:1;font-size:13px;font-weight:700;text-align:center">Font &amp; Size</span>
+            <span style="font-size:10px;color:#6b7280">Esc</span>
+          </div>
+
+          <div style="padding:12px 16px 0 16px">
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px">
+              <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em;margin-bottom:8px">PREVIEW · 13 / 1.2</div>
+              <div style="font-size:13px;line-height:20px">
+                <div><span style="color:#98c379">dev@kindly</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> ls -la</div>
+                <div style="color:#abb2bf">┃ 0O1lI| → λ ≠ ≈ 🚀</div>
+                <div><span style="color:#e5c07b">fn</span> <span style="color:#61afef">main</span>() -&gt; <span style="color:#c678dd">Result</span>&lt;()&gt; { <span style="display:inline-block;width:8px;height:15px;background:#e5c07b;vertical-align:-3px"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:12px 16px 0 16px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;height:28px;padding:0 10px;background:#1b1f27;border:1px solid #34405a;border-radius:4px">
+              <span style="color:#7aa2f7;font-size:12px">❯</span><span style="flex:1;font-size:11px;color:#d8dee9">mono</span><span style="font-size:10px;color:#6b7280">8 of 34</span>
+            </div>
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+              <div style="display:flex;align-items:center;height:28px;padding:0 10px;border-bottom:1px solid #232833;border-left:3px solid #7aa2f7;font-family:'JetBrains Mono',monospace">
+                <span style="flex:1;font-size:12px">JetBrains Mono</span><span style="font-size:10px;color:#6b7280">0O1lI| ✓</span>
+              </div>
+              <div style="display:flex;align-items:center;height:28px;padding:0 10px;border-bottom:1px solid #232833;background:#2a3040;font-family:'IBM Plex Mono',monospace">
+                <span style="flex:1;font-size:12px">IBM Plex Mono</span><span style="font-size:10px;color:#6b7280">0O1lI|</span>
+              </div>
+              <div style="display:flex;align-items:center;height:28px;padding:0 10px;border-bottom:1px solid #232833;font-family:'Fira Code',monospace">
+                <span style="flex:1;font-size:12px">Fira Code</span><span style="font-size:10px;color:#6b7280">0O1lI|</span>
+              </div>
+              <div style="display:flex;align-items:center;height:28px;padding:0 10px;border-bottom:1px solid #232833;font-family:'Source Code Pro',monospace">
+                <span style="flex:1;font-size:12px">Source Code Pro</span><span style="font-size:10px;color:#6b7280">0O1lI|</span>
+              </div>
+              <div style="display:flex;align-items:center;height:28px;padding:0 10px;border-bottom:1px solid #232833;font-family:'Space Mono',monospace">
+                <span style="flex:1;font-size:12px">Space Mono</span><span style="font-size:10px;color:#6b7280">0O1lI|</span>
+              </div>
+              <div style="display:flex;align-items:center;height:28px;padding:0 10px;border-bottom:1px solid #232833;font-family:'DejaVu Sans Mono',monospace">
+                <span style="flex:1;font-size:12px">DejaVu Sans Mono</span><span style="font-size:10px;color:#6b7280">0O1lI|</span>
+              </div>
+              <div style="display:flex;align-items:center;height:28px;padding:0 10px;border-bottom:1px solid #232833;font-family:Menlo,monospace">
+                <span style="flex:1;font-size:12px">Menlo</span><span style="font-size:10px;color:#6b7280">0O1lI|</span>
+              </div>
+              <div style="display:flex;align-items:center;height:28px;padding:0 10px;font-family:'Courier New',monospace">
+                <span style="flex:1;font-size:12px">Courier New</span><span style="font-size:10px;color:#6b7280">0O1lI|</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:12px 16px 0 16px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">METRICS</div>
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="flex:1;font-size:12px">Size</div>
+                <div style="display:flex;align-items:center;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+                  <div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#abb2bf;border-right:1px solid #34405a">−</div>
+                  <div style="width:34px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px">13</div>
+                  <div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#7aa2f7;border-left:1px solid #34405a;background:#2a3040">+</div>
+                </div>
+              </div>
+              <div style="position:relative;height:4px;background:#34405a;border-radius:4px">
+                <div style="position:absolute;left:0;top:0;height:4px;width:38%;background:#7aa2f7;border-radius:4px"></div>
+                <div style="position:absolute;left:38%;top:-5px;width:12px;height:14px;margin-left:-6px;border-radius:4px;background:#d8dee9"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;color:#6b7280"><span>8</span><span>13 pt</span><span>24</span></div>
+              <div style="display:flex;align-items:center;gap:10px;border-top:1px solid #232833;padding-top:10px">
+                <div style="flex:1;font-size:12px">Line spacing</div>
+                <div style="display:flex;align-items:center;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+                  <div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#abb2bf;border-right:1px solid #34405a">−</div>
+                  <div style="width:34px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px">1.2</div>
+                  <div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:#abb2bf;border-left:1px solid #34405a">+</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;border-top:1px solid #232833;padding-top:10px">
+                <div style="flex:1;font-size:12px">Ligatures <span style="color:#6b7280">-&gt; != &gt;=</span></div>
+                <div style="width:34px;height:18px;border-radius:6px;background:#7aa2f7;display:flex;align-items:center;justify-content:flex-end;padding:2px;box-sizing:border-box">
+                  <div style="width:14px;height:14px;border-radius:4px;background:#12151b"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:1"></div>
+          <div style="height:36px;border-top:1px solid #34405a;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:10px;color:#6b7280">
+            <span>Ctrl+= / Ctrl+− size</span><span>applies live</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 05 SHORTCUT EDITOR ============ -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">05 · SHORTCUT EDITOR</div>
+      <div data-screen-label="05" style="position:relative;width:1280px;height:800px;background:#1b1f27;border:1px solid #34405a;overflow:hidden">
+        <div style="display:flex;align-items:stretch;height:40px;background:#12151b;border-bottom:1px solid #34405a;font-size:12px">
+          <div style="display:flex;align-items:center;gap:9px;padding:0 14px;background:#1b1f27;border-top:2px solid #7aa2f7;border-right:1px solid #34405a"><span style="color:#98c379">1</span><span>ssh homelab</span><span style="color:#6b7280">×</span></div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;padding:0 14px;font-size:11px;color:#6b7280">12:07</div>
+        </div>
+        <div style="padding:18px 20px 18px 400px;font-size:13px;line-height:20px;color:#abb2bf">
+          <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">~</span><span style="color:#6b7280">$</span> tmux ls</div>
+          <div>main: 3 windows (created Tue Jul 29 08:12:02 2026)</div>
+          <div>edge: 1 window  (created Fri Aug  8 19:44:51 2026)</div>
+        </div>
+        <div style="position:absolute;left:360px;top:40px;right:0;bottom:0;background:rgba(18,21,27,0.55)"></div>
+
+        <div style="position:absolute;left:0;top:40px;width:360px;bottom:0;background:#232833;border-right:1px solid #34405a;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;border-bottom:1px solid #34405a">
+            <span style="color:#7aa2f7;font-size:13px">‹</span><span style="font-size:12px;color:#7aa2f7">Manage</span>
+            <span style="flex:1;font-size:13px;font-weight:700;text-align:center">Edit shortcut</span>
+            <span style="font-size:10px;color:#6b7280">⌘S</span>
+          </div>
+
+          <div style="flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="width:60px;height:60px;border-radius:6px;background:#61afef;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:28px;outline:2px solid #7aa2f7;outline-offset:3px">⌂</div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+                <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em">GLYPH</div>
+                <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px">
+                  <div style="height:22px;border-radius:4px;background:#34405a;color:#d8dee9;display:flex;align-items:center;justify-content:center;font-size:12px;border:1px solid #7aa2f7">⌂</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">▤</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">⛁</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">≡</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">∿</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">⚒</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">☁</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">⚿</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">⚷</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">❯</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">⚙</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">◐</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">⌨</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">⎘</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">▦</div>
+                  <div style="height:22px;border-radius:4px;background:#1b1f27;color:#abb2bf;display:flex;align-items:center;justify-content:center;font-size:12px">★</div>
+                </div>
+                <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em;margin-top:2px">BADGE COLOR</div>
+                <div style="display:flex;gap:4px">
+                  <div style="flex:1;height:14px;border-radius:4px;background:#e06c75"></div><div style="flex:1;height:14px;border-radius:4px;background:#98c379"></div><div style="flex:1;height:14px;border-radius:4px;background:#e5c07b"></div><div style="flex:1;height:14px;border-radius:4px;background:#61afef;outline:2px solid #7aa2f7;outline-offset:2px"></div><div style="flex:1;height:14px;border-radius:4px;background:#c678dd"></div><div style="flex:1;height:14px;border-radius:4px;background:#56b6c2"></div><div style="flex:1;height:14px;border-radius:4px;background:#abb2bf"></div><div style="flex:1;height:14px;border-radius:4px;background:#ef7a82"></div><div style="flex:1;height:14px;border-radius:4px;background:#a6d189"></div><div style="flex:1;height:14px;border-radius:4px;background:#74bdf7"></div><div style="flex:1;height:14px;border-radius:4px;background:#d48ce6"></div><div style="flex:1;height:14px;border-radius:4px;background:#6cc7d1"></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em">NAME</div>
+              <div style="height:28px;padding:0 10px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;display:flex;align-items:center;font-size:12px">homelab</div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em">COMMAND</div>
+                <div style="display:flex;align-items:center;gap:6px;border:1px solid #98c379;border-radius:4px;padding:1px 6px">
+                  <span style="font-size:9px;color:#98c379">HOST</span><span style="font-size:9px;color:#abb2bf">homelab.lan</span>
+                </div>
+              </div>
+              <div style="min-height:64px;padding:8px 10px;background:#1b1f27;border:1px solid #7aa2f7;border-radius:4px;font-size:12px;line-height:18px">
+                <div><span style="color:#98c379">ssh</span> -A dev@<span style="color:#74bdf7">homelab.lan</span> \</div>
+                <div>  -t <span style="color:#e5c07b">"tmux new -As main"</span><span style="display:inline-block;width:7px;height:14px;background:#e5c07b;vertical-align:-2px;margin-left:1px;animation:ktcaret 1.1s step-end infinite"></span></div>
+              </div>
+              <div style="font-size:9px;color:#6b7280">host auto-detected from ssh user@host</div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em">WORKING DIRECTORY</div>
+              <div style="height:28px;padding:0 10px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;display:flex;align-items:center;font-size:12px;color:#abb2bf">~/srv <span style="color:#6b7280;margin-left:8px">(remote)</span></div>
+            </div>
+
+            <div style="background:#1b1f27;border:1px solid #34405a;border-radius:4px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-bottom:1px solid #232833">
+                <div style="flex:1;font-size:12px">Keep tab open after exit</div>
+                <div style="width:34px;height:18px;border-radius:6px;background:#7aa2f7;display:flex;align-items:center;justify-content:flex-end;padding:2px;box-sizing:border-box"><div style="width:14px;height:14px;border-radius:4px;background:#12151b"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;height:32px;padding:0 10px">
+                <div style="flex:1;font-size:12px">Confirm before running</div>
+                <div style="width:34px;height:18px;border-radius:6px;background:#34405a;display:flex;align-items:center;padding:2px;box-sizing:border-box"><div style="width:14px;height:14px;border-radius:4px;background:#6b7280"></div></div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:5px">
+              <div style="font-size:9px;color:#6b7280;letter-spacing:0.14em">HOTKEY</div>
+              <div style="display:flex;gap:8px">
+                <div style="flex:1;height:28px;padding:0 10px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;display:flex;align-items:center;justify-content:space-between">
+                  <span style="font-size:12px">Alt+H</span><span style="font-size:9px;color:#6b7280">bound</span>
+                </div>
+                <div style="flex:1;height:28px;padding:0 10px;background:#1b1f27;border:1px solid #7aa2f7;border-radius:4px;display:flex;align-items:center;justify-content:space-between;animation:ktbind 1.2s ease-in-out infinite">
+                  <span style="font-size:11px;color:#7aa2f7">press keys to bind…</span><span style="font-size:9px;color:#6b7280">Esc</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="height:30px;border:1px solid #e06c75;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#e06c75">Delete shortcut</div>
+          </div>
+
+          <div style="height:52px;border-top:1px solid #34405a;display:flex;align-items:center;gap:10px;padding:0 16px">
+            <div style="flex:1;height:30px;border:1px solid #34405a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#abb2bf">Cancel <span style="color:#6b7280;margin-left:8px;font-size:9px">Esc</span></div>
+            <div style="flex:1;height:30px;border-radius:4px;background:#7aa2f7;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">Save <span style="margin-left:8px;font-size:9px;font-weight:400">⏎</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 06 KEYBOARD WALKTHROUGH ============ -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">06 · KEYBOARD-ONLY WALKTHROUGH</div>
+      <div data-screen-label="06" style="position:relative;width:1280px;height:800px;background:#1b1f27;border:1px solid #34405a;overflow:hidden;padding:40px;box-sizing:border-box">
+        <div style="font-size:18px;font-weight:700;margin-bottom:6px">Hands never leave the keyboard</div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:28px">Four keystrokes from a live shell to a connected host. The Deck never covers more than 40% of the window.</div>
+
+        <div style="display:flex;align-items:stretch;gap:16px">
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:4px;background:#7aa2f7;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">1</span><span style="font-size:11px;color:#7aa2f7">Ctrl+Shift+,</span></div>
+            <div style="height:248px;background:#1b1f27;border:1px solid #34405a;position:relative;overflow:hidden">
+              <div style="height:20px;background:#12151b;border-bottom:1px solid #34405a;display:flex;align-items:center;padding:0 6px;gap:6px;font-size:8px"><span style="color:#98c379">1</span><span style="color:#d8dee9">ssh homelab</span><span style="flex:1"></span><span style="color:#7aa2f7">⚙</span></div>
+              <div style="padding:8px;font-size:8px;line-height:12px;color:#abb2bf">
+                <div><span style="color:#98c379">dev@kindly</span><span style="color:#6b7280">:~$</span> htop</div>
+                <div>1 [<span style="color:#98c379">||||||</span>   12%]</div>
+                <div>2 [<span style="color:#98c379">|||</span>       7%]</div>
+              </div>
+              <div style="position:absolute;left:0;top:20px;width:140px;bottom:0;background:#232833;border-right:1px solid #7aa2f7;padding:6px;box-sizing:border-box">
+                <div style="height:16px;border:1px solid #7aa2f7;border-radius:4px;display:flex;align-items:center;padding:0 4px;gap:4px;font-size:7px;color:#6b7280"><span style="color:#7aa2f7">❯</span>type to filter</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px">
+                  <div style="height:24px;border-radius:4px;background:#61afef"></div><div style="height:24px;border-radius:4px;background:#e06c75"></div><div style="height:24px;border-radius:4px;background:#e5c07b"></div><div style="height:24px;border-radius:4px;background:#98c379"></div>
+                  <div style="height:24px;border-radius:4px;background:#c678dd"></div><div style="height:24px;border-radius:4px;background:#2a3040"></div><div style="height:24px;border-radius:4px;background:#2a3040"></div><div style="height:24px;border-radius:4px;border:1px dashed #34405a;box-sizing:border-box"></div>
+                </div>
+                <div style="margin-top:10px;display:flex;flex-direction:column;gap:4px">
+                  <div style="height:12px;background:#1b1f27;border:1px solid #34405a;border-radius:3px"></div>
+                  <div style="height:12px;background:#1b1f27;border:1px solid #34405a;border-radius:3px"></div>
+                  <div style="height:12px;background:#1b1f27;border:1px solid #34405a;border-radius:3px"></div>
+                </div>
+              </div>
+              <div style="position:absolute;left:140px;top:20px;right:0;bottom:0;background:rgba(18,21,27,0.55)"></div>
+            </div>
+            <div style="font-size:11px">Deck slides in over 160 ms</div>
+            <div style="font-size:10px;color:#6b7280">Search takes focus. Terminal keeps running behind the dim.</div>
+          </div>
+
+          <div style="display:flex;align-items:center;color:#34405a;font-size:20px;padding-top:114px">→</div>
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:4px;background:#7aa2f7;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">2</span><span style="font-size:11px;color:#7aa2f7">h o m</span></div>
+            <div style="height:248px;background:#1b1f27;border:1px solid #34405a;position:relative;overflow:hidden">
+              <div style="height:20px;background:#12151b;border-bottom:1px solid #34405a;display:flex;align-items:center;padding:0 6px;gap:6px;font-size:8px"><span style="color:#98c379">1</span><span style="color:#d8dee9">ssh homelab</span><span style="flex:1"></span><span style="color:#7aa2f7">⚙</span></div>
+              <div style="padding:8px;font-size:8px;line-height:12px;color:#abb2bf"><div><span style="color:#98c379">dev@kindly</span><span style="color:#6b7280">:~$</span> htop</div></div>
+              <div style="position:absolute;left:0;top:20px;width:140px;bottom:0;background:#232833;border-right:1px solid #7aa2f7;padding:6px;box-sizing:border-box">
+                <div style="height:16px;border:1px solid #7aa2f7;border-radius:4px;display:flex;align-items:center;padding:0 4px;gap:3px;font-size:7px"><span style="color:#7aa2f7">❯</span><span style="color:#d8dee9">hom</span><span style="display:inline-block;width:3px;height:8px;background:#e5c07b"></span></div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px">
+                  <div style="height:24px;border-radius:4px;background:#61afef;outline:2px solid #7aa2f7;outline-offset:2px"></div>
+                </div>
+                <div style="font-size:7px;color:#6b7280;margin-top:10px">1 match · <span style="color:#abb2bf">homelab</span></div>
+                <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
+                  <div style="height:12px;background:#1b1f27;border:1px solid #232833;border-radius:3px;opacity:0.4"></div>
+                  <div style="height:12px;background:#1b1f27;border:1px solid #232833;border-radius:3px;opacity:0.4"></div>
+                </div>
+              </div>
+              <div style="position:absolute;left:140px;top:20px;right:0;bottom:0;background:rgba(18,21,27,0.55)"></div>
+            </div>
+            <div style="font-size:11px">Type-to-filter narrows tiles and rows</div>
+            <div style="font-size:10px;color:#6b7280">Non-matching settings rows drop to 40%. Focus ring follows the top match.</div>
+          </div>
+
+          <div style="display:flex;align-items:center;color:#34405a;font-size:20px;padding-top:114px">→</div>
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:4px;background:#7aa2f7;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">3</span><span style="font-size:11px;color:#7aa2f7">⌥⏎</span></div>
+            <div style="height:248px;background:#1b1f27;border:1px solid #34405a;position:relative;overflow:hidden">
+              <div style="height:20px;background:#12151b;border-bottom:1px solid #34405a;display:flex;align-items:center;padding:0 6px;gap:6px;font-size:8px">
+                <span style="color:#6b7280">1</span><span style="color:#6b7280">ssh homelab</span>
+                <span style="color:#98c379;border-top:1px solid #7aa2f7">2</span><span style="color:#d8dee9">homelab</span><span style="flex:1"></span><span style="color:#7aa2f7">⚙</span>
+              </div>
+              <div style="padding:8px;font-size:8px;line-height:12px">
+                <div><span style="color:#98c379">dev@kindly</span><span style="color:#6b7280">:~$</span> ssh -A dev@homelab.lan -t "tmux new -As main"</div>
+                <div style="color:#6b7280">Warning: Permanently added 'homelab.lan' to known hosts.</div>
+                <div style="color:#abb2bf">Linux homelab 6.9.4-arch1 x86_64</div>
+                <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">~/srv</span><span style="color:#6b7280">$</span> <span style="display:inline-block;width:4px;height:8px;background:#e5c07b"></span></div>
+              </div>
+              <div style="position:absolute;left:0;top:20px;width:70px;bottom:0;background:#232833;border-right:1px solid #34405a;opacity:0.45"></div>
+            </div>
+            <div style="font-size:11px">Enter launches in a new tab</div>
+            <div style="font-size:10px;color:#6b7280">Deck retracts as the tab opens; the new tab takes the shortcut's name.</div>
+          </div>
+
+          <div style="display:flex;align-items:center;color:#34405a;font-size:20px;padding-top:114px">→</div>
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:18px;border-radius:4px;background:#7aa2f7;color:#12151b;font-size:10px;display:flex;align-items:center;justify-content:center">4</span><span style="font-size:11px;color:#6b7280">— no keys —</span></div>
+            <div style="height:248px;background:#1b1f27;border:1px solid #34405a;position:relative;overflow:hidden">
+              <div style="height:20px;background:#12151b;border-bottom:1px solid #34405a;display:flex;align-items:center;padding:0 6px;gap:6px;font-size:8px">
+                <span style="color:#6b7280">1</span><span style="color:#6b7280">ssh homelab</span>
+                <span style="color:#98c379;border-top:1px solid #7aa2f7">2</span><span style="color:#d8dee9">homelab</span><span style="flex:1"></span><span style="color:#6b7280">⚙</span>
+              </div>
+              <div style="padding:8px;font-size:8px;line-height:12px">
+                <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">~/srv</span><span style="color:#6b7280">$</span> uptime</div>
+                <div style="color:#abb2bf"> 12:08:03 up 41 days,  2:11,  1 user</div>
+                <div><span style="color:#98c379">dev@homelab</span><span style="color:#6b7280">:</span><span style="color:#61afef">~/srv</span><span style="color:#6b7280">$</span> <span style="display:inline-block;width:4px;height:8px;background:#e5c07b"></span></div>
+              </div>
+              <div style="position:absolute;left:8px;bottom:8px;right:8px;height:24px;background:#232833;border:1px solid #98c379;border-radius:4px;display:flex;align-items:center;gap:6px;padding:0 8px">
+                <div style="width:14px;height:14px;border-radius:4px;background:#98c379;color:#12151b;font-size:8px;display:flex;align-items:center;justify-content:center">⌂</div>
+                <div style="font-size:8px;color:#d8dee9">connected: homelab</div>
+                <div style="flex:1"></div>
+                <div style="font-size:7px;color:#6b7280">2.1 s</div>
+              </div>
+            </div>
+            <div style="font-size:11px">Deck closed, toast confirms</div>
+            <div style="font-size:10px;color:#6b7280">Toast is a flat rect with a 1 px green border; auto-dismisses in 2.1 s.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:24px;margin-top:26px;font-size:10px;color:#6b7280">
+          <span><span style="color:#7aa2f7">Esc</span> one level up · closes Deck from Home</span>
+          <span><span style="color:#7aa2f7">↑↓←→</span> move focus across tiles and rows</span>
+          <span><span style="color:#7aa2f7">Tab</span> jumps section: search → tiles → settings → footer</span>
+          <span>every hint is right-aligned muted text, never a tooltip</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ TOKENS ============ -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">TOKENS</div>
+      <div data-screen-label="Tokens" style="width:1280px;height:800px;background:#12151b;border:1px solid #34405a;padding:40px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px">
+        <div style="display:flex;align-items:baseline;gap:12px">
+          <div style="font-size:18px;font-weight:700">Tokens</div>
+          <div style="font-size:11px;color:#6b7280">maps 1:1 to ~/.config/kindterm/config.toml</div>
+        </div>
+
+        <div style="display:flex;gap:32px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">SURFACE &amp; INK</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:24px;border-radius:6px;background:#1b1f27;border:1px solid #34405a"></div><div style="flex:1;font-size:11px">background</div><div style="font-size:11px;color:#6b7280">#1b1f27</div></div>
+              <div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:24px;border-radius:6px;background:#12151b;border:1px solid #34405a"></div><div style="flex:1;font-size:11px">tab bar</div><div style="font-size:11px;color:#6b7280">#12151b</div></div>
+              <div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:24px;border-radius:6px;background:#232833"></div><div style="flex:1;font-size:11px">panel</div><div style="font-size:11px;color:#6b7280">#232833</div></div>
+              <div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:24px;border-radius:6px;background:#2a3040"></div><div style="flex:1;font-size:11px">hover</div><div style="font-size:11px;color:#6b7280">#2a3040</div></div>
+              <div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:24px;border-radius:6px;background:#34405a"></div><div style="flex:1;font-size:11px">highlight / border</div><div style="font-size:11px;color:#6b7280">#34405a</div></div>
+              <div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:24px;border-radius:6px;background:#d8dee9"></div><div style="flex:1;font-size:11px">foreground</div><div style="font-size:11px;color:#6b7280">#d8dee9</div></div>
+              <div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:24px;border-radius:6px;background:#6b7280"></div><div style="flex:1;font-size:11px">muted</div><div style="font-size:11px;color:#6b7280">#6b7280</div></div>
+              <div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:24px;border-radius:6px;background:#7aa2f7"></div><div style="flex:1;font-size:11px">accent</div><div style="font-size:11px;color:#6b7280">#7aa2f7</div></div>
+              <div style="display:flex;align-items:center;gap:10px"><div style="width:40px;height:24px;border-radius:6px;background:#e5c07b"></div><div style="flex:1;font-size:11px">cursor</div><div style="font-size:11px;color:#6b7280">#e5c07b</div></div>
+            </div>
+          </div>
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">ANSI · NORMAL</div>
+            <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px">
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#282c34;border:1px solid #34405a"></div><div style="font-size:8px;color:#6b7280">0 #282c34</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#e06c75"></div><div style="font-size:8px;color:#6b7280">1 #e06c75</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#98c379"></div><div style="font-size:8px;color:#6b7280">2 #98c379</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#e5c07b"></div><div style="font-size:8px;color:#6b7280">3 #e5c07b</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#61afef"></div><div style="font-size:8px;color:#6b7280">4 #61afef</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#c678dd"></div><div style="font-size:8px;color:#6b7280">5 #c678dd</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#56b6c2"></div><div style="font-size:8px;color:#6b7280">6 #56b6c2</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#abb2bf"></div><div style="font-size:8px;color:#6b7280">7 #abb2bf</div></div>
+            </div>
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;margin-top:6px">ANSI · BRIGHT</div>
+            <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px">
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#5c6370"></div><div style="font-size:8px;color:#6b7280">8 #5c6370</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#ef7a82"></div><div style="font-size:8px;color:#6b7280">9 #ef7a82</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#a6d189"></div><div style="font-size:8px;color:#6b7280">10 #a6d189</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#f0d197"></div><div style="font-size:8px;color:#6b7280">11 #f0d197</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#74bdf7"></div><div style="font-size:8px;color:#6b7280">12 #74bdf7</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#d48ce6"></div><div style="font-size:8px;color:#6b7280">13 #d48ce6</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#6cc7d1"></div><div style="font-size:8px;color:#6b7280">14 #6cc7d1</div></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><div style="height:34px;border-radius:6px;background:#ffffff"></div><div style="font-size:8px;color:#6b7280">15 #ffffff</div></div>
+            </div>
+
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;margin-top:10px">STATES</div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;height:30px;border-radius:4px;background:#1b1f27;border:1px solid #34405a;display:flex;align-items:center;justify-content:center;font-size:9px;color:#abb2bf">default</div>
+              <div style="flex:1;height:30px;border-radius:4px;background:#2a3040;border:1px solid #34405a;display:flex;align-items:center;justify-content:center;font-size:9px">hover</div>
+              <div style="flex:1;height:30px;border-radius:4px;background:#1b1f27;border:2px solid #7aa2f7;display:flex;align-items:center;justify-content:center;font-size:9px;box-sizing:border-box">focus</div>
+              <div style="flex:1;height:30px;border-radius:4px;background:#1b1f27;border-left:3px solid #7aa2f7;display:flex;align-items:center;justify-content:center;font-size:9px">selected</div>
+              <div style="flex:1;height:30px;border-radius:4px;background:#1b1f27;border:1px solid #34405a;display:flex;align-items:center;justify-content:center;font-size:9px;color:#6b7280;opacity:0.5">disabled</div>
+              <div style="flex:1;height:30px;border-radius:4px;background:#1b1f27;border:1px solid #e06c75;display:flex;align-items:center;justify-content:center;font-size:9px;color:#e06c75">destructive</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:32px;border-top:1px solid #232833;padding-top:20px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">SPACING · 8 PX SCALE</div>
+            <div style="display:flex;align-items:flex-end;gap:8px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:4px;height:20px;background:#7aa2f7"></div><div style="font-size:8px;color:#6b7280">4</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:8px;height:20px;background:#7aa2f7"></div><div style="font-size:8px;color:#6b7280">8</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:16px;height:20px;background:#7aa2f7"></div><div style="font-size:8px;color:#6b7280">16</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:24px;height:20px;background:#7aa2f7"></div><div style="font-size:8px;color:#6b7280">24</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:32px;height:20px;background:#7aa2f7"></div><div style="font-size:8px;color:#6b7280">32</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:48px;height:20px;background:#7aa2f7"></div><div style="font-size:8px;color:#6b7280">48</div></div>
+            </div>
+            <div style="font-size:9px;color:#6b7280">cell grid 8 × 16 px · panel 360 = 45 cells · rows 30 px · badges 24 px</div>
+
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;margin-top:10px">RADII</div>
+            <div style="display:flex;gap:10px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:34px;height:34px;background:#34405a;border-radius:4px"></div><div style="font-size:8px;color:#6b7280">4 rows</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:34px;height:34px;background:#34405a;border-radius:6px"></div><div style="font-size:8px;color:#6b7280">6 tiles</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:34px;height:34px;background:#34405a;border-radius:8px"></div><div style="font-size:8px;color:#6b7280">8 max</div></div>
+            </div>
+
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em;margin-top:10px">MOTION</div>
+            <div style="font-size:10px;color:#abb2bf;line-height:18px">
+              <div>deck slide-in <span style="color:#6b7280">160 ms ease-out, x −360 → 0</span></div>
+              <div>page push <span style="color:#6b7280">120 ms ease-out, x 24 → 0</span></div>
+              <div>tile focus <span style="color:#6b7280">scale 1.04, 90 ms</span></div>
+              <div>nothing bounces · no spring · no overshoot</div>
+            </div>
+          </div>
+
+          <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">TEXT STYLES · MONO ONLY</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:18px;font-weight:700">Page title</div><div style="font-size:9px;color:#6b7280">18 / 700 / fg</div></div>
+              <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:13px;font-weight:700">Panel header</div><div style="font-size:9px;color:#6b7280">13 / 700 / fg</div></div>
+              <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:12px">Row title</div><div style="font-size:9px;color:#6b7280">12 / 400 / fg</div></div>
+              <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:11px;color:#6b7280">Row value</div><div style="font-size:9px;color:#6b7280">11 / 400 / muted</div></div>
+              <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">GROUP LABEL</div><div style="font-size:9px;color:#6b7280">10 / 400 / +0.14em caps</div></div>
+              <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:10px;color:#7aa2f7">Ctrl+Shift+,</div><div style="font-size:9px;color:#6b7280">10 / 400 / accent · key hint</div></div>
+              <div style="display:flex;align-items:baseline;gap:12px"><div style="font-size:13px;line-height:20px">terminal body 13 / 20</div><div style="font-size:9px;color:#6b7280">cell 8 × 20</div></div>
+            </div>
+            <div style="font-size:9px;color:#6b7280;border-top:1px solid #232833;padding-top:10px;line-height:16px">
+              Renderer budget: solid rects with alpha · 1 px borders · rounded corners ≤ 8 px · monospace glyph atlas · small bitmap emoji. No gradients, blur, or shadows anywhere in this spec.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ICON SHEET ============ -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:#6b7280;letter-spacing:0.12em">ICON SHEET</div>
+      <div data-screen-label="Icons" style="width:1280px;height:800px;background:#12151b;border:1px solid #34405a;padding:40px;box-sizing:border-box;display:flex;flex-direction:column;gap:22px">
+        <div style="display:flex;align-items:baseline;gap:12px">
+          <div style="font-size:18px;font-weight:700">Icon sheet</div>
+          <div style="font-size:11px;color:#6b7280">16 starter glyphs · badge colors drawn from the ANSI palette so the Deck looks native</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#61afef;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">⌂</div><div><div style="font-size:12px">house</div><div style="font-size:9px;color:#6b7280">ansi 4 · #61afef · U+2302</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#56b6c2;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">▦</div><div><div style="font-size:12px">server</div><div style="font-size:9px;color:#6b7280">ansi 6 · #56b6c2 · U+25A6</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#e06c75;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">⛁</div><div><div style="font-size:12px">database</div><div style="font-size:9px;color:#6b7280">ansi 1 · #e06c75 · U+26C1</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#e5c07b;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">≡</div><div><div style="font-size:12px">scroll / logs</div><div style="font-size:9px;color:#6b7280">ansi 3 · #e5c07b · U+2261</div></div></div>
+
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#98c379;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">∿</div><div><div style="font-size:12px">pulse</div><div style="font-size:9px;color:#6b7280">ansi 2 · #98c379 · U+223F</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#c678dd;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">⚒</div><div><div style="font-size:12px">hammer / build</div><div style="font-size:9px;color:#6b7280">ansi 5 · #c678dd · U+2692</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#74bdf7;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">☁</div><div><div style="font-size:12px">cloud</div><div style="font-size:9px;color:#6b7280">ansi 12 · #74bdf7 · U+2601</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#ef7a82;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">⚿</div><div><div style="font-size:12px">lock</div><div style="font-size:9px;color:#6b7280">ansi 9 · #ef7a82 · U+26BF</div></div></div>
+
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#f0d197;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">⚷</div><div><div style="font-size:12px">key</div><div style="font-size:9px;color:#6b7280">ansi 11 · #f0d197 · U+26B7</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#a6d189;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">❯</div><div><div style="font-size:12px">prompt</div><div style="font-size:9px;color:#6b7280">ansi 10 · #a6d189 · U+276F</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#abb2bf;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">⚙</div><div><div style="font-size:12px">gear</div><div style="font-size:9px;color:#6b7280">ansi 7 · #abb2bf · U+2699</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#d48ce6;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">◐</div><div><div style="font-size:12px">palette</div><div style="font-size:9px;color:#6b7280">ansi 13 · #d48ce6 · U+25D0</div></div></div>
+
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#6cc7d1;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">⌨</div><div><div style="font-size:12px">keyboard</div><div style="font-size:9px;color:#6b7280">ansi 14 · #6cc7d1 · U+2328</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#5c6370;color:#d8dee9;display:flex;align-items:center;justify-content:center;font-size:22px">⎘</div><div><div style="font-size:12px">clipboard</div><div style="font-size:9px;color:#6b7280">ansi 8 · #5c6370 · U+2398</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#2a3040;border:1px solid #34405a;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:3px;padding:6px;box-sizing:border-box"><div style="border-radius:2px;background:#74bdf7"></div><div style="border-radius:2px;background:#56b6c2"></div><div style="border-radius:2px;background:#ef7a82"></div><div style="border-radius:2px;background:#5c6370"></div></div><div><div style="font-size:12px">folder</div><div style="font-size:9px;color:#6b7280">2 × 2 preview of members</div></div></div>
+          <div style="display:flex;align-items:center;gap:12px;background:#1b1f27;border:1px solid #34405a;border-radius:4px;padding:10px"><div style="width:44px;height:44px;border-radius:6px;background:#ffffff;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">★</div><div><div style="font-size:12px">star / favourite</div><div style="font-size:9px;color:#6b7280">ansi 15 · #ffffff · U+2605</div></div></div>
+        </div>
+
+        <div style="display:flex;gap:32px;border-top:1px solid #232833;padding-top:18px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">BADGE SIZES</div>
+            <div style="display:flex;align-items:flex-end;gap:14px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:24px;height:24px;border-radius:6px;background:#61afef;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:13px">⌂</div><div style="font-size:8px;color:#6b7280">24 row</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:44px;height:44px;border-radius:6px;background:#61afef;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:22px">⌂</div><div style="font-size:8px;color:#6b7280">44 sheet</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:52px;height:52px;border-radius:6px;background:#61afef;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:24px">⌂</div><div style="font-size:8px;color:#6b7280">52 tile</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:60px;height:60px;border-radius:6px;background:#61afef;color:#12151b;display:flex;align-items:center;justify-content:center;font-size:28px">⌂</div><div style="font-size:8px;color:#6b7280">60 editor</div></div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:10px;color:#6b7280;letter-spacing:0.14em">RULES</div>
+            <div style="font-size:10px;color:#abb2bf;line-height:17px">
+              One glyph per badge, centred on the cell grid, ink always <span style="color:#d8dee9">#12151b</span> — never white on a light badge.<br>
+              Badge fill is a flat ANSI color at full alpha; two shortcuts on the same screen never share a fill.<br>
+              Fall back to the shortcut's first letter when a glyph is missing from the atlas.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;cellGrid&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Spec overlays&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { cellGrid: this.props.cellGrid ?? false };
+  }
+}
+</script>
+</body>
+</html>
