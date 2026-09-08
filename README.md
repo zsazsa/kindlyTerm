@@ -1,4 +1,4 @@
-# kindterm
+# kindlyTerm
 
 A GPU-accelerated, keyboard-driven terminal for Linux with tabs and a
 palette of saved commands. Written in Rust from scratch on top of
@@ -11,7 +11,7 @@ palette of saved commands. Written in Rust from scratch on top of
 cargo run --release
 ```
 
-The first run writes `~/.config/kindterm/config.toml` with defaults.
+The first run writes `~/.config/kindlyterm/config.toml` with defaults.
 
 ## Install into GNOME
 
@@ -21,11 +21,11 @@ The first run writes `~/.config/kindterm/config.toml` with defaults.
 ./install.sh --uninstall
 ```
 
-After that, press Super and type `term` (or `kind`, `shell`, `ssh`): kindterm
+After that, press Super and type `term` (or `kind`, `shell`, `ssh`): kindlyTerm
 appears in GNOME search with its icon, and can be pinned to the dash. The
 launcher has a right-click action to open straight into the Control Deck
-(`kindterm --deck`). The window sets the Wayland app id `kindterm` so GNOME
-pairs it with the icon. Files: `assets/kindterm.desktop`, `assets/kindterm.svg`.
+(`kindlyterm --deck`). The window sets the Wayland app id `kindlyterm` so GNOME
+pairs it with the icon. Files: `assets/kindlyterm.desktop`, `assets/kindlyterm.svg`.
 
 ## Control Deck
 
@@ -63,7 +63,7 @@ stay in sync.
 
 | Keys | Action |
 |---|---|
-| `Ctrl+/` | Keyboard cheat sheet overlay: kindterm keys and shell line-editing keys. Any key or click closes it. |
+| `Ctrl+/` | Keyboard cheat sheet overlay: kindlyTerm keys and shell line-editing keys. Any key or click closes it. |
 | `Ctrl+Shift` tap, or `Ctrl+Shift+,` | Toggle the **Control Deck** (launcher + settings). A tap means pressing both and releasing with no other key; chords like `Ctrl+Shift+T` are unaffected. Turn off with `input.ctrl_shift_tap_opens_deck = false`. |
 | `Ctrl+Shift+P` | Open the Deck ready to type: quick-run a shortcut. |
 | `Ctrl+Shift+S` | New shortcut in the Deck editor (prefilled with the selection, if any). |
@@ -93,7 +93,7 @@ Tab bar:
 - **Left click** a tab to switch to it. Click its **×** to close it, or the **+** at the end for a new shell tab.
 - **Double-click a tab's title** to rename it in place. The title is selected, so just type the new name; press `→` or `End` first to keep it and append. `Enter` saves, `Esc` cancels, an empty name goes back to the program's own title. Also in the right-click menu as Rename tab.
 - **Drag a tab** left or right to reorder.
-- **Drag a tab down** out of the bar and release: it becomes its own window. Release it **over another kindterm window** instead and it joins that window as a tab. Dragging a window's only tab onto another window merges the two windows.
+- **Drag a tab down** out of the bar and release: it becomes its own window. Release it **over another kindlyTerm window** instead and it joins that window as a tab. Dragging a window's only tab onto another window merges the two windows.
 - **Middle click** a tab to close it. **Scroll wheel** over the bar cycles tabs.
 - **Right click** for a context menu: new tab, new window, run a shortcut, move the tab left/right, move it to a new window or to any other open window, close it, close the others.
 
@@ -121,7 +121,7 @@ text it is eating, until you let go.
 
 ## Effects
 
-Two optional effects, configured in `~/.config/kindterm/effects.toml` and in
+Two optional effects, configured in `~/.config/kindlyterm/effects.toml` and in
 the Deck under Appearance → **Effects**:
 
 - **Typing trail**: each typed character leaves a neon afterglow that fades
@@ -160,12 +160,12 @@ pastes into bash, zsh, fish, or an editor are safe. Programs that set the
 clipboard themselves (tmux, neovim via OSC 52) work too.
 
 Note for GNOME on Wayland: the clipboard is served through the X11 bridge, so
-text copied from kindterm stays available while kindterm is running (which is
+text copied from kindlyTerm stays available while kindlyTerm is running (which is
 the normal case), but is not handed to a clipboard manager on exit.
 
 ## Saved commands
 
-Stored in `~/.config/kindterm/commands.toml`. You can edit it by hand:
+Stored in `~/.config/kindlyterm/commands.toml`. You can edit it by hand:
 
 ```toml
 [[commands]]
@@ -193,7 +193,7 @@ unless `keep_open = true`.
 
 ## Configuration
 
-`~/.config/kindterm/config.toml`:
+`~/.config/kindlyterm/config.toml`:
 
 ```toml
 [font]
@@ -229,20 +229,20 @@ opacity = 1.0          # 0.3..1.0 window translucency (Deck → Appearance → O
   support bracketed paste, so every newline would run a command, a confirm
   dialog asks first (`clipboard.confirm_multiline_paste`).
 - **Shortcut hotkeys** cannot take Ctrl+C, Ctrl+D, or Ctrl+Z from the shell.
-- **Developer hooks** below are inert unless `KINDTERM_DEBUG=1` is set.
+- **Developer hooks** below are inert unless `KINDLYTERM_DEBUG=1` is set.
 
 ## Debug knobs
 
-Set `KINDTERM_DEBUG=1` to enable these environment variables while developing:
+Set `KINDLYTERM_DEBUG=1` to enable these environment variables while developing:
 
-- `KINDTERM_SCREENSHOT=/path/out.png` renders a frame offscreen and saves it
-  (`KINDTERM_SCREENSHOT_FRAME=n` picks the frame, default 30).
-- `KINDTERM_INPUT='ls\r'` types into the first tab at startup.
-- `KINDTERM_KEYS=newtab,scroll:40,deck:home,deck:theme,deck:editor,type:gra|down|enter,menu:tabbar,clipset:text,clipget,clippaste`
-  applies actions just before the screenshot frame, or after `KINDTERM_ACTIONS_AFTER=ms`.
-  If the screenshot has not been taken when `KINDTERM_EXIT_AFTER` fires, it is taken at exit.
-- `KINDTERM_EXIT_AFTER=3000` quits after N milliseconds.
-- `RUST_LOG=kindterm=debug` for verbose logs.
+- `KINDLYTERM_SCREENSHOT=/path/out.png` renders a frame offscreen and saves it
+  (`KINDLYTERM_SCREENSHOT_FRAME=n` picks the frame, default 30).
+- `KINDLYTERM_INPUT='ls\r'` types into the first tab at startup.
+- `KINDLYTERM_KEYS=newtab,scroll:40,deck:home,deck:theme,deck:editor,type:gra|down|enter,menu:tabbar,clipset:text,clipget,clippaste`
+  applies actions just before the screenshot frame, or after `KINDLYTERM_ACTIONS_AFTER=ms`.
+  If the screenshot has not been taken when `KINDLYTERM_EXIT_AFTER` fires, it is taken at exit.
+- `KINDLYTERM_EXIT_AFTER=3000` quits after N milliseconds.
+- `RUST_LOG=kindlyterm=debug` for verbose logs.
 
 ## Layout
 
@@ -252,7 +252,7 @@ src/app/mod.rs      windows, tabs, palette, Deck actions, winit handler
 src/app/input.rs    keyboard and mouse
 src/app/draw.rs     tab bar, terminal grid, overlays
 src/app/windows.rs  window lifecycle, tab tear-off / merge, wake-ups
-src/app/debug.rs    developer hooks (KINDTERM_DEBUG=1)
+src/app/debug.rs    developer hooks (KINDLYTERM_DEBUG=1)
 src/terminal.rs     one PTY + alacritty Term + I/O thread
 src/renderer.rs  wgpu pipeline: instanced quads (rects + glyphs)
 src/shader.wgsl  the one shader

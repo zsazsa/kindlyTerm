@@ -1,5 +1,5 @@
 //! Visual effects: the typing trail and the paste rain. Configuration lives
-//! in `~/.config/kindterm/effects.toml` so a look can be shared by copying
+//! in `~/.config/kindlyterm/effects.toml` so a look can be shared by copying
 //! one file; the runtime state is per window.
 
 use std::collections::VecDeque;
@@ -128,7 +128,7 @@ impl EffectsConfig {
         }
         let body = toml::to_string_pretty(self)?;
         let text = format!(
-            "# kindterm effects. Share this file to share the look.\n\
+            "# kindlyTerm effects. Share this file to share the look.\n\
              # preset: off | subtle | cyberpunk | matrix (editing any value makes it \"custom\")\n\
              # typing_trail.color / paste_rain.color: neon | accent | cursor | green | #rrggbb\n\
              # paste_rain.glyphs: text | katakana | ascii | binary\n\n{body}"

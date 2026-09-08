@@ -217,7 +217,7 @@ impl App {
         let mut right = String::new();
         if let Some(d) = drag {
             right = if d.outside {
-                "release: own window · over another kindterm window: move there".into()
+                "release: own window · over another kindlyterm window: move there".into()
             } else {
                 "drag to reorder · pull down to detach".into()
             };
@@ -598,7 +598,7 @@ impl App {
 }
 
 impl App {
-    /// Keyboard cheat sheet: kindterm keys on the left, readline on the right.
+    /// Keyboard cheat sheet: kindlyterm keys on the left, readline on the right.
     pub(super) fn draw_cheat(&mut self, l: Layout) {
         let theme = &self.theme;
         let win = &mut self.wins[self.cur];

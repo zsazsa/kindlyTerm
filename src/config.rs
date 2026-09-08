@@ -1,6 +1,6 @@
 //! User configuration and the saved-command store.
 //!
-//! Two files live under `~/.config/kindterm/`:
+//! Two files live under `~/.config/kindlyterm/`:
 //!  - `config.toml`   : font, colors, terminal settings
 //!  - `commands.toml` : the list of saved, named commands
 
@@ -10,9 +10,17 @@ use std::fs;
 use std::path::PathBuf;
 
 pub fn config_dir() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("kindterm")
+    let base = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+    let dir = base.join("kindlyterm");
+    // One-time migration from the app's earlier name.
+    let old = base.join("kindterm");
+    if !dir.exists() && old.is_dir() {
+        match fs::rename(&old, &dir) {
+            Ok(()) => log::info!("migrated config from {} to {}", old.display(), dir.display()),
+            Err(e) => log::warn!("could not migrate {}: {e}", old.display()),
+        }
+    }
+    dir
 }
 
 // ---------------------------------------------------------------------------

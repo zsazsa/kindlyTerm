@@ -1,8 +1,8 @@
-# kindterm — Control Deck design brief
+# kindlyterm — Control Deck design brief
 
 ## What this is
 
-kindterm is a GPU-accelerated Linux terminal written in Rust. Its idea: the
+kindlyterm is a GPU-accelerated Linux terminal written in Rust. Its idea: the
 terminal behaves like a tiny operating system. Saved commands are first-class
 "apps" you launch from a home screen, and every setting lives behind an icon,
 the way iOS Settings works. Design the **Control Deck**: a slide-in sidebar

@@ -11,16 +11,16 @@ impl App {
         // pairs the window with its launcher entry and icon.
         #[allow(unused_mut)]
         let mut attrs = Window::default_attributes()
-            .with_title("kindterm")
+            .with_title("kindlyTerm")
             .with_transparent(true)
             .with_inner_size(LogicalSize::new(1100.0, 720.0));
         {
             use winit::platform::wayland::WindowAttributesExtWayland;
-            attrs = attrs.with_name("kindterm", "kindterm");
+            attrs = attrs.with_name("kindlyterm", "kindlyterm");
         }
         {
             use winit::platform::x11::WindowAttributesExtX11;
-            attrs = attrs.with_name("kindterm", "kindterm");
+            attrs = attrs.with_name("kindlyterm", "kindlyterm");
         }
         let window = match event_loop.create_window(attrs) {
             Ok(w) => Arc::new(w),

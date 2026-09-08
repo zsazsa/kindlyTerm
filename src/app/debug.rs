@@ -1,5 +1,5 @@
 //! Developer hooks (screenshots, scripted input). Inert unless
-//! KINDTERM_DEBUG=1 is set in the environment.
+//! KINDLYTERM_DEBUG=1 is set in the environment.
 
 use super::*;
 

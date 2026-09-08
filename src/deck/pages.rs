@@ -80,7 +80,7 @@ impl Deck {
                     ('⇅', 10, "Import / Export", "commands.toml".into(), PageId::ImportExport),
                 ],
             ),
-            ("ABOUT", vec![('i', 4, "kindterm", format!("{} · vulkan", env!("CARGO_PKG_VERSION")), PageId::About)]),
+            ("ABOUT", vec![('i', 4, "kindlyTerm", format!("{} · vulkan", env!("CARGO_PKG_VERSION")), PageId::About)]),
         ];
         let f = filter.trim().to_lowercase();
         for (label, rows) in groups {
@@ -724,7 +724,7 @@ impl Deck {
     pub(super) fn build_about(&self, env: &DeckEnv, b: &mut Built) {
         b.widgets.push(W::Header { back: "Deck".into(), title: "About".into(), hint: "Esc".into() });
         b.widgets.push(W::Group(vec![
-            info_row("kindterm", env!("CARGO_PKG_VERSION")),
+            info_row("kindlyTerm", env!("CARGO_PKG_VERSION")),
             info_row("GPU", env.gpu),
             info_row("Font", &format!("{} {} pt", env.config.font.family, env.config.font.size)),
             info_row("Theme", &env.theme.name),

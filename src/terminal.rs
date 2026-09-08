@@ -112,7 +112,7 @@ impl Terminal {
         let mut env = HashMap::new();
         env.insert("TERM".to_string(), "xterm-256color".to_string());
         env.insert("COLORTERM".to_string(), "truecolor".to_string());
-        env.insert("TERM_PROGRAM".to_string(), "kindterm".to_string());
+        env.insert("TERM_PROGRAM".to_string(), "kindlyTerm".to_string());
 
         let options = tty::Options {
             shell: Some(tty::Shell::new(launch.program.clone(), launch.args.clone())),

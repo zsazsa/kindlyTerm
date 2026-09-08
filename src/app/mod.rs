@@ -4,7 +4,7 @@
 //! - `input.rs`   keyboard and mouse handling
 //! - `draw.rs`    everything that fills the per-frame batch
 //! - `windows.rs` window lifecycle, tab tear-off / merge, wake-up scheduling
-//! - `debug.rs`   developer hooks behind KINDTERM_DEBUG=1
+//! - `debug.rs`   developer hooks behind KINDLYTERM_DEBUG=1
 
 
 use std::sync::Arc;
@@ -127,7 +127,7 @@ struct TabDrag {
 }
 
 /// A tab released outside its window: waiting to see whether another
-/// kindterm window receives the pointer (merge) or not (new window).
+/// kindlyterm window receives the pointer (merge) or not (new window).
 struct PendingDrop {
     from: WindowId,
     tab: TabId,
@@ -250,22 +250,22 @@ pub struct App {
 /// Developer knobs read from the environment.
 #[derive(Default)]
 struct DebugOptions {
-    /// KINDTERM_SCREENSHOT=path.png : save an offscreen render of a frame.
+    /// KINDLYTERM_SCREENSHOT=path.png : save an offscreen render of a frame.
     screenshot: Option<std::path::PathBuf>,
-    /// KINDTERM_SCREENSHOT_FRAME=n : which frame to capture (default 30).
+    /// KINDLYTERM_SCREENSHOT_FRAME=n : which frame to capture (default 30).
     screenshot_frame: u64,
-    /// KINDTERM_ACTIONS_FRAME=n : frame at which KINDTERM_KEYS actions run
+    /// KINDLYTERM_ACTIONS_FRAME=n : frame at which KINDLYTERM_KEYS actions run
     /// (default: the frame before the screenshot).
     actions_frame: u64,
-    /// KINDTERM_INPUT="ls\r" : bytes typed into the first tab at startup.
+    /// KINDLYTERM_INPUT="ls\r" : bytes typed into the first tab at startup.
     input: Option<String>,
-    /// KINDTERM_KEYS="palette,scroll:40,tabs" : actions applied just before
+    /// KINDLYTERM_KEYS="palette,scroll:40,tabs" : actions applied just before
     /// the screenshot frame.
     actions: Vec<String>,
-    /// KINDTERM_EXIT_AFTER=ms : quit after this many milliseconds. If a
+    /// KINDLYTERM_EXIT_AFTER=ms : quit after this many milliseconds. If a
     /// screenshot is configured but not yet taken, it is taken right before.
     exit_after: Option<u64>,
-    /// KINDTERM_ACTIONS_AFTER=ms : run the KINDTERM_KEYS actions after a delay
+    /// KINDLYTERM_ACTIONS_AFTER=ms : run the KINDLYTERM_KEYS actions after a delay
     /// instead of at a frame number.
     actions_after: Option<u64>,
     shot_done: bool,
@@ -273,21 +273,21 @@ struct DebugOptions {
 
 impl DebugOptions {
     fn from_env() -> Self {
-        // Every developer hook is inert unless KINDTERM_DEBUG=1 is set, so a
+        // Every developer hook is inert unless KINDLYTERM_DEBUG=1 is set, so a
         // stray environment variable can never type into a shell or write
         // files on a user's behalf.
-        if std::env::var("KINDTERM_DEBUG").ok().as_deref() != Some("1") {
+        if std::env::var("KINDLYTERM_DEBUG").ok().as_deref() != Some("1") {
             return Self { screenshot_frame: 30, ..Self::default() };
         }
         let get = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
         Self {
-            screenshot: get("KINDTERM_SCREENSHOT").map(Into::into),
-            screenshot_frame: get("KINDTERM_SCREENSHOT_FRAME").and_then(|v| v.parse().ok()).unwrap_or(30),
-            actions_frame: get("KINDTERM_ACTIONS_FRAME").and_then(|v| v.parse().ok()).unwrap_or(0),
-            input: get("KINDTERM_INPUT").map(|s| s.replace("\\r", "\r").replace("\\n", "\n").replace("\\t", "\t").replace("\\e", "\x1b")),
-            actions: get("KINDTERM_KEYS").map(|v| v.split(',').map(str::to_string).collect()).unwrap_or_default(),
-            exit_after: get("KINDTERM_EXIT_AFTER").and_then(|v| v.parse().ok()),
-            actions_after: get("KINDTERM_ACTIONS_AFTER").and_then(|v| v.parse().ok()),
+            screenshot: get("KINDLYTERM_SCREENSHOT").map(Into::into),
+            screenshot_frame: get("KINDLYTERM_SCREENSHOT_FRAME").and_then(|v| v.parse().ok()).unwrap_or(30),
+            actions_frame: get("KINDLYTERM_ACTIONS_FRAME").and_then(|v| v.parse().ok()).unwrap_or(0),
+            input: get("KINDLYTERM_INPUT").map(|s| s.replace("\\r", "\r").replace("\\n", "\n").replace("\\t", "\t").replace("\\e", "\x1b")),
+            actions: get("KINDLYTERM_KEYS").map(|v| v.split(',').map(str::to_string).collect()).unwrap_or_default(),
+            exit_after: get("KINDLYTERM_EXIT_AFTER").and_then(|v| v.parse().ok()),
+            actions_after: get("KINDLYTERM_ACTIONS_AFTER").and_then(|v| v.parse().ok()),
             shot_done: false,
         }
     }
@@ -645,7 +645,7 @@ impl App {
     fn update_window_title(&self) {
         if let Some(w) = self.wins.get(self.cur)
             && let Some(t) = w.tabs.get(w.active) {
-                w.window.set_title(&format!("{} — kindterm", t.display_title()));
+                w.window.set_title(&format!("{} — kindlyterm", t.display_title()));
             }
     }
 

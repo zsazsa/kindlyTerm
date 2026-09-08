@@ -1,23 +1,23 @@
 [Desktop Entry]
 Type=Application
 Version=1.5
-Name=kindterm
+Name=kindlyTerm
 GenericName=Terminal
 Comment=GPU-accelerated terminal with a Control Deck of saved commands
-Exec=kindterm
-TryExec=kindterm
-Icon=kindterm
+Exec=kindlyterm
+TryExec=kindlyterm
+Icon=kindlyterm
 Terminal=false
 Categories=System;TerminalEmulator;
-Keywords=term;terminal;shell;console;command;ssh;prompt;kind;
+Keywords=term;terminal;shell;console;command;ssh;prompt;kind;kindly;
 StartupNotify=true
-StartupWMClass=kindterm
+StartupWMClass=kindlyterm
 Actions=new-window;deck;
 
 [Desktop Action new-window]
 Name=New Window
-Exec=kindterm
+Exec=kindlyterm
 
 [Desktop Action deck]
 Name=Open Control Deck
-Exec=kindterm --deck
+Exec=kindlyterm --deck

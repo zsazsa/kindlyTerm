@@ -167,7 +167,7 @@ impl Gpu {
         log::info!("GPU: {} ({:?})", adapter.get_info().name, adapter.get_info().backend);
         let adapter_name = adapter.get_info().name.clone();
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("kindterm"),
+            label: Some("kindlyTerm"),
             ..Default::default()
         }))
         .context("requesting device")?;
@@ -243,7 +243,7 @@ impl Renderer {
         surface.configure(device, &config);
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("kindterm shader"),
+            label: Some("kindlyterm shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 

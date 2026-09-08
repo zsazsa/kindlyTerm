@@ -21,7 +21,7 @@ use crate::config::{CommandStore, Config};
 use crate::terminal::UserEvent;
 
 fn main() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("kindterm=info,wgpu_core=warn,wgpu_hal=warn"))
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("kindlyterm=info,wgpu_core=warn,wgpu_hal=warn"))
         .init();
 
     let config = Config::load();

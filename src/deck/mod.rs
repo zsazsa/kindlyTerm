@@ -1,5 +1,5 @@
 //! The Control Deck: a slide-in sidebar holding the shortcut launcher and
-//! the settings system. Implements the "kindterm Control Deck" design.
+//! the settings system. Implements the "kindlyterm Control Deck" design.
 //!
 //! - `pages.rs` builds the widget list for each page
 //! - `input.rs` keyboard and mouse handling
