@@ -202,6 +202,9 @@ holding a free canvas show a `▦` marker in the tab bar.
   pin like terminals; pasted pictures are kept under
   `~/.config/kindlyterm/images/`. Dropping any other file types its quoted
   path into the focused terminal.
+- Zoomed far out, terminals draw as compact row bars with a cursor dot
+  instead of glyphs, so a canvas with dozens of shells stays cheap and you
+  can still see where the output is.
 - Canvas tabs tear off, merge, and reorder like any other tab.
 
 The layout (windows, tabs, item positions, zoom, and what each item was

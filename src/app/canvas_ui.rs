@@ -9,6 +9,9 @@ use winit::dpi::PhysicalSize;
 /// Minimum item grid while resizing.
 const MIN_COLS: usize = 10;
 const MIN_ROWS: usize = 3;
+/// Below this on-screen cell height text is unreadable, so terminals are
+/// drawn as row bars instead of glyphs.
+const LOD_MIN_CELL_PX: f32 = 6.0;
 
 impl App {
     // -----------------------------------------------------------------------
@@ -903,9 +906,37 @@ impl App {
                 let cx = sr.x + ITEM_PAD * zoom;
                 let cy = sr.y + (TITLE_H + ITEM_PAD) * zoom;
                 let clip = (sr.x + 1.0, sr.y + title_h, sr.w - 2.0, sr.h - title_h - 1.0);
-                let place = TermPlace { x: cx, y: cy, zoom, focused: focused && win_focused, clip: Some(clip) };
-                let tab = &mut w.terms[ti];
-                draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
+                let m = w.fonts.metrics;
+                if m.height * zoom < LOD_MIN_CELL_PX {
+                    // Too small to read: draw each row as a bar of its text
+                    // extent (a minimap), which is cheap and still shows
+                    // where the output is and where the cursor sits.
+                    use alacritty_terminal::term::cell::LineLength;
+                    w.batch.push_clip(clip.0, clip.1, clip.2, clip.3);
+                    let tab = &w.terms[ti];
+                    let term = tab.term.lock();
+                    let grid = term.grid();
+                    let rows = tab.size.rows.min(grid.screen_lines());
+                    let (cw, ch) = (m.width * zoom, m.height * zoom);
+                    let bar_h = (ch - 1.0).max(1.0);
+                    let ink = with_alpha(theme.fg, 0.45);
+                    for r in 0..rows {
+                        let n = grid[alacritty_terminal::index::Line(r as i32)].line_length().0;
+                        if n > 0 {
+                            w.batch.rect(cx, cy + r as f32 * ch, n as f32 * cw, bar_h, ink);
+                        }
+                    }
+                    let c = grid.cursor.point;
+                    if term.mode().contains(alacritty_terminal::term::TermMode::SHOW_CURSOR) {
+                        w.batch.rect(cx + c.column.0 as f32 * cw, cy + c.line.0 as f32 * ch, cw.max(2.0), ch.max(2.0), theme.cursor);
+                    }
+                    drop(term);
+                    w.batch.pop_clip();
+                } else {
+                    let place = TermPlace { x: cx, y: cy, zoom, focused: focused && win_focused, clip: Some(clip) };
+                    let tab = &mut w.terms[ti];
+                    draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
+                }
             }
         }
 

@@ -242,6 +242,6 @@ Rough relative sizes: 1 small · 2 large · 3 large · 4 large · 5 medium ·
 - [x] Phase 1: renderer groundwork (scissor segments, image textures, zoomed glyphs, reusable terminal drawing, per-terminal view state)
 - [x] Phase 2: canvas core (tabs-are-canvases, move/resize/snap, pan/zoom, focus mode, fit, menus, rename, tear-off of canvas tabs, `state.json` restore; Ctrl+Shift+Enter/K/F/A/=/−/0, Deck quick-run moved to Ctrl+Shift+Space)
 - [x] Phase 3: PTY hosts (`--host` process per shell, framed Unix-socket protocol, 8 MiB replay ring, headless Term snapshot incl. alt screen + modes + kitty flags, size-aware replay/snapshot choice, kill on close vs detach on quit, orphan adoption onto a Recovered canvas, `--sessions [--prune]`, Deck toggle, in-process fallback)
-- [ ] Phase 4: spatial features
+- [x] Phase 4: spatial features (Shift-select + rubber band, groups with containment membership, pins in screen space, mirrors, inactivity monitor, images incl. animated GIF via drop/paste, minimap level of detail below 6px cells)
 - [ ] Phase 5: keyboard and text
 - [ ] Phase 6: MCP server
