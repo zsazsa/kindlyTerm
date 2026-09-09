@@ -320,7 +320,10 @@ window regains focus, and at rest it breathes (a slow brightness wave) rather
 than hard-blinking. `cursor_animation` in `config.toml` picks `breathe`
 (default), classic `blink`, or `none`. Hold Backspace or Delete for about a
 second and a half and the cursor turns into a chomping Pac-Man facing the
-text it is eating, until you let go.
+text it is eating, until you let go. `chomp` picks what it becomes:
+`pacman` (default), `laser` (a cutter head with a magenta halo, a beam
+into the cell being cut, sparks and embers drifting behind), or `none`.
+The Deck's Cursor page has the same choice.
 
 ## Effects
 
@@ -413,6 +416,7 @@ shell_args = []        # e.g. ["-l"] for a login shell
 padding = 6.0
 cursor = "block"       # block | beam | underline
 cursor_animation = "breathe"   # breathe | blink | none
+chomp = "pacman"               # pacman | laser | none: held Backspace/Delete
 persistent_sessions = true     # shells run in detached hosts and survive a restart
 
 [colors]

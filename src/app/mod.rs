@@ -1461,6 +1461,11 @@ impl App {
                 self.apply_term_options();
                 self.save_config();
             }
+            DeckAction::SetChomp(style) => {
+                self.config.terminal.chomp = style;
+                self.save_config();
+                self.request_redraw();
+            }
             DeckAction::SetScrollback(n) => {
                 self.config.terminal.scrollback = n.clamp(0, 200_000);
                 self.apply_term_options();

@@ -514,6 +514,27 @@ impl Deck {
             .collect();
         b.widgets.push(W::Group(rows));
         b.widgets.push(W::Note("programs may override the shape (vim, tmux) · blinking: not yet".into()));
+        // What the cursor turns into while Backspace or Delete is held.
+        let chomp = env.config.terminal.chomp.to_lowercase();
+        b.widgets.push(W::Label { text: "HOLD BACKSPACE".into(), right: "or Delete".into() });
+        let rows: Vec<Row> = [("pacman", '●', "Pac-Man", "chomps the text it eats"), ("laser", '⚡', "Laser cutter", "a beam, sparks and embers"), ("none", '▊', "Plain", "just the cursor")]
+            .iter()
+            .map(|(id, g, title, sub)| {
+                let idx = b.simple(Act::App(DeckAction::SetChomp(id.to_string())));
+                Row {
+                    badge: Some(Badge { glyph: *g, color: 5 }),
+                    title: title.to_string(),
+                    hi: vec![],
+                    subtitle: sub.to_string(),
+                    value: String::new(),
+                    kind: RowKind::Check(chomp == *id),
+                    enabled: true,
+                    danger: false,
+                    focus: Some(idx),
+                }
+            })
+            .collect();
+        b.widgets.push(W::Group(rows));
     }
 
     pub(super) fn build_shell(&self, env: &DeckEnv, b: &mut Built) {

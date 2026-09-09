@@ -126,6 +126,10 @@ pub struct TerminalConfig {
     /// Idle cursor behaviour: "breathe" (soft pulse), "blink", or "none".
     /// Travel and focus animations are always on unless "none".
     pub cursor_animation: String,
+    /// What the cursor turns into while Backspace or Delete is held:
+    /// "pacman" (default), "laser" (a cutter head with a beam and embers),
+    /// or "none".
+    pub chomp: String,
     /// What programs may do with the clipboard through OSC 52:
     /// "copy" (default: they can set it, never read it), "none", or "both".
     /// Reading lets any program, including a remote ssh host, exfiltrate
@@ -168,7 +172,7 @@ impl Default for FontConfig {
 
 impl Default for TerminalConfig {
     fn default() -> Self {
-        Self { scrollback: 10_000, shell: None, shell_args: vec![], padding: 6.0, cursor: "block".into(), cursor_animation: "breathe".into(), osc52: "copy".into(), persistent_sessions: true }
+        Self { scrollback: 10_000, shell: None, shell_args: vec![], padding: 6.0, cursor: "block".into(), cursor_animation: "breathe".into(), chomp: "pacman".into(), osc52: "copy".into(), persistent_sessions: true }
     }
 }
 

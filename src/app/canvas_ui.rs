@@ -752,6 +752,7 @@ impl App {
     pub(super) fn draw_canvas(&mut self, l: Layout) {
         let theme = &self.theme;
         let anim_mode = self.config.terminal.cursor_animation.clone();
+        let chomp = self.config.terminal.chomp.clone();
         let effects_cfg = self.effects.clone();
         let opacity = self.config.colors.opacity.clamp(0.3, 1.0);
         let epoch = self.epoch;
@@ -973,7 +974,7 @@ impl App {
                     let place = TermPlace { x: cx, y: cy, zoom, glyph_zoom: if pinned { 1.0 } else { glyph_zoom.unwrap_or(zoom) }, focused: focused && win_focused, clip: Some(clip) };
                     let tab_id = w.terms[ti].id;
                     let tab = &mut w.terms[ti];
-                    draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
+                    draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &chomp, &effects_cfg, tab, place);
                     w.batch.push_clip(clip.0, clip.1, clip.2, clip.3);
                     Self::draw_link_underline(w, theme, tab_id, cx, cy, zoom);
                     w.batch.pop_clip();

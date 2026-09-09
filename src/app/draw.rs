@@ -276,6 +276,7 @@ impl App {
     pub(super) fn draw_terminal(&mut self, l: Layout) {
         let theme = &self.theme;
         let anim_mode = self.config.terminal.cursor_animation.clone();
+        let chomp = self.config.terminal.chomp.clone();
         let effects_cfg = self.effects.clone();
         if self.on_free_canvas() {
             self.draw_canvas(l);
@@ -294,7 +295,7 @@ impl App {
         }
         let tab_id = w.terms[ti].id;
         let tab = &mut w.terms[ti];
-        draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
+        draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &chomp, &effects_cfg, tab, place);
         Self::draw_link_underline(w, theme, tab_id, place.x, place.y, place.zoom);
     }
 }
@@ -323,6 +324,7 @@ pub(crate) fn draw_term_view(
     batch: &mut Batch,
     theme: &Theme,
     anim_mode: &str,
+    chomp_style: &str,
     effects_cfg: &EffectsConfig,
     tab: &mut Terminal,
     place: TermPlace,
@@ -577,7 +579,51 @@ pub(crate) fn draw_term_view(
             if anim.chomp.map(|(_, last, _)| last.elapsed().as_millis() > 400).unwrap_or(false) {
                 anim.chomp = None;
             }
-            if let Some(left) = chomping {
+            if let Some(left) = chomping.filter(|_| chomp_style == "laser") {
+                // Laser cutter: a hot head with a magenta halo, a beam into
+                // the cell being cut (which flashes), embers drifting behind.
+                let tt = anim.chomp.map(|(s, _, _)| s.elapsed().as_secs_f32()).unwrap_or(0.0);
+                let dir = if left { -1.0 } else { 1.0 };
+                let magenta = rgb([0xff, 0x2b, 0xd6]);
+                let core = rgb([0xff, 0xf6, 0xff]);
+                let ember = rgb([0xff, 0x8a, 0x3d]);
+                let (cx, cy) = (x + m.width / 2.0, y + m.height / 2.0);
+                // Halo: three soft layers around the head.
+                for (k, a) in [(2.2, 0.10), (1.6, 0.18), (1.1, 0.35)] {
+                    let (hw, hh) = (m.width * 0.5 * k, m.height * 0.55 * k);
+                    batch.rrect(cx - hw / 2.0, cy - hh / 2.0, hw, hh, hw.min(hh) / 2.0, with_alpha(magenta, a));
+                }
+                // Head: a narrow bright bar.
+                let (hw, hh) = (m.width * 0.42, m.height * 0.92);
+                batch.rrect(cx - hw / 2.0, cy - hh / 2.0, hw, hh, hw / 2.0, core);
+                // Beam into the next cell, flickering.
+                let flick = 0.7 + 0.3 * (tt * 47.0).sin();
+                let bx0 = if left { cx - m.width * 1.5 } else { cx };
+                batch.rrect(bx0, cy - 1.0, m.width * 1.5, 2.0, 1.0, with_alpha(core, 0.9 * flick));
+                batch.rrect(bx0, cy - 2.5, m.width * 1.5, 5.0, 2.5, with_alpha(magenta, 0.5 * flick));
+                // The cell being cut flashes.
+                let fx_ = x + dir * m.width;
+                batch.rrect(fx_, y + 1.0, m.width, m.height - 2.0, 2.0, with_alpha(magenta, 0.25 + 0.35 * ((tt * 31.0).sin().abs())));
+                // Sparks at the cut point.
+                let sx = cx + dir * m.width;
+                for k in 0..4 {
+                    let ph = ((tt * 13.0 + k as f32 * 1.7) % 1.0) as f32;
+                    let ang = k as f32 * 1.9 + tt * 5.0;
+                    let r = m.height * 0.6 * ph;
+                    let (px, py) = (sx + ang.cos() * r * 0.8, cy + ang.sin() * r);
+                    let d = (1.5 + 1.5 * (1.0 - ph)).max(1.0);
+                    batch.rrect(px - d / 2.0, py - d / 2.0, d, d, d / 2.0, with_alpha(core, 0.9 * (1.0 - ph)));
+                }
+                // Embers drift away behind the head and fade.
+                for k in 1..=6 {
+                    let ph = ((tt * 4.0 + k as f32 * 0.37) % 1.0) as f32;
+                    let ex = cx - dir * (m.width * 0.4 + m.width * 2.2 * ph);
+                    let ey = cy + ((k as f32 * 2.3 + tt * 3.0).sin()) * m.height * 0.35 * ph;
+                    let d = (3.0 * (1.0 - ph)).max(1.0);
+                    let col = if k % 2 == 0 { ember } else { magenta };
+                    batch.rrect(ex - d / 2.0, ey - d / 2.0, d, d, d / 2.0, with_alpha(col, 0.8 * (1.0 - ph)));
+                }
+            } else if let Some(left) = chomping.filter(|_| chomp_style != "none") {
                 let size = m.height * 1.05;
                 let cx = x + m.width / 2.0 - size / 2.0;
                 let cy = y + m.height / 2.0 - size / 2.0;

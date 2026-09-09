@@ -62,6 +62,8 @@ pub enum DeckAction {
     SetOpacity(f32),
     Effect(EffectChange),
     SetCursor(String),
+    /// What the cursor becomes while Backspace or Delete is held.
+    SetChomp(String),
     SetScrollback(usize),
     SetPersistentSessions(bool),
     SetMcp(bool),
