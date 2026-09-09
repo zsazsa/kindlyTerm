@@ -316,3 +316,14 @@ src/config.rs    config.toml and commands.toml
 - Bell, hyperlink (OSC 8) clicking
 - Split panes, search in scrollback, config hot reload
 - Deck: shortcut folders, aliases, per-row font previews, ligatures, undo after launch
+
+## License
+
+MIT. See [LICENSE](LICENSE). The icon and the design files under `assets/`
+and `design/` are covered by the same license.
+
+Built on [alacritty_terminal](https://github.com/alacritty/alacritty) (Apache-2.0),
+[wgpu](https://github.com/gfx-rs/wgpu) and [winit](https://github.com/rust-windowing/winit),
+[swash](https://github.com/dfrg/swash), [fontdb](https://github.com/RazrFalcon/fontdb),
+and [nucleo](https://github.com/helix-editor/nucleo) (MPL-2.0). See `Cargo.lock`
+for the full dependency list and `cargo metadata` for their licenses.

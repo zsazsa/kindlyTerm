@@ -2,6 +2,12 @@
 name = "kindlyterm"
 version = "0.1.0"
 edition = "2024"
+description = "GPU-accelerated Linux terminal with a Control Deck of saved commands"
+license = "MIT"
+repository = "https://github.com/zsazsa/kindlyTerm"
+readme = "README.md"
+keywords = ["terminal", "wgpu", "wayland"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 alacritty_terminal = "0.26"
