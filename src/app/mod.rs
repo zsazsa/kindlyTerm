@@ -65,6 +65,7 @@ mod canvas_ui;
 mod debug;
 mod groups;
 mod images;
+mod links;
 mod pins;
 mod draw;
 mod input;
@@ -249,6 +250,8 @@ struct Win {
     dirty: bool,
 
     palette: Option<Palette>,
+    /// Link under the pointer while Ctrl is held.
+    hover_link: Option<links::LinkHit>,
     /// Decoded canvas images by item id (runtime only).
     images: std::collections::HashMap<ItemId, images::LoadedImage>,
     menu: Option<Menu>,
@@ -1503,7 +1506,8 @@ impl App {
             .active_tab()
             .map(|t| t.term.lock().selection.as_ref().map(|s| !s.is_empty()).unwrap_or(false))
             .unwrap_or(false);
-        self.wins[self.cur].menu = Some(Menu::for_terminal(x, y, self.wins[self.cur].active, has_selection, !self.store.commands.is_empty()));
+        let link = self.link_under_pointer().map(|h| h.uri);
+        self.wins[self.cur].menu = Some(Menu::for_terminal(x, y, self.wins[self.cur].active, has_selection, !self.store.commands.is_empty(), link.as_deref()));
         self.request_redraw();
     }
 
@@ -1587,6 +1591,13 @@ impl App {
             MenuAction::RenameItem(id) => self.start_item_rename(id),
             MenuAction::GroupSelection => self.toggle_group(),
             MenuAction::TogglePin(id) => self.toggle_pin(id),
+            MenuAction::OpenLink(uri) => self.open_link(&uri),
+            MenuAction::CopyLink(uri) => {
+                if let Some(cb) = self.clipboard.as_mut() {
+                    let _ = cb.set_text(uri);
+                }
+                self.set_status("link copied".into());
+            }
             MenuAction::SetMonitor(id, secs) => self.set_monitor(id, secs),
             MenuAction::MirrorItem(id) => self.mirror_item(id),
             MenuAction::CloseItem(id) => self.close_item(id, event_loop),
@@ -1902,6 +1913,9 @@ impl ApplicationHandler<UserEvent> for App {
                 let was_ctrl = self.mods.control_key();
                 self.mods = new;
                 self.track_ctrl_tap(was_ctrl, new.control_key());
+                if was_ctrl != new.control_key() {
+                    self.update_link_hover();
+                }
                 let both = new.control_key() && new.shift_key() && !new.alt_key() && !new.super_key();
                 if both {
                     if self.chord_armed.is_none() {

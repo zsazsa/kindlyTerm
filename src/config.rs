@@ -44,11 +44,15 @@ pub struct InputConfig {
     /// Tapping Ctrl+Shift together (press both, release without any other
     /// key) toggles the Control Deck.
     pub ctrl_shift_tap_opens_deck: bool,
+    /// Plain PageUp/PageDown scroll the history at a shell prompt (when no
+    /// full-screen program or application cursor mode is active). Shift
+    /// versions always scroll.
+    pub page_keys_scroll: bool,
 }
 
 impl Default for InputConfig {
     fn default() -> Self {
-        Self { ctrl_shift_tap_opens_deck: true }
+        Self { ctrl_shift_tap_opens_deck: true, page_keys_scroll: true }
     }
 }
 

@@ -93,6 +93,7 @@ impl App {
             last_title_click: None,
             dirty: false,
             palette: None,
+            hover_link: None,
             images: std::collections::HashMap::new(),
             menu: None,
             tab_hits: Vec::new(),

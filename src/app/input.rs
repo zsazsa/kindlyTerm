@@ -36,6 +36,17 @@ impl App {
             }
         }
         if event.state != ElementState::Pressed {
+            // Key releases matter only to applications using the kitty
+            // keyboard protocol with event reporting.
+            let wants_release = self.win().active_term().map(|t| t.term.lock().mode().contains(TermMode::REPORT_EVENT_TYPES)).unwrap_or(false);
+            if wants_release && self.win().rename.is_none() && self.win().menu.is_none() && !self.wins[self.cur].deck.is_open() {
+                let mode = *self.win().active_term().expect("term").term.lock().mode();
+                if let Some(bytes) = keys::encode(&event, self.mods, mode)
+                    && let Some(tab) = self.win().active_term()
+                {
+                    tab.write(bytes);
+                }
+            }
             return;
         }
         // A real key while Ctrl+Shift are held means a chord, not a tap.
@@ -126,6 +137,18 @@ impl App {
             tab.write(bytes);
             self.request_redraw();
         }
+    }
+
+    /// Is the focused terminal at a plain prompt, as far as we can tell:
+    /// primary screen, no application cursor mode, no kitty protocol?
+    fn prompt_scroll_ok(&self) -> bool {
+        self.win()
+            .active_term()
+            .map(|t| {
+                let m = *t.term.lock().mode();
+                !m.contains(TermMode::ALT_SCREEN) && !m.contains(TermMode::APP_CURSOR) && !m.intersects(TermMode::KITTY_KEYBOARD_PROTOCOL)
+            })
+            .unwrap_or(false)
     }
 
     /// Returns true if the key was consumed as an app-level shortcut.
@@ -360,6 +383,12 @@ impl App {
                 }
                 NamedKey::PageDown if shift && !ctrl => {
                     self.scroll_active(Scroll::PageDown);
+                    return true;
+                }
+                NamedKey::PageUp | NamedKey::PageDown if !shift && !ctrl && !alt && self.config.input.page_keys_scroll && self.prompt_scroll_ok() => {
+                    // At a plain prompt nothing reads PageUp, so it scrolls
+                    // history; full-screen programs still get the key.
+                    self.scroll_active(if matches!(named, NamedKey::PageUp) { Scroll::PageUp } else { Scroll::PageDown });
                     return true;
                 }
                 NamedKey::ArrowUp if shift && ctrl => {
@@ -721,7 +750,16 @@ impl App {
                     self.paste_primary();
                 }
             }
-            MouseButton::Left => self.on_left_button(state),
+            MouseButton::Left => {
+                if state == ElementState::Pressed
+                    && self.mods.control_key()
+                    && let Some(hit) = self.link_under_pointer()
+                {
+                    self.open_link(&hit.uri);
+                    return;
+                }
+                self.on_left_button(state)
+            }
             _ => {}
         }
     }
@@ -862,7 +900,9 @@ impl App {
             self.wins[self.cur].hover = hover;
             self.request_redraw();
         }
+        self.update_link_hover();
         let icon = match hover {
+            Hover::None if self.win().hover_link.is_some() => CursorIcon::Pointer,
             Hover::None if self.wins[self.cur].palette.is_none() => CursorIcon::Text,
             Hover::None => CursorIcon::Default,
             _ => CursorIcon::Pointer,

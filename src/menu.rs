@@ -36,6 +36,8 @@ pub enum MenuAction {
     RenameItem(crate::canvas::ItemId),
     GroupSelection,
     TogglePin(crate::canvas::ItemId),
+    OpenLink(String),
+    CopyLink(String),
     /// Inactivity monitor threshold in seconds (None = off).
     SetMonitor(crate::canvas::ItemId, Option<u32>),
     MirrorItem(crate::canvas::ItemId),
@@ -143,6 +145,21 @@ impl Menu {
         Self::new(x, y, items)
     }
 
+    /// "Open / copy link" entries when the pointer is on one.
+    fn link_items(link: Option<&str>) -> Vec<MenuItem> {
+        match link {
+            Some(uri) => {
+                let short: String = if uri.chars().count() > 48 { uri.chars().take(47).chain(std::iter::once('…')).collect() } else { uri.to_string() };
+                vec![
+                    MenuItem::new(&format!("Open {short}"), "Ctrl+click", MenuAction::OpenLink(uri.to_string())),
+                    MenuItem::new("Copy link", "", MenuAction::CopyLink(uri.to_string())),
+                    MenuItem::sep(),
+                ]
+            }
+            None => Vec::new(),
+        }
+    }
+
     /// Menu for a right-click on an image item.
     pub fn for_image(x: f32, y: f32, item: crate::canvas::ItemId, pinned: bool) -> Self {
         let items = vec![
@@ -169,8 +186,9 @@ impl Menu {
 
     /// Menu for a right-click on a terminal item of a free canvas.
     #[allow(clippy::too_many_arguments)]
-    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)], pinned: bool, mirror: bool, monitor: Option<u32>) -> Self {
-        let mut items = vec![
+    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)], pinned: bool, mirror: bool, monitor: Option<u32>, link: Option<&str>) -> Self {
+        let mut items = Self::link_items(link);
+        items.extend(vec![
             MenuItem::new("Copy", "Ctrl+Shift+C", MenuAction::Copy).enabled(has_selection),
             MenuItem::new("Paste", "Ctrl+Shift+V", MenuAction::Paste),
             MenuItem::sep(),
@@ -182,7 +200,7 @@ impl Menu {
                 None => MenuItem::new("Tell me when it goes quiet (30s)", "", MenuAction::SetMonitor(item, Some(30))),
             },
             MenuItem::new("Rename…", "double-click title", MenuAction::RenameItem(item)),
-        ];
+        ]);
         for (ci, title) in other_tabs.iter().take(6) {
             items.push(MenuItem::new(&format!("Move to tab {}: {title}", ci + 1), "", MenuAction::MoveToCanvas(tab, *ci)));
         }
@@ -228,8 +246,9 @@ impl Menu {
     }
 
     /// Menu for a right-click inside the terminal area.
-    pub fn for_terminal(x: f32, y: f32, tab: usize, has_selection: bool, has_saved: bool) -> Self {
-        let items = vec![
+    pub fn for_terminal(x: f32, y: f32, tab: usize, has_selection: bool, has_saved: bool, link: Option<&str>) -> Self {
+        let mut items = Self::link_items(link);
+        items.extend(vec![
             MenuItem::new("Copy", "Ctrl+Shift+C", MenuAction::Copy).enabled(has_selection),
             MenuItem::new("Paste", "Ctrl+Shift+V", MenuAction::Paste),
             MenuItem::sep(),
@@ -242,7 +261,7 @@ impl Menu {
             MenuItem::sep(),
             MenuItem::new("Clear scrollback", "", MenuAction::ClearScrollback),
             MenuItem::new("Close tab", "Ctrl+Shift+W", MenuAction::CloseTab(tab)),
-        ];
+        ]);
         Self::new(x, y, items)
     }
 

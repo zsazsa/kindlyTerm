@@ -119,7 +119,8 @@ stay in sync.
 | `Ctrl+Shift+=` / `Ctrl+Shift+-` / `Ctrl+Shift+0` | Canvas: zoom in / out / reset. On a plain tab these change the font size. |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab. `Ctrl+PageDown` / `Ctrl+PageUp` also work. |
 | `Alt+1` … `Alt+8`, `Alt+9` | Jump to tab N, `Alt+9` = last tab. |
-| `Shift+PageUp` / `Shift+PageDown` | Scroll history by a page. |
+| `Shift+PageUp` / `Shift+PageDown` | Scroll history by a page. Plain `PageUp`/`PageDown` do too at a shell prompt (not inside full-screen programs); turn off with `input.page_keys_scroll = false`. |
+| `Ctrl`+hover / `Ctrl`+click | Underline / open a link in the output: plain URLs (across wrapped lines) and OSC 8 hyperlinks. Right-click also offers *Open* and *Copy link*. |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | Scroll history by a line. |
 | `Shift+Home` / `Shift+End` | Jump to the top / bottom of history. Mouse wheel scrolls too. |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy selection / paste. `Ctrl+Insert` / `Shift+Insert` do the same. |
@@ -415,7 +416,7 @@ src/config.rs    config.toml and commands.toml
 ## Not yet done
 
 - Mouse reporting to applications (vim/htop mouse mode)
-- Bell, hyperlink (OSC 8) clicking
+- Bell
 - Search in scrollback, config hot reload
 - Canvas: groups, pins, mirrors, images, MCP server (see `docs/PLAN-canvas.md`)
 - Deck: shortcut folders, aliases, per-row font previews, ligatures, undo after launch

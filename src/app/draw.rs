@@ -281,8 +281,10 @@ impl App {
         if self.debug.term_zoom.is_some() {
             w.batch.outline(l.grid_x + 20.0, l.grid_y + 20.0, 520.0, 320.0, 6.0, 1.0, theme.accent);
         }
+        let tab_id = w.terms[ti].id;
         let tab = &mut w.terms[ti];
         draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
+        Self::draw_link_underline(w, theme, tab_id, place.x, place.y, place.zoom);
     }
 }
 

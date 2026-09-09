@@ -363,6 +363,12 @@ impl App {
                 true
             }
             Some((id, ItemPart::Content)) => {
+                if self.mods.control_key()
+                    && let Some(hit) = self.link_under_pointer()
+                {
+                    self.open_link(&hit.uri);
+                    return true;
+                }
                 if self.mods.shift_key() && self.win().canvas().and_then(|c| c.focus) != Some(id) {
                     // Shift+click on another terminal extends the item
                     // selection rather than the text selection.
@@ -457,7 +463,8 @@ impl App {
         let others: Vec<(usize, String)> = (0..w.canvases.len()).filter(|&i| i != w.active).map(|i| (i, w.tab_title(i))).collect();
         let has_saved = !self.store.commands.is_empty();
         let (pinned, mirror, monitor) = c.item(id).map(|i| (i.pin.is_some(), i.mirror, i.monitor)).unwrap_or((false, false, None));
-        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others, pinned, mirror, monitor));
+        let link = self.link_under_pointer().map(|h| h.uri);
+        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others, pinned, mirror, monitor, link.as_deref()));
         self.request_redraw();
     }
 
@@ -586,6 +593,7 @@ impl App {
                 true
             }
             CDrag::None => {
+                self.update_link_hover();
                 // Hover feedback.
                 let over = if l.area.contains(mx, my) { self.item_at(mx, my) } else { None };
                 let prev = self.win().hover_part;
@@ -598,6 +606,7 @@ impl App {
                         Some((_, ItemPart::Title)) => CursorIcon::Grab,
                         Some((_, ItemPart::Close)) => CursorIcon::Pointer,
                         Some((_, ItemPart::Edge(e))) => resize_cursor(e),
+                        Some((_, ItemPart::Content)) if self.win().hover_link.is_some() => CursorIcon::Pointer,
                         Some((_, ItemPart::Content)) => CursorIcon::Text,
                         None => match self.group_at(mx, my) {
                             Some((_, GroupPart::Label)) => CursorIcon::Grab,
@@ -934,8 +943,12 @@ impl App {
                     w.batch.pop_clip();
                 } else {
                     let place = TermPlace { x: cx, y: cy, zoom, focused: focused && win_focused, clip: Some(clip) };
+                    let tab_id = w.terms[ti].id;
                     let tab = &mut w.terms[ti];
                     draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
+                    w.batch.push_clip(clip.0, clip.1, clip.2, clip.3);
+                    Self::draw_link_underline(w, theme, tab_id, cx, cy, zoom);
+                    w.batch.pop_clip();
                 }
             }
         }
