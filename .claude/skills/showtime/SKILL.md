@@ -13,3 +13,6 @@ Flags: `--fast` for shorter pauses, `--cleanup` to close the Showtime tab at
 the end, `--binary PATH` to use a specific kindlyterm build (default: the
 one on PATH). The running window must have the control API enabled (Deck →
 About). The script returns the user to the canvas they started on.
+
+To record it, start `python3 demo/record.py <dir> &` first, play the demo,
+then `touch <dir>/stop`; the script writes showtime.gif and showtime.mp4.

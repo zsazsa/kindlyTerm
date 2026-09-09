@@ -351,7 +351,19 @@ impl App {
                     self.wins[wi].terms[ti].agent_touch = Some(Instant::now());
                     self.wins[wi].window.request_redraw();
                 } else {
-                    let mut bytes = text.clone().into_bytes();
+                    // Same rules as a user paste: when the program has asked
+                    // for bracketed paste, wrap the text so a shell takes a
+                    // multi-line block as one edit instead of running each
+                    // line as it lands. Otherwise newlines become Enter.
+                    let bracketed = self.wins[wi].terms[ti].term.lock().mode().contains(TermMode::BRACKETED_PASTE);
+                    let mut bytes = if bracketed && text.contains('\n') {
+                        let mut b = b"\x1b[200~".to_vec();
+                        b.extend_from_slice(text.as_bytes());
+                        b.extend_from_slice(b"\x1b[201~");
+                        b
+                    } else {
+                        text.replace("\r\n", "\r").replace('\n', "\r").into_bytes()
+                    };
                     if enter {
                         bytes.push(b'\r');
                     }

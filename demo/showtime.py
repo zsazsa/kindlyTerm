@@ -35,12 +35,23 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 
 TYPED = (
-    'echo "An agent is typing this, one key at a time, fast enough to leave '
-    "a neon trail behind the cursor. The Canvas shows you the work as it "
-    'happens: every keystroke, every paste, every shell, in one place you can pan and zoom."'
+    'echo "Welcome to kindlyTerm: a GPU-accelerated terminal for Linux. This is '
+    "the Canvas, an infinite zoomable board where every shell is a card. Shells "
+    "outlive the window, and an agent such as Claude Code can open, read, type "
+    'into and arrange them. It is typing this now, fast enough to leave a trail."'
 )
 TYPED_2 = 'echo "Delete eats forward. Backspace eats backward. Either way the line gets shorter."'
 CLOSING = 'echo "That\'s the show. Every card here was placed by an agent, and you can watch it work."'
+
+
+# Every demo card runs bash with a staged prompt (dev@kindlyTerm), so a
+# recording shows no real user or host name. `command` runs first.
+RC = os.path.join(HERE, "rc.sh")
+SHELL = f"exec bash --rcfile {RC}"
+
+
+def with_shell(command=None):
+    return f"{command}; {SHELL}" if command else SHELL
 
 
 class Mcp:
@@ -166,7 +177,7 @@ def main():
 
     print("▶ Act 1 · the typewriter")
     canvas = m.call("create_canvas", name="Showtime")["canvas_id"]
-    tw = m.call("create_terminal", canvas_id=canvas, name="typewriter", x=0, y=0, cols=72, rows=10)
+    tw = m.call("create_terminal", canvas_id=canvas, name="typewriter", command=with_shell(), x=0, y=0, cols=72, rows=10)
     m.call("zoom_to", item_id=tw["item_id"])
     wait(1.5, "shell starting", hold=True)
     m.call("send_text", terminal_id=tw["terminal_id"], text=TYPED, typing=24)
@@ -180,24 +191,29 @@ def main():
     wait((len(TYPED_2) + 5) * 0.04 + 2.5, "Pac-Man eating it forwards")
 
     print("▶ Act 2 · the rain")
-    rain = m.call("create_terminal", canvas_id=canvas, name="rain", command="clear; cat > /dev/null", x=0, y=220, cols=80, rows=18)
+    # A real shell. The agent pastes a block: a heredoc that prints the
+    # banner. The paste falls in as rain, then Enter runs it.
+    rain = m.call("create_terminal", canvas_id=canvas, name="rain", command=with_shell(), x=0, y=220, cols=80, rows=18)
     m.call("zoom_to", item_id=rain["item_id"])
-    wait(1.5, "cat waiting for input", hold=True)
+    wait(1.5, "a shell, waiting", hold=True)
     with open(os.path.join(HERE, "banner.txt"), encoding="utf-8") as f:
-        m.call("send_text", terminal_id=rain["terminal_id"], text=f.read())
-    wait(5.0, "letting it fall", hold=True)
+        block = "clear; cat <<'BANNER'\n" + f.read().rstrip("\n") + "\nBANNER"
+    m.call("send_text", terminal_id=rain["terminal_id"], text=block)
+    wait(4.0, "the block falls in as rain", hold=True)
+    m.call("send_key", terminal_id=rain["terminal_id"], key="enter")
+    wait(2.0, "Enter: the shell prints the banner", hold=True)
 
     print("▶ Act 3 · real work")
     # Real cards: a build, a docs server with a client hitting it, and git.
     build = m.call("create_terminal", canvas_id=canvas, name="build", cwd=REPO,
-                   command="touch src/main.rs && cargo build --release", x=720, y=0, cols=70, rows=22)
+                   command=with_shell('touch src/main.rs && cargo build --release --color=always 2>&1 | sed -u "s|$HOME|~|g"'), x=720, y=0, cols=70, rows=22)
     m.call("set_monitor", item_id=build["item_id"], seconds=6)
     git = m.call("create_terminal", canvas_id=canvas, name="git", cwd=REPO,
-                 command="git --no-pager log --graph --color=always --oneline -12; echo; git status --short", x=720, y=420, cols=70, rows=16)
+                 command=with_shell("git --no-pager log --graph --color=always --oneline -12; echo; git status --short"), x=720, y=420, cols=70, rows=16)
     server = m.call("create_terminal", canvas_id=canvas, name="docs server", cwd=REPO,
-                    command="python3 -m http.server 8765 --directory docs", x=1340, y=0, cols=60, rows=12)
+                    command=with_shell("python3 -m http.server 8765 --directory docs"), x=1340, y=0, cols=60, rows=12)
     client = m.call("create_terminal", canvas_id=canvas, name="requests", cwd=REPO,
-                    command="sleep 1; for f in / /PLAN-canvas.md /nope /; do curl -s -o /dev/null -w '%{http_code}  %{url}\\n' http://127.0.0.1:8765$f; sleep 1.5; done",
+                    command=with_shell("sleep 1; for f in / /PLAN-canvas.md /nope /; do curl -s -o /dev/null -w '%{http_code}  %{url}\\n' http://127.0.0.1:8765$f; sleep 1.5; done"),
                     x=1340, y=250, cols=60, rows=10)
     m.call("zoom_to")
     wait(2.0, "the board, fit to the window", hold=True)
@@ -242,7 +258,7 @@ def main():
     workers = []
     for name, cmd, (x, y) in jobs:
         say(m, log["terminal_id"], f"spawning worker '{name}'")
-        w = m.call("create_terminal", canvas_id=canvas, name=f"worker · {name}", cwd=REPO, command=cmd, x=x, y=y, cols=52, rows=10)
+        w = m.call("create_terminal", canvas_id=canvas, name=f"worker · {name}", cwd=REPO, command=with_shell(cmd), x=x, y=y, cols=52, rows=10)
         workers.append((name, w))
         frame(m, canvas, *rect_of(m, item_id=w["item_id"]), left=LEFT)
         wait(1.6, f"'{name}' spawned, camera on it", hold=True)

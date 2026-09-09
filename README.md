@@ -270,8 +270,11 @@ for silence, place images, set the view, and take a screenshot. Every action tha
 moves something is announced in the tab bar, and typing lights the
 terminal up: its frame (and its tab, if it is not the one showing) glows
 in the accent colour for a moment, short text replays the typing trail
-and longer text falls in as paste rain. The bytes reach the shell before
-any of that starts, so an agent is never slowed down by the show. For a
+and longer text falls in as paste rain. Multi-line text is delivered as
+one bracketed paste when the program has asked for it, so a shell shows
+the block and waits for Enter instead of running each line as it lands.
+The bytes reach the shell before any of that starts, so an agent is
+never slowed down by the show. For a
 slower, watchable version an agent can pass `typing` (characters per
 second) to `send_text`, or `count` to `send_key` to hold a key down: held
 Backspace or Delete brings out the Pac-Man cursor. Both return at once
@@ -291,7 +294,12 @@ Then it turns to the rest of the board: it notices the build card's
 silence monitor firing, reads the finished build and clears the monitor,
 groups build with git as "repo" and the docs server with its client as
 "docs site", unpins its log, and zooms out to the whole board. `--fast`
-shortens the pauses, `--cleanup` closes the tab after.
+shortens the pauses, `--cleanup` closes the tab after. Every demo card
+runs bash with a staged `dev@kindlyTerm` prompt (`demo/rc.sh`), so a
+recording shows no real user or host name. To record one,
+`python3 demo/record.py out &` grabs frames over MCP while the Showtime
+tab is showing; play the demo, then `touch out/stop` and it writes
+`showtime.gif` and `showtime.mp4` (needs ffmpeg).
 
 How it works: with the toggle on, the running app serves a small JSON API on
 a private Unix socket (`$XDG_RUNTIME_DIR/kindlyterm/control.sock`, mode
