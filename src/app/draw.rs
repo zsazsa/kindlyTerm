@@ -451,6 +451,20 @@ pub(crate) fn draw_term_view(
         };
         let default_bg = colors[NamedColor::Background].map(rgb_to_rgba).unwrap_or(theme.bg);
 
+        // Paste rain: measure scrolling since the paste before touching cells.
+        if fx.raining() {
+            let cols = term.grid().columns();
+            let mut view = vec![' '; cols * rows];
+            for c in term.grid().display_iter() {
+                if let Some(vp) = point_to_viewport(display_offset, c.point)
+                    && vp.line < rows
+                    && vp.column.0 < cols
+                {
+                    view[vp.line * cols + vp.column.0] = c.c;
+                }
+            }
+            fx.sync_scroll(history_now, &view);
+        }
         for cell in content.display_iter {
             let Some(vp) = point_to_viewport(display_offset, cell.point) else { continue };
             if vp.line >= rows {
@@ -492,7 +506,7 @@ pub(crate) fn draw_term_view(
             let c = cell.c;
             // Paste rain: newly pasted cells are hidden until their drop lands.
             if fx.watching() {
-                fx.observe_cell(vp.column.0, vp.line, c, history_now);
+                fx.observe_cell(vp.column.0, vp.line, c);
             }
             if fx.is_masked(vp.column.0, vp.line) {
                 continue;
@@ -532,7 +546,7 @@ pub(crate) fn draw_term_view(
         }
 
         // Visual effects (typing trail, paste rain) sit between grid and cursor.
-        fx.draw(effects_cfg, fonts, batch, theme, place.x, place.y, zoom, now);
+        fx.draw(effects_cfg, fonts, batch, theme, place.x, place.y, zoom, rows, now);
 
         // Cursor overlay: animated position, trail, pulse ring, other shapes.
         if let Some(vp) = cursor_vp {

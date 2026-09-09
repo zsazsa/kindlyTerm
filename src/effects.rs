@@ -225,7 +225,10 @@ struct TrailGlyph {
 /// One pasted character falling into the cell where it really landed.
 struct Fall {
     col: usize,
-    row: usize,
+    /// Absolute line (screen row + scrollback length when observed), so a
+    /// screen that scrolls while the rain is falling does not strand the
+    /// drop above the text it is meant to land on.
+    line: usize,
     ch: char,
     start: Instant,
     /// Seconds to wait before this glyph starts falling.
@@ -236,6 +239,7 @@ struct Fall {
 }
 
 /// Visible grid captured right before a paste is sent to the shell.
+#[derive(Clone)]
 pub struct GridSnapshot {
     pub cells: Vec<char>,
     pub cols: usize,
@@ -250,7 +254,11 @@ struct Pending {
     density: f32,
     /// Characters of the paste still unaccounted for (multiset).
     remaining: std::collections::HashMap<char, usize>,
+    /// Watching stops here; every landing cell seen pushes it out, so a
+    /// slow shell (a big paste through a session host, a redraw by
+    /// readline) still gets its rain. Capped at a few seconds after arming.
     deadline: Instant,
+    armed: Instant,
     duration: f32,
     /// First landing row seen; later rows get proportionally longer delays.
     first_row: Option<usize>,
@@ -275,7 +283,13 @@ impl Rng {
 pub struct Effects {
     trail: VecDeque<TrailGlyph>,
     falls: Vec<Fall>,
-    /// Cells whose real glyph is hidden until its drop lands.
+    /// The screen as it was right before the last paste, kept while drops
+    /// are in the air so scrolling can be measured against it.
+    snap: Option<GridSnapshot>,
+    /// Lines the screen has scrolled since `snap` was taken.
+    scroll: usize,
+    /// Cells (col, absolute line) whose real glyph is hidden until its
+    /// drop lands.
     masked: std::collections::HashSet<(usize, usize)>,
     pending: Option<Pending>,
     /// Glyphs used for the shimmer of falls (kept after detection ends).
@@ -291,7 +305,7 @@ impl Default for Effects {
 
 impl Effects {
     pub fn new() -> Self {
-        Self { trail: VecDeque::new(), falls: Vec::new(), masked: std::collections::HashSet::new(), pending: None, shimmer: Vec::new(), rng: Rng(0x9e37_79b9) }
+        Self { trail: VecDeque::new(), falls: Vec::new(), snap: None, scroll: 0, masked: std::collections::HashSet::new(), pending: None, shimmer: Vec::new(), rng: Rng(0x9e37_79b9) }
     }
 
     /// Anything still animating?
@@ -306,7 +320,54 @@ impl Effects {
 
     /// Should this cell's real glyph be hidden (its drop is still in the air)?
     pub fn is_masked(&self, col: usize, row: usize) -> bool {
-        !self.masked.is_empty() && self.masked.contains(&(col, row))
+        !self.masked.is_empty() && self.masked.contains(&(col, row + self.scroll))
+    }
+
+    /// Are drops in the air or a paste being watched? Then the caller
+    /// should feed `sync_scroll` the current screen before drawing.
+    pub fn raining(&self) -> bool {
+        !self.falls.is_empty() || self.pending.is_some()
+    }
+
+    /// Measure how far the screen has scrolled since the paste snapshot.
+    /// The scrollback length is exact while it is still growing; once the
+    /// buffer is full it stops moving, so then the snapshot's rows are
+    /// matched against the screen: the shift with the most identical
+    /// non-blank rows wins (the pasted rows themselves never match).
+    pub fn sync_scroll(&mut self, history_now: usize, view: &[char]) {
+        let Some(snap) = self.snap.as_ref() else { return };
+        let by_history = history_now.saturating_sub(snap.history);
+        if by_history > self.scroll {
+            self.scroll = by_history;
+            return;
+        }
+        let (cols, rows) = (snap.cols, snap.rows);
+        if cols == 0 || view.len() != cols * rows {
+            return;
+        }
+        let nonblank = |line: &[char]| line.iter().any(|c| *c != ' ');
+        let mut best = (self.scroll, 0usize);
+        for s in self.scroll..rows {
+            let mut matched = 0usize;
+            let mut missed = 0usize;
+            for k in 0..(rows - s) {
+                let old = &snap.cells[(k + s) * cols..(k + s + 1) * cols];
+                if !nonblank(old) {
+                    continue;
+                }
+                if old == &view[k * cols..(k + 1) * cols] {
+                    matched += 1;
+                } else {
+                    missed += 1;
+                }
+            }
+            if matched >= 2 && matched > missed && matched > best.1 {
+                best = (s, matched);
+            }
+        }
+        if best.0 > self.scroll {
+            self.scroll = best.0;
+        }
     }
 
     /// Record a typed character at the cell where it will appear.
@@ -352,11 +413,19 @@ impl Effects {
         };
         let now = Instant::now();
         self.shimmer = glyph_set;
+        // Drops from an earlier paste are re-based onto the new snapshot.
+        for f in &mut self.falls {
+            f.line = f.line.saturating_sub(self.scroll);
+        }
+        self.masked = self.masked.iter().map(|(c, l)| (*c, l.saturating_sub(self.scroll))).collect();
+        self.scroll = 0;
+        self.snap = Some(snap.clone());
         self.pending = Some(Pending {
             snap,
             density: cfg.density.clamp(0.1, 1.0),
             remaining,
-            deadline: now + std::time::Duration::from_millis(400),
+            deadline: now + std::time::Duration::from_millis(600),
+            armed: now,
             duration: cfg.duration_ms.max(200) as f32 / 1000.0,
             first_row: None,
         });
@@ -364,7 +433,8 @@ impl Effects {
 
     /// Called for every visible cell while a paste is being watched. A cell
     /// whose character changed to one from the paste becomes a landing spot.
-    pub fn observe_cell(&mut self, col: usize, row: usize, ch: char, history_now: usize) {
+    pub fn observe_cell(&mut self, col: usize, row: usize, ch: char) {
+        let scrolled = self.scroll;
         let Some(p) = self.pending.as_mut() else { return };
         if ch == ' ' || ch.is_control() {
             return;
@@ -375,16 +445,19 @@ impl Effects {
         }
         // The screen may have scrolled since the snapshot: compare with the
         // line that used to be at this position.
-        let scrolled = history_now.saturating_sub(p.snap.history);
         let old_row = row + scrolled;
         let old = if old_row < p.snap.rows && col < p.snap.cols { p.snap.cells[old_row * p.snap.cols + col] } else { ' ' };
         if old == ch {
             return;
         }
-        if self.masked.contains(&(col, row)) {
+        let line = row + scrolled;
+        if self.masked.contains(&(col, line)) {
             return;
         }
         *left -= 1;
+        // Text is still arriving: keep watching a little longer.
+        let now = Instant::now();
+        p.deadline = (now + std::time::Duration::from_millis(600)).min(p.armed + std::time::Duration::from_secs(4));
         // Skip some characters (density) and cap the total so a 10k-char
         // paste does not spawn 10k drops.
         if self.rng.unit() > p.density || self.falls.len() >= 900 {
@@ -398,8 +471,8 @@ impl Effects {
         let row_frac = ((row.saturating_sub(first)) as f32 / 24.0).min(1.0);
         let delay = row_frac * p.duration * 0.45 + self.rng.unit() * p.duration * 0.25;
         let dur = p.duration * (0.35 + 0.25 * self.rng.unit());
-        self.falls.push(Fall { col, row, ch, start: Instant::now(), delay, dur, seed: self.rng.next() });
-        self.masked.insert((col, row));
+        self.falls.push(Fall { col, line, ch, start: now, delay, dur, seed: self.rng.next() });
+        self.masked.insert((col, line));
         if p.remaining.values().all(|n| *n == 0) {
             self.pending = None;
         }
@@ -407,7 +480,7 @@ impl Effects {
 
     /// Draw both effects. Call after the grid and before the cursor overlay.
     #[allow(clippy::too_many_arguments)]
-    pub fn draw(&mut self, cfg: &EffectsConfig, fonts: &mut FontSystem, batch: &mut Batch, theme: &Theme, grid_x: f32, grid_y: f32, zoom: f32, now: Instant) {
+    pub fn draw(&mut self, cfg: &EffectsConfig, fonts: &mut FontSystem, batch: &mut Batch, theme: &Theme, grid_x: f32, grid_y: f32, zoom: f32, rows: usize, now: Instant) {
         let base_px = fonts.size_px;
         let m0 = fonts.metrics;
         let m = crate::font::CellMetrics {
@@ -466,20 +539,24 @@ impl Effects {
                     continue;
                 }
                 let p = (t / f.dur).min(1.0);
-                if p >= 1.0 {
-                    landed.push((f.col, f.row));
+                // Where the target line is on screen now; a line that has
+                // scrolled off the top or bottom has nowhere to land.
+                let row = f.line as isize - self.scroll as isize;
+                if p >= 1.0 || row < 0 || row >= rows as isize {
+                    landed.push((f.col, f.line));
                     continue;
                 }
+                let target = row as f32;
                 // Ease in: the glyph accelerates as it falls.
                 let e = p * p;
                 let x = grid_x + f.col as f32 * m.width;
-                let head = -1.0 + (f.row as f32 + 1.0) * e;
+                let head = -1.0 + (target + 1.0) * e;
                 let frame = (now.duration_since(f.start).as_millis() / 40) as usize + f.seed as usize;
                 // Settle: show the true character for the last part of the fall.
                 let settled = p > 0.72 || glyph_set.is_empty();
                 for k in 0..tail {
                     let row = head - k as f32;
-                    if row < -0.5 || row > f.row as f32 + 0.5 {
+                    if row < -0.5 || row > target + 0.5 {
                         continue;
                     }
                     let y = grid_y + row.round() * m.height;
@@ -506,8 +583,12 @@ impl Effects {
                 for key in &landed {
                     self.masked.remove(key);
                 }
-                self.falls.retain(|f| !landed.contains(&(f.col, f.row)));
+                self.falls.retain(|f| !landed.contains(&(f.col, f.line)));
             }
+        }
+        if self.falls.is_empty() && self.pending.is_none() {
+            self.snap = None;
+            self.scroll = 0;
         }
     }
 }
@@ -538,4 +619,70 @@ fn trail_color(name: &str, theme: &Theme, age: f32) -> Rgba {
 
 fn rain_color(name: &str, theme: &Theme) -> Rgba {
     named_color(name, theme).unwrap_or(theme.accent)
+}
+
+#[cfg(test)]
+mod rain_scroll_tests {
+    use super::*;
+
+    fn grid(lines: &[&str], cols: usize) -> Vec<char> {
+        let mut v = Vec::new();
+        for l in lines {
+            let mut row: Vec<char> = l.chars().collect();
+            row.resize(cols, ' ');
+            v.extend(row);
+        }
+        v
+    }
+
+    fn effects_with_snapshot(lines: &[&str], cols: usize, history: usize) -> Effects {
+        let mut fx = Effects::new();
+        let cfg = RainConfig { enabled: true, min_chars: 1, ..Default::default() };
+        let snap = GridSnapshot { cells: grid(lines, cols), cols, rows: lines.len(), history };
+        fx.begin_paste(&cfg, "pasted text here", snap);
+        fx
+    }
+
+    #[test]
+    fn history_growth_is_exact() {
+        let mut fx = effects_with_snapshot(&["one", "two", "three", "$ "], 8, 100);
+        fx.sync_scroll(103, &grid(&["$ ", "x", "y", "z"], 8));
+        assert_eq!(fx.scroll, 3);
+    }
+
+    #[test]
+    fn full_buffer_falls_back_to_content_matching() {
+        // History stays at 100 (buffer full) while the screen scrolls by 2
+        // and the paste lands on the bottom rows.
+        let before = ["alpha", "beta", "gamma", "delta", "$ ", " "];
+        let after = ["gamma", "delta", "$ pasted", "text", "here", "$ "];
+        let mut fx = effects_with_snapshot(&before, 10, 100);
+        fx.sync_scroll(100, &grid(&after, 10));
+        assert_eq!(fx.scroll, 2);
+        // Never goes backwards, and a later frame with no change holds.
+        fx.sync_scroll(100, &grid(&after, 10));
+        assert_eq!(fx.scroll, 2);
+    }
+
+    #[test]
+    fn no_scroll_stays_at_zero() {
+        let before = ["alpha", "beta", "$ ", " ", " ", " "];
+        let after = ["alpha", "beta", "$ pasted", "text", "here", "$ "];
+        let mut fx = effects_with_snapshot(&before, 10, 100);
+        fx.sync_scroll(100, &grid(&after, 10));
+        assert_eq!(fx.scroll, 0);
+    }
+
+    #[test]
+    fn drops_follow_the_scrolled_line() {
+        let before = ["alpha", "beta", "$ ", " "];
+        let mut fx = effects_with_snapshot(&before, 10, 100);
+        // The paste's first character shows up on row 2 before any scroll.
+        fx.observe_cell(2, 2, 'p');
+        assert!(fx.is_masked(2, 2));
+        // The screen scrolls one line: the masked cell is now on row 1.
+        fx.sync_scroll(101, &grid(&["beta", "$ p", " ", " "], 10));
+        assert!(fx.is_masked(2, 1));
+        assert!(!fx.is_masked(2, 2));
+    }
 }
