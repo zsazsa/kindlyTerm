@@ -244,7 +244,7 @@ impl App {
                         // Hold or release Shift for the following mouse actions.
                         self.mods = if on == "on" { winit::keyboard::ModifiersState::SHIFT } else { winit::keyboard::ModifiersState::empty() };
                     }
-                    _ if a == "group" => self.toggle_group(),
+                    _ if a == "group" => self.toggle_group(true),
                     Some(("monitor", secs)) => {
                         if let Some(f) = self.win().canvas().and_then(|c| c.focus) {
                             self.set_monitor(f, secs.parse().ok());

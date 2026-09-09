@@ -613,3 +613,69 @@ impl SavedState {
         Ok(())
     }
 }
+
+/// Flow `sizes` (w, h) into rows of equal count, left to right then top to
+/// bottom, with `gap` between them; the column count is the one whose
+/// bounding box is closest to 16:10. Returns each item's offset from the
+/// block's top-left, and the block's width and height.
+pub fn pack_grid(sizes: &[(f32, f32)], gap: f32) -> (Vec<(f32, f32)>, f32, f32) {
+    let layout = |cols: usize| -> (Vec<(f32, f32)>, f32, f32) {
+        let (mut pos, mut x, mut y, mut row_h, mut max_w) = (Vec::new(), 0.0f32, 0.0f32, 0.0f32, 0.0f32);
+        for (i, (w, h)) in sizes.iter().enumerate() {
+            if i > 0 && i % cols == 0 {
+                y += row_h + gap;
+                x = 0.0;
+                row_h = 0.0;
+            }
+            pos.push((x, y));
+            x += w + gap;
+            row_h = row_h.max(*h);
+            max_w = max_w.max(x - gap);
+        }
+        (pos, max_w, y + row_h)
+    };
+    let n = sizes.len().max(1);
+    let mut best = (1usize, f32::MAX);
+    for cols in 1..=n {
+        let (_, bw, bh) = layout(cols);
+        let score = ((bw / bh.max(1.0)) / 1.6).ln().abs();
+        if score < best.1 {
+            best = (cols, score);
+        }
+    }
+    layout(best.0)
+}
+
+#[cfg(test)]
+mod pack_tests {
+    use super::pack_grid;
+
+    #[test]
+    fn four_equal_cards_make_a_two_by_two() {
+        let (pos, w, h) = pack_grid(&[(400.0, 200.0); 4], 20.0);
+        assert_eq!(pos, vec![(0.0, 0.0), (420.0, 0.0), (0.0, 220.0), (420.0, 220.0)]);
+        assert_eq!((w, h), (820.0, 420.0));
+    }
+
+    #[test]
+    fn nothing_overlaps_with_mixed_sizes() {
+        let sizes = [(600.0, 300.0), (300.0, 150.0), (450.0, 400.0), (300.0, 300.0), (500.0, 200.0)];
+        let (pos, w, h) = pack_grid(&sizes, 20.0);
+        for i in 0..sizes.len() {
+            for j in 0..i {
+                let (ax, ay, aw, ah) = (pos[i].0, pos[i].1, sizes[i].0, sizes[i].1);
+                let (bx, by, bw, bh) = (pos[j].0, pos[j].1, sizes[j].0, sizes[j].1);
+                let apart = ax + aw <= bx || bx + bw <= ax || ay + ah <= by || by + bh <= ay;
+                assert!(apart, "items {i} and {j} overlap");
+            }
+            assert!(pos[i].0 + sizes[i].0 <= w + 0.01 && pos[i].1 + sizes[i].1 <= h + 0.01);
+        }
+    }
+
+    #[test]
+    fn one_wide_card_stays_alone() {
+        let (pos, w, h) = pack_grid(&[(800.0, 100.0)], 20.0);
+        assert_eq!(pos, vec![(0.0, 0.0)]);
+        assert_eq!((w, h), (800.0, 100.0));
+    }
+}

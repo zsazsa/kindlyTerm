@@ -185,12 +185,16 @@ holding a free canvas show a `▦` marker in the tab bar.
 - **Select several** with `Shift`+click on terminals or `Shift`+drag on
   empty canvas. Dragging one selected title bar moves them all;
   `Ctrl+Shift+F` zooms to the whole selection.
-- **Groups** (`Ctrl+Shift+G`, or the canvas menu) put the selection in a
-  named, tinted frame. Drag the frame's label to move everything inside,
-  double-click it to rename, resize the frame to change who belongs: any
-  terminal fully inside is a member. `Ctrl+Shift+F` with a group selected
-  zooms to it. Right-click the label for zoom, rename, ungroup, or close
-  all.
+- **Groups** (`Ctrl+Shift+G`, or the canvas menu) first pack the selection
+  into a tidy grid, reading order kept, then put it in a named, tinted
+  frame. Drag the frame's label to move everything inside, double-click it
+  to rename, resize the frame to change who belongs: any terminal fully
+  inside is a member. `Ctrl+Shift+F` with a group selected zooms to it.
+  Right-click the label for zoom, rename, *Arrange members* (re-pack after
+  resizing or adding), ungroup, or close all. A terminal's own menu has
+  *New group with this* and *Add to '‹group›'*, which moves it in and
+  re-packs the group. *Arrange selected terminals* on the canvas menu
+  tidies a selection without grouping it.
 - **Pin** a terminal (`Ctrl+Shift+P` or its menu) and it floats above the
   canvas in screen space: pan and zoom leave it where it is, and it keeps
   its distance from the nearest window corner when you resize. A build log

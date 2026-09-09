@@ -677,7 +677,8 @@ impl App {
                     c.selected = ids.clone();
                     c.group_sel = None;
                 }
-                self.toggle_group();
+                let arrange = p.get("arrange").and_then(|v| v.as_bool()).unwrap_or(false);
+                self.toggle_group(arrange);
                 let gid = self.win().canvas().and_then(|c| c.group_sel);
                 if let (Some(gid), Some(name)) = (gid, arg_str(p, "name"))
                     && let Some(g) = self.win_mut().canvas_mut().and_then(|c| c.group_mut(gid))
@@ -685,6 +686,14 @@ impl App {
                     g.name = name.to_string();
                 }
                 Ok(json!({"group_id": gid}))
+            }
+            "arrange_group" => {
+                let gid: GroupId = need_u64(p, "group_id")?;
+                let (wi, ci) = self.wins.iter().enumerate().find_map(|(wi, w)| w.canvases.iter().position(|c| c.group(gid).is_some()).map(|ci| (wi, ci))).ok_or("no such group")?;
+                self.go_to(wi, ci);
+                self.arrange_group(gid);
+                let g = self.win().canvas().and_then(|c| c.group(gid)).map(|g| json!({"x": g.rect.x, "y": g.rect.y, "w": g.rect.w, "h": g.rect.h, "members": g.members}));
+                Ok(json!({"ok": true, "group": g}))
             }
             "delete_group" => {
                 let gid: GroupId = need_u64(p, "group_id")?;

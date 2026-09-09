@@ -35,6 +35,14 @@ pub enum MenuAction {
     CloseTerminal(crate::terminal::TabId),
     RenameItem(crate::canvas::ItemId),
     GroupSelection,
+    /// Tidy the selected items into a grid without grouping them.
+    ArrangeSelection,
+    /// Re-tidy a group's members and shrink-wrap its frame.
+    ArrangeGroup(crate::canvas::GroupId),
+    /// A new group holding just this item.
+    NewGroupWith(crate::canvas::ItemId),
+    /// Move this item into an existing group and re-tidy it.
+    AddToGroup(crate::canvas::ItemId, crate::canvas::GroupId),
     TogglePin(crate::canvas::ItemId),
     OpenLink(String),
     CopyLink(String),
@@ -136,6 +144,7 @@ impl Menu {
             MenuItem::new("Fit everything", "Ctrl+Shift+A", MenuAction::FitAll),
             MenuItem::new("Reset zoom", "Ctrl+Shift+0", MenuAction::ResetZoom),
             MenuItem::new("Group selected terminals", "Ctrl+Shift+G", MenuAction::GroupSelection),
+            MenuItem::new("Arrange selected terminals", "", MenuAction::ArrangeSelection),
             MenuItem::new("Maximize terminal", "", MenuAction::Maximize).enabled(one_item),
             MenuItem::sep(),
             MenuItem::new("New canvas tab", "Ctrl+Shift+K", MenuAction::NewCanvasTab),
@@ -177,6 +186,7 @@ impl Menu {
         let items = vec![
             MenuItem::new(&format!("Zoom to {name}"), "Ctrl+Shift+F", MenuAction::ZoomGroup(g)),
             MenuItem::new("Rename group", "double-click", MenuAction::RenameGroup(g)),
+            MenuItem::new("Arrange members", "", MenuAction::ArrangeGroup(g)),
             MenuItem::sep(),
             MenuItem::new("Ungroup", "Ctrl+Shift+G", MenuAction::Ungroup(g)),
             MenuItem::new("Close every terminal in it", "", MenuAction::CloseGroup(g)),
@@ -186,7 +196,8 @@ impl Menu {
 
     /// Menu for a right-click on a terminal item of a free canvas.
     #[allow(clippy::too_many_arguments)]
-    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)], pinned: bool, mirror: bool, monitor: Option<u32>, link: Option<&str>) -> Self {
+    #[allow(clippy::too_many_arguments)]
+    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)], pinned: bool, mirror: bool, monitor: Option<u32>, link: Option<&str>, groups: &[(crate::canvas::GroupId, String, bool)]) -> Self {
         let mut items = Self::link_items(link);
         items.extend(vec![
             MenuItem::new("Copy", "Ctrl+Shift+C", MenuAction::Copy).enabled(has_selection),
@@ -200,7 +211,12 @@ impl Menu {
                 None => MenuItem::new("Tell me when it goes quiet (30s)", "", MenuAction::SetMonitor(item, Some(30))),
             },
             MenuItem::new("Rename…", "double-click title", MenuAction::RenameItem(item)),
+            MenuItem::sep(),
+            MenuItem::new("New group with this", "Ctrl+Shift+G", MenuAction::NewGroupWith(item)).enabled(!pinned),
         ]);
+        for (gid, name, member) in groups.iter().take(6) {
+            items.push(MenuItem::new(&format!("Add to '{name}'"), "", MenuAction::AddToGroup(item, *gid)).enabled(!member && !pinned));
+        }
         for (ci, title) in other_tabs.iter().take(6) {
             items.push(MenuItem::new(&format!("Move to tab {}: {title}", ci + 1), "", MenuAction::MoveToCanvas(tab, *ci)));
         }

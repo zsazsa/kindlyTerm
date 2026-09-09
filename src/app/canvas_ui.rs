@@ -3,7 +3,7 @@
 
 use super::*;
 use super::draw::{draw_term_view, TermPlace};
-use crate::canvas::{item_part, Edge, GroupPart, Viewport, EDGE_PX, MAX_ZOOM, MIN_ZOOM, SNAP_PX};
+use crate::canvas::{item_part, Edge, GroupId, GroupPart, Viewport, EDGE_PX, MAX_ZOOM, MIN_ZOOM, SNAP_PX};
 
 /// Minimum item grid while resizing.
 const MIN_COLS: usize = 10;
@@ -477,7 +477,8 @@ impl App {
         let has_saved = !self.store.commands.is_empty();
         let (pinned, mirror, monitor) = c.item(id).map(|i| (i.pin.is_some(), i.mirror, i.monitor)).unwrap_or((false, false, None));
         let link = self.link_under_pointer().map(|h| h.uri);
-        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others, pinned, mirror, monitor, link.as_deref()));
+        let groups: Vec<(GroupId, String, bool)> = c.groups.iter().map(|g| (g.id, g.name.clone(), g.members.contains(&id))).collect();
+        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others, pinned, mirror, monitor, link.as_deref(), &groups));
         self.request_redraw();
     }
 

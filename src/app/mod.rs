@@ -1635,7 +1635,19 @@ impl App {
             MenuAction::MoveToCanvas(tab, ci) => self.move_item_to_canvas(tab, ci),
             MenuAction::CloseTerminal(tab) => self.close_terminal(tab, event_loop),
             MenuAction::RenameItem(id) => self.start_item_rename(id),
-            MenuAction::GroupSelection => self.toggle_group(),
+            MenuAction::GroupSelection => self.toggle_group(true),
+            MenuAction::ArrangeSelection => {
+                let ids = self.win().canvas().map(|c| c.selection_or_focus()).unwrap_or_default();
+                if ids.len() < 2 {
+                    self.set_status("Select two or more terminals first: Shift+click or Shift+drag".into());
+                } else {
+                    self.arrange_items(&ids);
+                    self.set_status("arranged".into());
+                }
+            }
+            MenuAction::ArrangeGroup(g) => self.arrange_group(g),
+            MenuAction::NewGroupWith(id) => self.new_group_with(id),
+            MenuAction::AddToGroup(id, g) => self.add_item_to_group(id, g),
             MenuAction::TogglePin(id) => self.toggle_pin(id),
             MenuAction::OpenLink(uri) => self.open_link(&uri),
             MenuAction::CopyLink(uri) => {

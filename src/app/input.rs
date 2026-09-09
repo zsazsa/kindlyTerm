@@ -241,7 +241,7 @@ impl App {
                         return true;
                     }
                     "g" => {
-                        self.toggle_group();
+                        self.toggle_group(true);
                         return true;
                     }
                     "=" | "+" => {

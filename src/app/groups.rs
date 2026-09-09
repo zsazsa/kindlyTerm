@@ -109,9 +109,106 @@ impl App {
     // Groups
     // -----------------------------------------------------------------------
 
+    /// Pack items into a tidy grid: reading order kept (top-to-bottom,
+    /// left-to-right), anchored at the top-left of where they were, the
+    /// column count chosen so the block is roughly 16:10. Returns the new
+    /// bounds. Pinned items stay where they are.
+    pub(super) fn arrange_items(&mut self, ids: &[ItemId]) -> Option<WRect> {
+        const GAP: f32 = 24.0;
+        let w = self.win_mut();
+        let c = w.canvas_mut()?;
+        let mut items: Vec<(ItemId, WRect)> = ids.iter().filter_map(|id| c.item(*id).filter(|i| i.pin.is_none()).map(|i| (i.id, i.rect))).collect();
+        if items.len() < 2 {
+            return c.bounds_of(ids);
+        }
+        let min_h = items.iter().map(|(_, r)| r.h).fold(f32::MAX, f32::min).max(1.0);
+        items.sort_by(|a, b| {
+            let (ay, by) = ((a.1.y / (min_h * 0.5)).round(), (b.1.y / (min_h * 0.5)).round());
+            ay.partial_cmp(&by).unwrap_or(std::cmp::Ordering::Equal).then(a.1.x.partial_cmp(&b.1.x).unwrap_or(std::cmp::Ordering::Equal))
+        });
+        let ox = items.iter().map(|(_, r)| r.x).fold(f32::MAX, f32::min);
+        let oy = items.iter().map(|(_, r)| r.y).fold(f32::MAX, f32::min);
+        let sizes: Vec<(f32, f32)> = items.iter().map(|(_, r)| (r.w, r.h)).collect();
+        let (pos, bw, bh) = crate::canvas::pack_grid(&sizes, GAP);
+        for ((id, _), (px, py)) in items.iter().zip(pos) {
+            if let Some(it) = c.item_mut(*id) {
+                it.rect.x = (ox + px).round();
+                it.rect.y = (oy + py).round();
+            }
+        }
+        c.recompute_membership();
+        w.dirty = true;
+        Some(WRect::new(ox, oy, bw, bh))
+    }
+
+    /// Re-tidy a group's members and shrink-wrap its frame around them.
+    pub(super) fn arrange_group(&mut self, gid: GroupId) {
+        let Some(ids) = self.win().canvas().and_then(|c| c.group(gid)).map(|g| g.members.clone()) else { return };
+        let Some(b) = self.arrange_items(&ids) else { return };
+        let w = self.win_mut();
+        if let Some(c) = w.canvas_mut() {
+            if let Some(g) = c.group_mut(gid) {
+                g.rect = WRect::new(b.x - GROUP_PAD, b.y - GROUP_PAD, b.w + 2.0 * GROUP_PAD, b.h + 2.0 * GROUP_PAD);
+            }
+            c.recompute_membership();
+        }
+        w.dirty = true;
+        self.set_status("arranged".into());
+        self.request_redraw();
+    }
+
+    /// Menu: put one item into an existing group. It is moved beside the
+    /// group's members and the whole group is re-tidied around it.
+    pub(super) fn add_item_to_group(&mut self, id: ItemId, gid: GroupId) {
+        let Some((gr, members)) = self.win().canvas().and_then(|c| c.group(gid)).map(|g| (g.rect, g.members.clone())) else { return };
+        if members.contains(&id) {
+            return;
+        }
+        {
+            let w = self.win_mut();
+            let Some(c) = w.canvas_mut() else { return };
+            // Leave any other group and land just right of the frame.
+            for g in &mut c.groups {
+                g.members.retain(|m| *m != id);
+            }
+            if let Some(it) = c.item_mut(id) {
+                if it.pin.is_some() {
+                    return;
+                }
+                it.rect.x = gr.right() + GROUP_PAD;
+                it.rect.y = gr.y + GROUP_PAD;
+            }
+        }
+        let mut ids = members;
+        ids.push(id);
+        let Some(b) = self.arrange_items(&ids) else { return };
+        let w = self.win_mut();
+        if let Some(c) = w.canvas_mut() {
+            if let Some(g) = c.group_mut(gid) {
+                g.rect = WRect::new(b.x - GROUP_PAD, b.y - GROUP_PAD, b.w + 2.0 * GROUP_PAD, b.h + 2.0 * GROUP_PAD);
+            }
+            c.recompute_membership();
+            c.group_sel = Some(gid);
+            c.selected.clear();
+        }
+        w.dirty = true;
+        self.set_status("added to the group".into());
+        self.request_redraw();
+    }
+
+    /// Menu: a new group holding just this item.
+    pub(super) fn new_group_with(&mut self, id: ItemId) {
+        if let Some(c) = self.win_mut().canvas_mut() {
+            c.selected = vec![id];
+            c.group_sel = None;
+        }
+        self.toggle_group(false);
+    }
+
     /// Ctrl+Shift+G: group the selection (or the focused item). If the
-    /// selection is exactly an existing group, dissolve it instead.
-    pub(super) fn toggle_group(&mut self) {
+    /// selection is exactly an existing group, dissolve it instead. With
+    /// `arrange`, the members are first packed into a tidy grid.
+    pub(super) fn toggle_group(&mut self, arrange: bool) {
         if !self.on_free_canvas() {
             self.set_status("Groups live on canvas tabs (Ctrl+Shift+Enter turns this one into a canvas)".into());
             return;
@@ -137,6 +234,9 @@ impl App {
             self.ungroup(gid);
             self.set_status("group dissolved".into());
             return;
+        }
+        if arrange {
+            self.arrange_items(&ids);
         }
         let gid = self.next_group_id;
         self.next_group_id += 1;
