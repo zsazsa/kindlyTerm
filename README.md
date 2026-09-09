@@ -127,7 +127,7 @@ stay in sync.
 | `Shift+PageUp` / `Shift+PageDown` | Scroll history by a page. Plain `PageUp`/`PageDown` do too at a shell prompt (not inside full-screen programs); turn off with `input.page_keys_scroll = false`. |
 | `Ctrl`+hover / `Ctrl`+click | Underline / open a link in the output: plain URLs (across wrapped lines) and OSC 8 hyperlinks. Right-click also offers *Open* and *Copy link*. |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | Scroll history by a line. |
-| `Shift+Home` / `Shift+End` | Jump to the top / bottom of history. Mouse wheel scrolls too, three lines a notch; `Alt`+wheel scrolls one line a notch. |
+| `Shift+Home` / `Shift+End` | Jump to the top / bottom of history. Mouse wheel scrolls too, three lines a notch; `Alt`+wheel scrolls one line a notch. A program that asks for mouse events (Claude Code, vim, less, htop) gets the wheel itself and scrolls its own view. |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy selection / paste. `Ctrl+Insert` / `Shift+Insert` do the same. |
 | `Ctrl+C` with text selected | Copies the selection (and clears it). With nothing selected it interrupts as usual. |
 | `Ctrl+V` at a shell prompt | Pastes. Inside full-screen apps (vim, htop, tmux) `Ctrl+V` is passed through untouched. |
@@ -509,7 +509,7 @@ demo/showtime.py    the scripted Canvas tour, driven over MCP
 
 ## Not yet done
 
-- Mouse reporting to applications (vim/htop mouse mode)
+- Mouse reporting to applications: clicks and drags (the wheel is reported)
 - Bell
 - Search in scrollback
 - Deck: shortcut folders, aliases, per-row font previews, ligatures, undo after launch

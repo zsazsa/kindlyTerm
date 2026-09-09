@@ -128,6 +128,7 @@ impl App {
             plus_hit: None,
             hover: Hover::None,
             mouse: PhysicalPosition::new(0.0, 0.0),
+            wheel_accum: 0.0,
             selecting: false,
             last_click: None,
             click_count: 0,

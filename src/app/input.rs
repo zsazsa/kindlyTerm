@@ -931,6 +931,63 @@ impl App {
         }
     }
 
+    /// Encode a wheel notch for a program that asked for mouse events.
+    /// Buttons 64/65 are wheel up/down; SGR (1006) is the modern form,
+    /// otherwise the classic X10 bytes (or their UTF-8 variant, 1005).
+    pub(super) fn wheel_report(mode: TermMode, up: bool, col: usize, row: usize, mods: ModifiersState) -> Option<Vec<u8>> {
+        if !mode.intersects(TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_DRAG | TermMode::MOUSE_MOTION) {
+            return None;
+        }
+        let mut btn = if up { 64 } else { 65 };
+        if mods.shift_key() {
+            btn += 4;
+        }
+        if mods.alt_key() {
+            btn += 8;
+        }
+        if mods.control_key() {
+            btn += 16;
+        }
+        if mode.contains(TermMode::SGR_MOUSE) {
+            return Some(format!("\x1b[<{btn};{};{}M", col + 1, row + 1).into_bytes());
+        }
+        let mut out = b"\x1b[M".to_vec();
+        out.push(32 + btn as u8);
+        let (c, r) = (32 + col + 1, 32 + row + 1);
+        if mode.contains(TermMode::UTF8_MOUSE) {
+            let mut buf = [0u8; 4];
+            for v in [c, r] {
+                let ch = char::from_u32(v as u32).unwrap_or(' ');
+                out.extend_from_slice(ch.encode_utf8(&mut buf).as_bytes());
+            }
+        } else {
+            if c > 223 || r > 223 {
+                return None;
+            }
+            out.push(c as u8);
+            out.push(r as u8);
+        }
+        Some(out)
+    }
+
+    /// Turn wheel travel into whole notches for mouse reporting: line
+    /// deltas are notches already; pixel deltas accumulate per cell height.
+    pub(super) fn wheel_notches(&mut self, delta: MouseScrollDelta, cell_h: f32) -> i32 {
+        match delta {
+            MouseScrollDelta::LineDelta(_, y) => {
+                self.win_mut().wheel_accum = 0.0;
+                if y.abs() < 0.01 { 0 } else { y.round().max(1.0).copysign(y) as i32 }
+            }
+            MouseScrollDelta::PixelDelta(p) => {
+                let w = self.win_mut();
+                w.wheel_accum += p.y as f32;
+                let n = (w.wheel_accum / cell_h.max(1.0)).trunc();
+                w.wheel_accum -= n * cell_h.max(1.0);
+                n as i32
+            }
+        }
+    }
+
     pub(super) fn on_wheel(&mut self, delta: MouseScrollDelta) {
         if self.wins[self.cur].palette.is_some() {
             if let Some(p) = self.wins[self.cur].palette.as_mut() {
@@ -971,6 +1028,27 @@ impl App {
         if self.on_free_canvas() && self.canvas_wheel(delta) {
             return;
         }
+        // A program that asked for mouse events gets the wheel itself.
+        if let Some(tab) = self.win().active_term() {
+            let mode = *tab.term.lock().mode();
+            if mode.intersects(TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_DRAG | TermMode::MOUSE_MOTION) {
+                let (col, row) = self.mouse_point().map(|(p, _)| (p.column.0, p.line.0.max(0) as usize)).unwrap_or((0, 0));
+                let mods = self.mods;
+                let n = self.wheel_notches(delta, l.cell_h);
+                if n != 0
+                    && let Some(tab) = self.win().active_term()
+                {
+                    let mut bytes = Vec::new();
+                    for _ in 0..n.abs() {
+                        if let Some(b) = Self::wheel_report(mode, n > 0, col, row, mods) {
+                            bytes.extend_from_slice(&b);
+                        }
+                    }
+                    tab.write(bytes);
+                }
+                return;
+            }
+        }
         let lines = match delta {
             MouseScrollDelta::LineDelta(_, y) => (y * 3.0) as i32,
             MouseScrollDelta::PixelDelta(p) => (p.y as f32 / l.cell_h) as i32,
@@ -1005,4 +1083,29 @@ impl App {
         self.request_redraw();
     }
 
+}
+
+#[cfg(test)]
+mod wheel_report_tests {
+    use super::*;
+
+    #[test]
+    fn sgr_wheel_up_and_down() {
+        let mode = TermMode::MOUSE_REPORT_CLICK | TermMode::SGR_MOUSE;
+        assert_eq!(App::wheel_report(mode, true, 4, 9, ModifiersState::empty()), Some(b"\x1b[<64;5;10M".to_vec()));
+        assert_eq!(App::wheel_report(mode, false, 0, 0, ModifiersState::empty()), Some(b"\x1b[<65;1;1M".to_vec()));
+    }
+
+    #[test]
+    fn classic_encoding_and_modifiers() {
+        let mode = TermMode::MOUSE_MOTION;
+        let alt = ModifiersState::ALT;
+        // 32 + 64 + 8 (alt) = 104 = 'h'; column 1 -> 33 '!', row 1 -> 33 '!'
+        assert_eq!(App::wheel_report(mode, true, 0, 0, alt), Some(b"\x1b[Mh!!".to_vec()));
+    }
+
+    #[test]
+    fn silent_without_mouse_mode() {
+        assert_eq!(App::wheel_report(TermMode::ALT_SCREEN, true, 0, 0, ModifiersState::empty()), None);
+    }
 }

@@ -658,6 +658,40 @@ impl App {
         }
         if let Some((id, ItemPart::Content)) | Some((id, ItemPart::Title)) = self.item_at(mx, my)
             && let Some(tab) = self.tab_of_item(id) {
+                // A program that asked for mouse events gets the wheel itself,
+                // at the cell under the pointer.
+                if let Some(t) = self.win().term(tab) {
+                    let mode = *t.term.lock().mode();
+                    if mode.intersects(TermMode::MOUSE_REPORT_CLICK | TermMode::MOUSE_DRAG | TermMode::MOUSE_MOTION) {
+                        let (col, row) = {
+                            let w = self.win();
+                            let m = w.fonts.metrics;
+                            match w.canvas().and_then(|c| c.item(id).map(|it| (Self::item_screen_rect(w, l, it), Self::item_zoom(c, it)))) {
+                                Some((sr, z)) => {
+                                    let gx = sr.x + ITEM_PAD * z;
+                                    let gy = sr.y + (TITLE_H + ITEM_PAD) * z;
+                                    ((((mx - gx) / (m.width * z)).floor().max(0.0)) as usize, (((my - gy) / (m.height * z)).floor().max(0.0)) as usize)
+                                }
+                                None => (0, 0),
+                            }
+                        };
+                        let mods = self.mods;
+                        let cell_h = self.win().fonts.metrics.height * self.win().canvas().map(|c| c.view.zoom).unwrap_or(1.0);
+                        let n = self.wheel_notches(delta, cell_h);
+                        if n != 0
+                            && let Some(t) = self.win().term(tab)
+                        {
+                            let mut bytes = Vec::new();
+                            for _ in 0..n.abs() {
+                                if let Some(b) = Self::wheel_report(mode, n > 0, col, row, mods) {
+                                    bytes.extend_from_slice(&b);
+                                }
+                            }
+                            t.write(bytes);
+                        }
+                        return true;
+                    }
+                }
                 let lines = (dy / self.win().fonts.metrics.height * 1.0).round() as i32;
                 let lines = if lines == 0 && dy != 0.0 { dy.signum() as i32 } else { lines };
                 // Alt+wheel: one line per notch, for fine positioning.

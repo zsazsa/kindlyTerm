@@ -272,6 +272,10 @@ struct Win {
     plus_hit: Option<(f32, f32)>,
     hover: Hover,
     mouse: PhysicalPosition<f64>,
+    /// Wheel travel (pixels) not yet reported to a program that asked for
+    /// mouse events, so a touchpad's stream of tiny deltas becomes one
+    /// report per line rather than one per event.
+    wheel_accum: f32,
     selecting: bool,
     last_click: Option<(Instant, Point)>,
     click_count: u8,
