@@ -189,6 +189,10 @@ holding a free canvas show a `▦` marker in the tab bar.
   canvas in screen space: pan and zoom leave it where it is, and it keeps
   its distance from the nearest window corner when you resize. A build log
   or a tail can stay in the corner while you work elsewhere.
+- **Watch for quiet**: a terminal's menu → *Tell me when it goes quiet*.
+  After 30 seconds without output its frame blinks and the tab bar says
+  so, until output resumes. Good for builds and long jobs you have panned
+  away from. The title shows ◔ while a terminal is watched.
 - **Mirror** a terminal (its menu → *Mirror here*) to get a second live view
   of the same shell. Both render the same screen and either can type;
   resizing one resizes both. Closing a mirror only removes that view.

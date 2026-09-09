@@ -363,6 +363,8 @@ pub struct App {
     next_item_id: ItemId,
     next_group_id: crate::canvas::GroupId,
     last_save: Instant,
+    /// Process start, for phase-based blinking.
+    epoch: Instant,
     /// Next time an animation frame is due (cursor breath/travel/pulse).
     next_frame: Option<Instant>,
     effects: EffectsConfig,
@@ -452,6 +454,7 @@ impl App {
             next_item_id: 1,
             next_group_id: 1,
             last_save: Instant::now(),
+            epoch: Instant::now(),
             next_frame: None,
             effects: EffectsConfig::load(),
             deck_state: DeckState::load(),
@@ -599,6 +602,61 @@ impl App {
     }
 
     /// alacritty options derived from the config.
+    /// Turn the inactivity monitor on (`Some(seconds)`) or off for an item.
+    fn set_monitor(&mut self, id: ItemId, secs: Option<u32>) {
+        let w = self.win_mut();
+        let Some(c) = w.canvas_mut() else { return };
+        let Some(it) = c.item_mut(id) else { return };
+        it.monitor = secs;
+        let tab = match it.kind {
+            ItemKind::Terminal(t) => Some(t),
+            _ => None,
+        };
+        if let Some(t) = tab.and_then(|t| w.term_mut(t)) {
+            t.quiet_alert = false;
+            if secs.is_some() {
+                t.last_output = Instant::now();
+            }
+        }
+        w.dirty = true;
+        self.set_status(match secs {
+            Some(n) => format!("watching: the frame blinks after {n}s without output"),
+            None => "no longer watching".into(),
+        });
+        self.request_redraw();
+    }
+
+    /// Raise alerts for monitored terminals that crossed their threshold.
+    fn tick_monitors(&mut self) {
+        let mut notices: Vec<(usize, String)> = Vec::new();
+        for (wi, w) in self.wins.iter_mut().enumerate() {
+            let mut fire: Vec<TabId> = Vec::new();
+            for c in &w.canvases {
+                for it in &c.items {
+                    if let (Some(n), ItemKind::Terminal(t)) = (it.monitor, &it.kind)
+                        && let Some(term) = w.terms.iter().find(|x| x.id == *t)
+                        && !term.quiet_alert
+                        && term.last_output.elapsed().as_secs() >= n as u64
+                    {
+                        fire.push(*t);
+                    }
+                }
+            }
+            for t in fire {
+                if let Some(term) = w.terms.iter_mut().find(|x| x.id == t) {
+                    term.quiet_alert = true;
+                    notices.push((wi, term.display_title().to_string()));
+                }
+            }
+        }
+        for (wi, name) in notices {
+            log::info!("monitor: '{name}' went quiet");
+            let msg = format!("'{name}' went quiet");
+            self.wins[wi].status = Some((msg, Instant::now()));
+            self.wins[wi].window.request_redraw();
+        }
+    }
+
     /// If a world rect is not fully visible on the active canvas, fit
     /// everything so it is.
     fn reveal_rect(&mut self, rect: WRect) {
@@ -655,7 +713,7 @@ impl App {
                 let l = self.win().layout.expect("layout");
                 let w = self.win_mut();
                 w.terms.push(term);
-                let item = Item { id: item_id, kind: ItemKind::Terminal(id), rect: WRect::new(0.0, 0.0, l.area.w, l.area.h), name: None, launch: spec, pin: None, mirror: false };
+                let item = Item { id: item_id, kind: ItemKind::Terminal(id), rect: WRect::new(0.0, 0.0, l.area.w, l.area.h), name: None, launch: spec, pin: None, mirror: false, monitor: None };
                 w.canvases.push(Canvas::single(cid, item));
                 w.active = w.canvases.len() - 1;
                 w.dirty = true;
@@ -695,7 +753,7 @@ impl App {
                 let w = self.win_mut();
                 w.terms.push(term);
                 let c = w.canvas_mut()?;
-                c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: spec, pin: None, mirror: false });
+                c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: spec, pin: None, mirror: false, monitor: None });
                 c.focus = Some(item_id);
                 w.dirty = true;
                 self.reveal_rect(rect);
@@ -1526,6 +1584,7 @@ impl App {
             MenuAction::RenameItem(id) => self.start_item_rename(id),
             MenuAction::GroupSelection => self.toggle_group(),
             MenuAction::TogglePin(id) => self.toggle_pin(id),
+            MenuAction::SetMonitor(id, secs) => self.set_monitor(id, secs),
             MenuAction::MirrorItem(id) => self.mirror_item(id),
             MenuAction::CloseItem(id) => self.close_item(id, event_loop),
             MenuAction::RenameGroup(g) => self.start_group_rename(g),
@@ -1565,7 +1624,16 @@ impl App {
     fn on_term_event(&mut self, tab_id: TabId, event: Event, event_loop: &ActiveEventLoop) {
         let Some(index) = self.wins[self.cur].terms.iter().position(|t| t.id == tab_id) else { return };
         match event {
-            Event::Wakeup => self.request_redraw(),
+            Event::Wakeup => {
+                let t = &mut self.wins[self.cur].terms[index];
+                t.last_output = Instant::now();
+                if t.quiet_alert {
+                    t.quiet_alert = false;
+                    let name = t.display_title().to_string();
+                    self.set_status(format!("'{name}' is active again"));
+                }
+                self.request_redraw();
+            }
             Event::Title(title) => {
                 self.wins[self.cur].terms[index].title = Some(title);
                 self.update_window_title();
@@ -1763,6 +1831,7 @@ impl ApplicationHandler<UserEvent> for App {
                 w.window.request_redraw();
             }
         }
+        self.tick_monitors();
         if self.next_frame.map(|t| now >= t).unwrap_or(false) {
             self.next_frame = None;
             let anim = self.config.terminal.cursor_animation.clone();

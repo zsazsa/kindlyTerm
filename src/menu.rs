@@ -36,6 +36,8 @@ pub enum MenuAction {
     RenameItem(crate::canvas::ItemId),
     GroupSelection,
     TogglePin(crate::canvas::ItemId),
+    /// Inactivity monitor threshold in seconds (None = off).
+    SetMonitor(crate::canvas::ItemId, Option<u32>),
     MirrorItem(crate::canvas::ItemId),
     CloseItem(crate::canvas::ItemId),
     RenameGroup(crate::canvas::GroupId),
@@ -155,7 +157,7 @@ impl Menu {
 
     /// Menu for a right-click on a terminal item of a free canvas.
     #[allow(clippy::too_many_arguments)]
-    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)], pinned: bool, mirror: bool) -> Self {
+    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)], pinned: bool, mirror: bool, monitor: Option<u32>) -> Self {
         let mut items = vec![
             MenuItem::new("Copy", "Ctrl+Shift+C", MenuAction::Copy).enabled(has_selection),
             MenuItem::new("Paste", "Ctrl+Shift+V", MenuAction::Paste),
@@ -163,6 +165,10 @@ impl Menu {
             MenuItem::new("Focus mode", "Ctrl+Shift+F", MenuAction::FocusMode),
             MenuItem::new(if pinned { "Unpin from screen" } else { "Pin to screen" }, "Ctrl+Shift+P", MenuAction::TogglePin(item)),
             MenuItem::new("Mirror here", "", MenuAction::MirrorItem(item)),
+            match monitor {
+                Some(s) => MenuItem::new(&format!("Stop watching for quiet ({s}s)"), "", MenuAction::SetMonitor(item, None)),
+                None => MenuItem::new("Tell me when it goes quiet (30s)", "", MenuAction::SetMonitor(item, Some(30))),
+            },
             MenuItem::new("Rename…", "double-click title", MenuAction::RenameItem(item)),
         ];
         for (ci, title) in other_tabs.iter().take(6) {

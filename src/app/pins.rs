@@ -131,7 +131,7 @@ impl App {
         let Some(src) = c.item(id).cloned() else { return };
         let ItemKind::Terminal(tab) = src.kind else { return };
         let rect = c.spawn_rect(l.area, src.rect.w, src.rect.h);
-        c.items.push(Item { id: item_id, kind: ItemKind::Terminal(tab), rect, name: None, launch: src.launch.clone(), pin: None, mirror: true });
+        c.items.push(Item { id: item_id, kind: ItemKind::Terminal(tab), rect, name: None, launch: src.launch.clone(), pin: None, mirror: true, monitor: None });
         c.focus = Some(item_id);
         c.selected.clear();
         w.dirty = true;

@@ -140,6 +140,10 @@ pub struct Terminal {
     pub view: crate::app::TermView,
     /// Saved-command name this was launched from, if any (for persistence).
     pub shortcut: Option<String>,
+    /// When the program last produced output (for the inactivity monitor).
+    pub last_output: std::time::Instant,
+    /// Set by the monitor once the quiet threshold passed; cleared by output.
+    pub quiet_alert: bool,
 }
 
 impl Terminal {
@@ -186,6 +190,8 @@ impl Terminal {
             size,
             view: Default::default(),
             shortcut: launch.shortcut.clone(),
+            last_output: std::time::Instant::now(),
+            quiet_alert: false,
         })
     }
 
@@ -320,6 +326,8 @@ impl Terminal {
             size,
             view: Default::default(),
             shortcut: None,
+            last_output: std::time::Instant::now(),
+            quiet_alert: false,
         })
     }
 

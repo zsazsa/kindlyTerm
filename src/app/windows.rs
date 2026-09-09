@@ -300,6 +300,9 @@ impl App {
         if w.any_view_transient() {
             return true;
         }
+        if w.terms.iter().any(|t| t.quiet_alert) {
+            return true;
+        }
         // Resting breath/blink only while focused and the app shows a cursor.
         w.focused
     }
@@ -321,6 +324,23 @@ impl App {
                 let t = now + std::time::Duration::from_millis(ms);
                 consider(t, &mut next);
                 self.next_frame = Some(self.next_frame.map(|n| n.min(t)).unwrap_or(t));
+            }
+            // Inactivity monitors: wake when the next one would fire, and
+            // tick the blink while any is alerting.
+            for c in &w.canvases {
+                for it in &c.items {
+                    if let (Some(n), ItemKind::Terminal(t)) = (it.monitor, &it.kind)
+                        && let Some(term) = w.terms.iter().find(|x| x.id == *t)
+                    {
+                        if term.quiet_alert {
+                            let t = now + std::time::Duration::from_millis(100);
+                            consider(t, &mut next);
+                            self.next_frame = Some(self.next_frame.map(|n| n.min(t)).unwrap_or(t));
+                        } else {
+                            consider(term.last_output + std::time::Duration::from_secs(n as u64) + std::time::Duration::from_millis(20), &mut next);
+                        }
+                    }
+                }
             }
         }
         match next {

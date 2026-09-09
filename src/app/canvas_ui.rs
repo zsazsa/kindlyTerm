@@ -445,8 +445,8 @@ impl App {
         let has_selection = w.term(tab).map(|t| t.term.lock().selection.as_ref().map(|s| !s.is_empty()).unwrap_or(false)).unwrap_or(false);
         let others: Vec<(usize, String)> = (0..w.canvases.len()).filter(|&i| i != w.active).map(|i| (i, w.tab_title(i))).collect();
         let has_saved = !self.store.commands.is_empty();
-        let (pinned, mirror) = c.item(id).map(|i| (i.pin.is_some(), i.mirror)).unwrap_or((false, false));
-        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others, pinned, mirror));
+        let (pinned, mirror, monitor) = c.item(id).map(|i| (i.pin.is_some(), i.mirror, i.monitor)).unwrap_or((false, false, None));
+        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others, pinned, mirror, monitor));
         self.request_redraw();
     }
 
@@ -704,6 +704,7 @@ impl App {
         let anim_mode = self.config.terminal.cursor_animation.clone();
         let effects_cfg = self.effects.clone();
         let opacity = self.config.colors.opacity.clamp(0.3, 1.0);
+        let epoch = self.epoch;
         let w = &mut self.wins[self.cur];
         let win_focused = w.focused;
         let area = l.area;
@@ -767,8 +768,21 @@ impl App {
             if focused {
                 w.batch.rect(sr.x, sr.y, sr.w, (2.0 * zoom).max(1.5), theme.accent);
             }
+            let quiet = match kind {
+                ItemKind::Terminal(t) => w.terms.iter().any(|x| x.id == t && x.quiet_alert),
+                ItemKind::Pending => false,
+            };
             let border = if focused || selected { theme.accent } else if hovered { theme.muted } else { theme.highlight };
             w.batch.outline(sr.x, sr.y, sr.w, sr.h, radius, if focused { 1.5 } else { 1.0 }, border);
+            if quiet {
+                // Blink: on for 500ms, off for 300ms.
+                let phase = (Instant::now().duration_since(epoch).as_millis() % 800) < 500;
+                if phase {
+                    let c = theme.ansi[3];
+                    w.batch.outline(sr.x - 1.0, sr.y - 1.0, sr.w + 2.0, sr.h + 2.0, radius + 1.0, 2.5, c);
+                    w.batch.rrect(sr.x, sr.y, sr.w, sr.h, radius, with_alpha(c, 0.08));
+                }
+            }
             if selected {
                 w.batch.rrect(sr.x, sr.y, sr.w, sr.h, radius, with_alpha(theme.accent, 0.06));
             }
@@ -793,6 +807,9 @@ impl App {
                     _ => "starting…".into(),
                 };
                 if !renaming {
+                    if w.canvases[ci].item(id).map(|i| i.monitor.is_some()).unwrap_or(false) {
+                        title = format!("◔ {title}");
+                    }
                     if mirror {
                         title = format!("⧉ {title}");
                     }
@@ -927,7 +944,7 @@ impl App {
             let rect = c.spawn_rect(l.area, iw, ih);
             let item_id = self.next_item_id;
             self.next_item_id += 1;
-            c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: Some(LaunchSpec { shortcut: None, cwd: None, session: Some(sid.clone()) }), pin: None, mirror: false });
+            c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: Some(LaunchSpec { shortcut: None, cwd: None, session: Some(sid.clone()) }), pin: None, mirror: false, monitor: None });
             c.focus = Some(item_id);
             self.win_mut().terms.push(term);
             log::info!("recovered session {sid}");

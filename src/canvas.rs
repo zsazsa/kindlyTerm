@@ -147,6 +147,10 @@ pub struct Item {
     /// Closing a mirror only removes the item.
     #[serde(default)]
     pub mirror: bool,
+    /// Inactivity monitor: after this many seconds without output the
+    /// frame blinks until output resumes (a finished build, a stalled job).
+    #[serde(default)]
+    pub monitor: Option<u32>,
     /// User-given name (overrides the shell title).
     #[serde(default)]
     pub name: Option<String>,

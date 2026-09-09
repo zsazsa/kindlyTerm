@@ -241,6 +241,11 @@ impl App {
                         self.mods = if on == "on" { winit::keyboard::ModifiersState::SHIFT } else { winit::keyboard::ModifiersState::empty() };
                     }
                     _ if a == "group" => self.toggle_group(),
+                    Some(("monitor", secs)) => {
+                        if let Some(f) = self.win().canvas().and_then(|c| c.focus) {
+                            self.set_monitor(f, secs.parse().ok());
+                        }
+                    }
                     _ if a == "pin" => {
                         if let Some(f) = self.win().canvas().and_then(|c| c.focus) {
                             self.toggle_pin(f);
