@@ -122,12 +122,31 @@ pub enum ItemKind {
     Pending,
 }
 
+/// Screen corner a pinned item keeps its distance from when the window
+/// resizes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Corner {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Item {
     pub id: ItemId,
     pub kind: ItemKind,
-    /// Frame rectangle in world units (title bar included).
+    /// Frame rectangle in world units (title bar included). For a pinned
+    /// item: pixels relative to the canvas area's top-left, at zoom 1.
     pub rect: WRect,
+    /// Pinned to the screen: drawn on top in screen space, unaffected by
+    /// pan and zoom, anchored to this corner.
+    #[serde(default)]
+    pub pin: Option<Corner>,
+    /// A second view of a terminal that another item on this canvas owns.
+    /// Closing a mirror only removes the item.
+    #[serde(default)]
+    pub mirror: bool,
     /// User-given name (overrides the shell title).
     #[serde(default)]
     pub name: Option<String>,
@@ -253,12 +272,24 @@ impl Canvas {
         self.mode == CanvasMode::Single
     }
 
-    /// Terminal ids on this canvas, in draw order.
+    /// Terminal ids on this canvas, in draw order, each once (mirrors
+    /// share their terminal with the item that owns it).
     pub fn tabs(&self) -> impl Iterator<Item = TabId> + '_ {
-        self.items.iter().filter_map(|i| match i.kind {
-            ItemKind::Terminal(t) => Some(t),
-            ItemKind::Pending => None,
+        let mut seen: Vec<TabId> = Vec::new();
+        self.items.iter().filter_map(move |i| match i.kind {
+            ItemKind::Terminal(t) if !seen.contains(&t) => {
+                seen.push(t);
+                Some(t)
+            }
+            _ => None,
         })
+    }
+
+    /// Every item showing terminal `tab` (owner first, then mirrors).
+    pub fn items_for_tab(&self, tab: TabId) -> Vec<ItemId> {
+        let mut v: Vec<ItemId> = self.items.iter().filter(|i| matches!(i.kind, ItemKind::Terminal(t) if t == tab)).map(|i| i.id).collect();
+        v.sort_by_key(|id| self.item(*id).map(|i| i.mirror).unwrap_or(false));
+        v
     }
 
     pub fn item(&self, id: ItemId) -> Option<&Item> {
@@ -269,8 +300,12 @@ impl Canvas {
         self.items.iter_mut().find(|i| i.id == id)
     }
 
+    /// The item that owns terminal `tab` (not a mirror), else any mirror.
     pub fn item_for_tab(&self, tab: TabId) -> Option<&Item> {
-        self.items.iter().find(|i| matches!(i.kind, ItemKind::Terminal(t) if t == tab))
+        self.items
+            .iter()
+            .find(|i| !i.mirror && matches!(i.kind, ItemKind::Terminal(t) if t == tab))
+            .or_else(|| self.items.iter().find(|i| matches!(i.kind, ItemKind::Terminal(t) if t == tab)))
     }
 
     /// Bring an item to the front (drawn last, hit first).
@@ -306,7 +341,7 @@ impl Canvas {
             let members: Vec<ItemId> = self
                 .items
                 .iter()
-                .filter(|i| !taken.contains(&i.id) && rect.contains_rect(&i.rect))
+                .filter(|i| i.pin.is_none() && !taken.contains(&i.id) && rect.contains_rect(&i.rect))
                 .map(|i| i.id)
                 .collect();
             taken.extend(members.iter().copied());
@@ -334,14 +369,14 @@ impl Canvas {
 
     /// Union of the given items' rects.
     pub fn bounds_of(&self, ids: &[ItemId]) -> Option<WRect> {
-        let mut it = ids.iter().filter_map(|id| self.item(*id)).map(|i| i.rect);
+        let mut it = ids.iter().filter_map(|id| self.item(*id)).filter(|i| i.pin.is_none()).map(|i| i.rect);
         let first = it.next()?;
         Some(it.fold(first, |a, b| a.union(&b)))
     }
 
     /// Bounding rect of all items (None if empty).
     pub fn bounds(&self) -> Option<WRect> {
-        let mut it = self.items.iter().map(|i| i.rect);
+        let mut it = self.items.iter().filter(|i| i.pin.is_none()).map(|i| i.rect);
         let first = it.next()?;
         Some(it.fold(first, |a, b| a.union(&b)))
     }
@@ -353,15 +388,16 @@ impl Canvas {
         let vis = self.view.visible(area);
         // Beside the focused (else last) item when there is one, otherwise
         // centred in view. `spawn_n` keeps repeated spawns from stacking.
-        let anchor = self.focus.and_then(|f| self.item(f)).or(self.items.last()).map(|i| i.rect);
+        let anchor = self.focus.and_then(|f| self.item(f)).filter(|i| i.pin.is_none()).or(self.items.iter().rev().find(|i| i.pin.is_none())).map(|i| i.rect);
         let r = match anchor {
             Some(a) => {
                 let mut r = WRect::new(a.right() + GAP, a.y, w, h);
                 // Try right, then below, then a cascade offset.
-                if self.items.iter().any(|i| i.rect.intersects(&r)) {
+                let busy = |r: &WRect| self.items.iter().any(|i| i.pin.is_none() && i.rect.intersects(r));
+                if busy(&r) {
                     r = WRect::new(a.x, a.bottom() + GAP, w, h);
                 }
-                if self.items.iter().any(|i| i.rect.intersects(&r)) {
+                if busy(&r) {
                     let n = (self.spawn_n % 6 + 1) as f32;
                     r = WRect::new(a.x + n * 40.0, a.y + n * 32.0, w, h);
                 }
@@ -383,7 +419,7 @@ impl Canvas {
                 *best = Some(d);
             }
         };
-        for o in self.items.iter().filter(|o| o.id != id) {
+        for o in self.items.iter().filter(|o| o.id != id && o.pin.is_none()) {
             let xs = [o.rect.x, o.rect.right()];
             let ys = [o.rect.y, o.rect.bottom()];
             for &ox in &xs {

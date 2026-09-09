@@ -724,7 +724,7 @@ impl App {
                 ("wheel  ·  Ctrl+wheel  ·  Space+drag", "pan · zoom · pan"),
                 ("Ctrl+Shift+F  ·  Ctrl+Shift+A", "focus mode · fit all"),
                 ("Shift+click  ·  Shift+drag", "select several"),
-                ("Ctrl+Shift+G", "group selection · ungroup"),
+                ("Ctrl+Shift+G  ·  Ctrl+Shift+P", "group selection · pin to screen"),
                 ("Ctrl+Shift+=  /  −  /  0", "zoom in / out / reset"),
             ]),
             ("PREFER VIM KEYS?", &[

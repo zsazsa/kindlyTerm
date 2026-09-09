@@ -115,6 +115,7 @@ stay in sync.
 | `Ctrl+Shift+F` | Canvas focus mode: zoom the focused terminal to fill the window; again to go back. |
 | `Ctrl+Shift+A` | Canvas: fit every terminal into view. |
 | `Ctrl+Shift+G` | Canvas: group the selected terminals in a named frame; on a selected group, dissolve it. |
+| `Ctrl+Shift+P` | Canvas: pin the focused terminal to the screen (it ignores pan and zoom); again to release. On a plain tab, opens the Deck. |
 | `Ctrl+Shift+=` / `Ctrl+Shift+-` / `Ctrl+Shift+0` | Canvas: zoom in / out / reset. On a plain tab these change the font size. |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab. `Ctrl+PageDown` / `Ctrl+PageUp` also work. |
 | `Alt+1` … `Alt+8`, `Alt+9` | Jump to tab N, `Alt+9` = last tab. |
@@ -184,6 +185,13 @@ holding a free canvas show a `▦` marker in the tab bar.
   terminal fully inside is a member. `Ctrl+Shift+F` with a group selected
   zooms to it. Right-click the label for zoom, rename, ungroup, or close
   all.
+- **Pin** a terminal (`Ctrl+Shift+P` or its menu) and it floats above the
+  canvas in screen space: pan and zoom leave it where it is, and it keeps
+  its distance from the nearest window corner when you resize. A build log
+  or a tail can stay in the corner while you work elsewhere.
+- **Mirror** a terminal (its menu → *Mirror here*) to get a second live view
+  of the same shell. Both render the same screen and either can type;
+  resizing one resizes both. Closing a mirror only removes that view.
 - Canvas tabs tear off, merge, and reorder like any other tab.
 
 The layout (windows, tabs, item positions, zoom, and what each item was

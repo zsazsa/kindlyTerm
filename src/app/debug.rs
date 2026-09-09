@@ -241,6 +241,16 @@ impl App {
                         self.mods = if on == "on" { winit::keyboard::ModifiersState::SHIFT } else { winit::keyboard::ModifiersState::empty() };
                     }
                     _ if a == "group" => self.toggle_group(),
+                    _ if a == "pin" => {
+                        if let Some(f) = self.win().canvas().and_then(|c| c.focus) {
+                            self.toggle_pin(f);
+                        }
+                    }
+                    _ if a == "mirror" => {
+                        if let Some(f) = self.win().canvas().and_then(|c| c.focus) {
+                            self.mirror_item(f);
+                        }
+                    }
                     _ if a == "newwindow" => {
                         if let Some(el) = event_loop {
                             self.create_window(el, super::windows::NewWindow::Shell);

@@ -147,8 +147,8 @@ impl App {
                     }
                     "w" => {
                         if self.on_free_canvas() {
-                            if let Some(t) = self.win().focused_tab() {
-                                self.close_terminal(t, event_loop);
+                            if let Some(f) = self.win().canvas().and_then(|c| c.focus) {
+                                self.close_item(f, event_loop);
                             } else {
                                 self.close_tab(self.wins[self.cur].active, event_loop);
                             }
@@ -162,7 +162,16 @@ impl App {
                         return true;
                     }
                     "p" => {
-                        self.wins[self.cur].deck.open(PageId::Home);
+                        // On a canvas: pin the focused terminal. Elsewhere the
+                        // old quick-run binding still works (Ctrl+Shift+Space
+                        // is the primary one now).
+                        if self.on_free_canvas()
+                            && let Some(f) = self.win().canvas().and_then(|c| c.focus)
+                        {
+                            self.toggle_pin(f);
+                        } else {
+                            self.wins[self.cur].deck.open(PageId::Home);
+                        }
                         return true;
                     }
                     "," | "<" => {

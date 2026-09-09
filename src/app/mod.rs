@@ -64,6 +64,7 @@ macro_rules! deck_env {
 mod canvas_ui;
 mod debug;
 mod groups;
+mod pins;
 mod draw;
 mod input;
 mod windows;
@@ -502,11 +503,14 @@ impl App {
     fn relayout_win(&mut self, wi: usize) {
         let l = Self::compute_layout(&self.config, &self.wins[wi]);
         let w = &mut self.wins[wi];
+        if let Some(old) = w.layout {
+            Self::reanchor_pins(w, old.area, l.area);
+        }
         w.layout = Some(l);
         let size = Self::grid_size_of(w);
         let mut sizes: Vec<(TabId, GridSize)> = Vec::new();
         for c in &w.canvases {
-            for it in &c.items {
+            for it in c.items.iter().filter(|i| !i.mirror) {
                 if let ItemKind::Terminal(t) = it.kind {
                     sizes.push((t, if c.is_single() { size } else { w.grid_for_rect(it.rect) }));
                 }
@@ -595,6 +599,17 @@ impl App {
     }
 
     /// alacritty options derived from the config.
+    /// If a world rect is not fully visible on the active canvas, fit
+    /// everything so it is.
+    fn reveal_rect(&mut self, rect: WRect) {
+        let Some(l) = self.win().layout else { return };
+        let Some(vis) = self.win().canvas().map(|c| c.view.visible(l.area)) else { return };
+        let inside = rect.x >= vis.x && rect.y >= vis.y && rect.right() <= vis.right() && rect.bottom() <= vis.bottom();
+        if !inside {
+            self.fit_all();
+        }
+    }
+
     /// Start a terminal for `launch`: a detached, persistent session when
     /// enabled (the default), else an in-process shell.
     fn launch_terminal(&self, id: TabId, launch: &Launch, grid: GridSize) -> anyhow::Result<Terminal> {
@@ -640,7 +655,7 @@ impl App {
                 let l = self.win().layout.expect("layout");
                 let w = self.win_mut();
                 w.terms.push(term);
-                let item = Item { id: item_id, kind: ItemKind::Terminal(id), rect: WRect::new(0.0, 0.0, l.area.w, l.area.h), name: None, launch: spec };
+                let item = Item { id: item_id, kind: ItemKind::Terminal(id), rect: WRect::new(0.0, 0.0, l.area.w, l.area.h), name: None, launch: spec, pin: None, mirror: false };
                 w.canvases.push(Canvas::single(cid, item));
                 w.active = w.canvases.len() - 1;
                 w.dirty = true;
@@ -680,15 +695,10 @@ impl App {
                 let w = self.win_mut();
                 w.terms.push(term);
                 let c = w.canvas_mut()?;
-                c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: spec });
+                c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: spec, pin: None, mirror: false });
                 c.focus = Some(item_id);
-                // Bring the new terminal into view if it landed off-screen.
-                let vis = c.view.visible(l.area);
-                let inside = rect.x >= vis.x && rect.y >= vis.y && rect.right() <= vis.right() && rect.bottom() <= vis.bottom();
                 w.dirty = true;
-                if !inside {
-                    self.fit_all();
-                }
+                self.reveal_rect(rect);
                 self.update_window_title();
                 self.request_redraw();
                 Some(id)
@@ -793,11 +803,11 @@ impl App {
             term.kill();
         }
         let c = &mut w.canvases[ci];
-        if let Some(pos) = c.items.iter().position(|i| matches!(i.kind, ItemKind::Terminal(t) if t == tab)) {
-            let removed = c.items.remove(pos);
-            if c.focus == Some(removed.id) {
-                c.focus = c.items.last().map(|i| i.id);
-            }
+        let gone: Vec<ItemId> = c.items.iter().filter(|i| matches!(i.kind, ItemKind::Terminal(t) if t == tab)).map(|i| i.id).collect();
+        c.items.retain(|i| !gone.contains(&i.id));
+        c.selected.retain(|s| !gone.contains(s));
+        if c.focus.map(|f| gone.contains(&f)).unwrap_or(false) {
+            c.focus = c.items.last().map(|i| i.id);
         }
         w.dirty = true;
         self.update_window_title();
@@ -1515,6 +1525,9 @@ impl App {
             MenuAction::CloseTerminal(tab) => self.close_terminal(tab, event_loop),
             MenuAction::RenameItem(id) => self.start_item_rename(id),
             MenuAction::GroupSelection => self.toggle_group(),
+            MenuAction::TogglePin(id) => self.toggle_pin(id),
+            MenuAction::MirrorItem(id) => self.mirror_item(id),
+            MenuAction::CloseItem(id) => self.close_item(id, event_loop),
             MenuAction::RenameGroup(g) => self.start_group_rename(g),
             MenuAction::ZoomGroup(g) => self.zoom_to_group(g),
             MenuAction::Ungroup(g) => self.ungroup(g),

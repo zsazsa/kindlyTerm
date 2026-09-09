@@ -35,6 +35,9 @@ pub enum MenuAction {
     CloseTerminal(crate::terminal::TabId),
     RenameItem(crate::canvas::ItemId),
     GroupSelection,
+    TogglePin(crate::canvas::ItemId),
+    MirrorItem(crate::canvas::ItemId),
+    CloseItem(crate::canvas::ItemId),
     RenameGroup(crate::canvas::GroupId),
     ZoomGroup(crate::canvas::GroupId),
     Ungroup(crate::canvas::GroupId),
@@ -152,12 +155,14 @@ impl Menu {
 
     /// Menu for a right-click on a terminal item of a free canvas.
     #[allow(clippy::too_many_arguments)]
-    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)]) -> Self {
+    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)], pinned: bool, mirror: bool) -> Self {
         let mut items = vec![
             MenuItem::new("Copy", "Ctrl+Shift+C", MenuAction::Copy).enabled(has_selection),
             MenuItem::new("Paste", "Ctrl+Shift+V", MenuAction::Paste),
             MenuItem::sep(),
             MenuItem::new("Focus mode", "Ctrl+Shift+F", MenuAction::FocusMode),
+            MenuItem::new(if pinned { "Unpin from screen" } else { "Pin to screen" }, "Ctrl+Shift+P", MenuAction::TogglePin(item)),
+            MenuItem::new("Mirror here", "", MenuAction::MirrorItem(item)),
             MenuItem::new("Rename…", "double-click title", MenuAction::RenameItem(item)),
         ];
         for (ci, title) in other_tabs.iter().take(6) {
@@ -170,7 +175,7 @@ impl Menu {
             MenuItem::new("Save as shortcut…", "Ctrl+Shift+S", MenuAction::SaveCommand),
             MenuItem::sep(),
             MenuItem::new("Clear scrollback", "", MenuAction::ClearScrollback),
-            MenuItem::new("Close terminal", "Ctrl+Shift+W", MenuAction::CloseTerminal(tab)),
+            if mirror { MenuItem::new("Close this mirror", "Ctrl+Shift+W", MenuAction::CloseItem(item)) } else { MenuItem::new("Close terminal", "Ctrl+Shift+W", MenuAction::CloseTerminal(tab)) },
         ]);
         Self::new(x, y, items)
     }

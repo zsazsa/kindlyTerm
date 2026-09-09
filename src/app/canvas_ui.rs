@@ -17,7 +17,15 @@ impl App {
 
     /// Screen rect of an item on the active canvas.
     pub(super) fn item_screen_rect(w: &Win, l: Layout, item: &Item) -> WRect {
+        if item.pin.is_some() {
+            return Self::pinned_screen_rect(l, item);
+        }
         w.canvas().map(|c| c.view.rect_to_screen(l.area, item.rect)).unwrap_or(item.rect)
+    }
+
+    /// Zoom an item is drawn at: the view's, or 1 for a pinned item.
+    pub(super) fn item_zoom(c: &Canvas, item: &Item) -> f32 {
+        if item.pin.is_some() { 1.0 } else { c.view.zoom }
     }
 
     /// Is the active tab a free canvas?
@@ -33,9 +41,11 @@ impl App {
             return None;
         }
         let c = w.canvas()?;
-        let zoom = c.view.zoom;
-        let close_w = (TITLE_H * zoom).max(12.0);
-        for it in c.items.iter().rev() {
+        // Pinned items sit on top of everything.
+        let order = c.items.iter().rev().filter(|i| i.pin.is_some()).chain(c.items.iter().rev().filter(|i| i.pin.is_none()));
+        for it in order {
+            let zoom = Self::item_zoom(c, it);
+            let close_w = (TITLE_H * zoom).max(12.0);
             let sr = Self::item_screen_rect(w, l, it);
             if let Some(part) = item_part(sr, TITLE_H * zoom, sx, sy, close_w) {
                 return Some((it.id, part));
@@ -55,7 +65,7 @@ impl App {
         }
         let item = c.item(c.focus?)?;
         let sr = Self::item_screen_rect(w, l, item);
-        let z = c.view.zoom;
+        let z = Self::item_zoom(c, item);
         Some((sr.x + ITEM_PAD * z, sr.y + (TITLE_H + ITEM_PAD) * z, z))
     }
 
@@ -86,16 +96,33 @@ impl App {
             }
             c.view = crate::canvas::Viewport { x: -((l.area.w - iw) / 2.0).round(), y: -((l.area.h - ih) / 2.0).round(), zoom: 1.0 };
         }
-        let Some(pos) = w.canvases[from].items.iter().position(|i| matches!(i.kind, ItemKind::Terminal(t) if t == tab)) else { return };
-        let mut item = w.canvases[from].items.remove(pos);
-        if w.canvases[from].focus == Some(item.id) {
+        // A terminal and its mirrors travel together.
+        let ids = w.canvases[from].items_for_tab(tab);
+        if ids.is_empty() {
+            return;
+        }
+        let mut moved: Vec<Item> = Vec::new();
+        for id in &ids {
+            if let Some(pos) = w.canvases[from].items.iter().position(|i| i.id == *id) {
+                moved.push(w.canvases[from].items.remove(pos));
+            }
+        }
+        for g in &mut w.canvases[from].groups {
+            g.members.retain(|m| !ids.contains(m));
+        }
+        w.canvases[from].selected.retain(|s| !ids.contains(s));
+        if w.canvases[from].focus.map(|f| ids.contains(&f)).unwrap_or(false) {
             w.canvases[from].focus = w.canvases[from].items.last().map(|i| i.id);
         }
-        let r = w.canvases[to].spawn_rect(l.area, item.rect.w, item.rect.h);
-        item.rect = r;
-        let id = item.id;
-        w.canvases[to].items.push(item);
-        w.canvases[to].focus = Some(id);
+        let mut last = None;
+        for mut item in moved {
+            item.pin = None;
+            let r = w.canvases[to].spawn_rect(l.area, item.rect.w, item.rect.h);
+            item.rect = r;
+            last = Some(item.id);
+            w.canvases[to].items.push(item);
+        }
+        w.canvases[to].focus = last;
         w.dirty = true;
         let name = w.tab_title(to);
         // A single tab that lost its only terminal closes.
@@ -213,15 +240,24 @@ impl App {
                 CDrag::None => return false,
                 CDrag::Move { item, moved, starts, .. } => {
                     if moved {
-                        self.snap_item(item, false);
-                        self.follow_primary(item, &starts);
-                        self.settle_groups();
+                        if self.is_pinned(item) {
+                            self.settle_pin(item);
+                        } else {
+                            self.snap_item(item, false);
+                            self.follow_primary(item, &starts);
+                            self.settle_groups();
+                        }
                         self.mark_dirty();
                     }
                 }
                 CDrag::Resize { item, .. } => {
-                    self.snap_item(item, true);
+                    if self.is_pinned(item) {
+                        self.settle_pin(item);
+                    } else {
+                        self.snap_item(item, true);
+                    }
                     self.apply_item_grid(item);
+                    self.sync_mirror_sizes(item);
                     self.settle_groups();
                     self.mark_dirty();
                 }
@@ -284,9 +320,7 @@ impl App {
         }
         match self.item_at(mx, my) {
             Some((id, ItemPart::Close)) => {
-                if let Some(tab) = self.tab_of_item(id) {
-                    self.close_terminal(tab, event_loop);
-                }
+                self.close_item(id, event_loop);
                 true
             }
             Some((id, ItemPart::Title)) => {
@@ -308,26 +342,20 @@ impl App {
                     return true;
                 }
                 let starts = self.drag_set(id);
-                let w = self.win();
-                if let Some(c) = w.canvas() {
-                    let (wx, wy) = c.view.screen_to_world(l.area, mx, my);
-                    if let Some(it) = c.item(id) {
-                        let grab = (wx - it.rect.x, wy - it.rect.y);
-                        self.win_mut().cdrag = CDrag::Move { item: id, grab, moved: false, starts };
-                    }
+                let (wx, wy) = self.item_point(id, mx, my);
+                if let Some(it) = self.win().canvas().and_then(|c| c.item(id)) {
+                    let grab = (wx - it.rect.x, wy - it.rect.y);
+                    self.win_mut().cdrag = CDrag::Move { item: id, grab, moved: false, starts };
                 }
                 true
             }
             Some((id, ItemPart::Edge(edge))) => {
                 self.clear_selection();
                 self.focus_item(id);
-                let w = self.win();
-                if let Some(c) = w.canvas() {
-                    let (wx, wy) = c.view.screen_to_world(l.area, mx, my);
-                    if let Some(it) = c.item(id) {
-                        let start = it.rect;
-                        self.win_mut().cdrag = CDrag::Resize { item: id, edge, start, press: (wx, wy) };
-                    }
+                let (wx, wy) = self.item_point(id, mx, my);
+                if let Some(it) = self.win().canvas().and_then(|c| c.item(id)) {
+                    let start = it.rect;
+                    self.win_mut().cdrag = CDrag::Resize { item: id, edge, start, press: (wx, wy) };
                 }
                 true
             }
@@ -417,7 +445,8 @@ impl App {
         let has_selection = w.term(tab).map(|t| t.term.lock().selection.as_ref().map(|s| !s.is_empty()).unwrap_or(false)).unwrap_or(false);
         let others: Vec<(usize, String)> = (0..w.canvases.len()).filter(|&i| i != w.active).map(|i| (i, w.tab_title(i))).collect();
         let has_saved = !self.store.commands.is_empty();
-        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others));
+        let (pinned, mirror) = c.item(id).map(|i| (i.pin.is_some(), i.mirror)).unwrap_or((false, false));
+        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others, pinned, mirror));
         self.request_redraw();
     }
 
@@ -464,7 +493,8 @@ impl App {
                 true
             }
             CDrag::Move { item, grab, moved, starts } => {
-                let Some((wx, wy)) = self.win().canvas().map(|c| c.view.screen_to_world(l.area, mx, my)) else { return false };
+                let pinned = self.is_pinned(item);
+                let (wx, wy) = self.item_point(item, mx, my);
                 let w = self.win_mut();
                 let mut now_moved = moved;
                 if let Some(it) = w.canvas_mut().and_then(|c| c.item_mut(item)) {
@@ -476,15 +506,17 @@ impl App {
                     now_moved = changed || moved;
                 }
                 // Live snap while moving; the rest of the selection follows.
-                self.snap_item(item, false);
-                self.follow_primary(item, &starts);
+                if !pinned {
+                    self.snap_item(item, false);
+                    self.follow_primary(item, &starts);
+                }
                 self.win_mut().cdrag = CDrag::Move { item, grab, moved: now_moved, starts };
                 self.set_cursor(CursorIcon::Grabbing);
                 self.request_redraw();
                 true
             }
             CDrag::Resize { item, edge, start, press } => {
-                let Some((wx, wy)) = self.win().canvas().map(|c| c.view.screen_to_world(l.area, mx, my)) else { return false };
+                let (wx, wy) = self.item_point(item, mx, my);
                 let dx = wx - press.0;
                 let dy = wy - press.1;
                 let m = self.win().fonts.metrics;
@@ -524,6 +556,7 @@ impl App {
                     it.rect = r;
                 }
                 self.apply_item_grid(item);
+                self.sync_mirror_sizes(item);
                 self.set_cursor(resize_cursor(edge));
                 self.request_redraw();
                 true
@@ -705,16 +738,22 @@ impl App {
 
         Self::draw_groups(w, l, theme);
 
-        // Items, back to front.
-        let ids: Vec<ItemId> = w.canvases[ci].items.iter().map(|i| i.id).collect();
+        // Items, back to front; pinned ones last so they sit on top.
+        let mut ids: Vec<ItemId> = w.canvases[ci].items.iter().filter(|i| i.pin.is_none()).map(|i| i.id).collect();
+        ids.extend(w.canvases[ci].items.iter().filter(|i| i.pin.is_some()).map(|i| i.id));
         for id in ids {
-            let (rect, kind) = {
+            let (rect, kind, pinned, mirror) = {
                 let it = w.canvases[ci].item(id).expect("item");
-                (it.rect, it.kind.clone())
+                (it.rect, it.kind.clone(), it.pin.is_some(), it.mirror)
             };
-            let sr = view.rect_to_screen(area, rect);
+            let zoom = if pinned { 1.0 } else { view.zoom };
+            let sr = if pinned { Self::pinned_screen_rect(l, w.canvases[ci].item(id).expect("item")) } else { view.rect_to_screen(area, rect) };
             if !sr.intersects(&area) {
                 continue;
+            }
+            if pinned {
+                // Soft shadow so it reads as floating above the canvas.
+                w.batch.rrect(sr.x + 2.0, sr.y + 3.0, sr.w, sr.h, 8.0, with_alpha(theme.bg, 0.55));
             }
             let focused = focus == Some(id);
             let selected = w.canvases[ci].is_selected(id);
@@ -748,11 +787,19 @@ impl App {
                 // Item rename uses `rename` with the terminal's store index
                 // offset by ITEM_RENAME_BASE so it cannot collide with a tab index.
                 let renaming = matches!((&rename, tab_ref), (Some((ri, _, _)), Some(ti)) if *ri == ti + ITEM_RENAME_BASE);
-                let title = match (&rename, tab_ref) {
+                let mut title = match (&rename, tab_ref) {
                     (Some((_, text, _)), Some(_)) if renaming => text.clone(),
                     (_, Some(ti)) => w.terms[ti].display_title().to_string(),
                     _ => "starting…".into(),
                 };
+                if !renaming {
+                    if mirror {
+                        title = format!("⧉ {title}");
+                    }
+                    if pinned {
+                        title = format!("⌖ {title}");
+                    }
+                }
                 let max_w = sr.w - pad * 2.0 - close_w;
                 let color = if focused { theme.fg } else { scale_rgb(theme.fg, 0.75) };
                 if renaming {
@@ -880,7 +927,7 @@ impl App {
             let rect = c.spawn_rect(l.area, iw, ih);
             let item_id = self.next_item_id;
             self.next_item_id += 1;
-            c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: Some(LaunchSpec { shortcut: None, cwd: None, session: Some(sid.clone()) }) });
+            c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: Some(LaunchSpec { shortcut: None, cwd: None, session: Some(sid.clone()) }), pin: None, mirror: false });
             c.focus = Some(item_id);
             self.win_mut().terms.push(term);
             log::info!("recovered session {sid}");
@@ -934,13 +981,36 @@ impl App {
         for ci in 0..n {
             self.win_mut().active = ci;
             let single = self.win().canvases[ci].is_single();
-            let pending: Vec<(ItemId, WRect, Option<LaunchSpec>, Option<String>)> = self.win().canvases[ci]
+            let mut pending: Vec<PendingItem> = self.win().canvases[ci]
                 .items
                 .iter()
                 .filter(|i| matches!(i.kind, ItemKind::Pending))
-                .map(|i| (i.id, i.rect, i.launch.clone(), i.name.clone()))
+                .map(|i| (i.id, i.rect, i.launch.clone(), i.name.clone(), i.mirror))
                 .collect();
-            for (item_id, rect, spec, name) in pending {
+            // Owners first so mirrors find their terminal.
+            pending.sort_by_key(|p| p.4);
+            for (item_id, rect, spec, name, mirror) in pending {
+                if mirror {
+                    // A mirror shows a terminal restored just above (same
+                    // session id); without one it has nothing to show.
+                    let owner = spec.as_ref().and_then(|s| s.session.as_deref()).and_then(|sid| {
+                        let w = self.win();
+                        w.canvases[ci].items.iter().find_map(|i| match i.kind {
+                            ItemKind::Terminal(t) if w.term(t).and_then(|x| x.session.as_deref()) == Some(sid) => Some(t),
+                            _ => None,
+                        })
+                    });
+                    let w = self.win_mut();
+                    match owner {
+                        Some(t) => {
+                            if let Some(it) = w.canvases[ci].item_mut(item_id) {
+                                it.kind = ItemKind::Terminal(t);
+                            }
+                        }
+                        None => w.canvases[ci].items.retain(|i| i.id != item_id),
+                    }
+                    continue;
+                }
                 let launch = match spec.as_ref().and_then(|s| s.shortcut.as_deref()) {
                     Some(n) => match self.store.commands.iter().find(|c| c.name == n).cloned() {
                         Some(cmd) => self.command_launch(&cmd),
@@ -1013,6 +1083,9 @@ impl App {
         self.request_redraw();
     }
 }
+
+/// A saved item awaiting its terminal: (id, rect, launch, name, mirror).
+type PendingItem = (ItemId, WRect, Option<LaunchSpec>, Option<String>, bool);
 
 /// Rename targets at or above this index refer to terminals in the store
 /// (item renames); below it they are tab indices.

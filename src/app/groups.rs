@@ -84,7 +84,7 @@ impl App {
         let w = self.win_mut();
         if let Some(c) = w.canvas_mut() {
             c.group_sel = None;
-            c.selected = c.items.iter().filter(|i| i.rect.intersects(&band)).map(|i| i.id).collect();
+            c.selected = c.items.iter().filter(|i| i.pin.is_none() && i.rect.intersects(&band)).map(|i| i.id).collect();
             if let Some(&last) = c.selected.last()
                 && !c.focus.map(|f| c.selected.contains(&f)).unwrap_or(false)
             {
@@ -224,7 +224,12 @@ impl App {
     /// the multi-selection when it contains the primary, else the primary alone.
     pub(super) fn drag_set(&self, primary: ItemId) -> Vec<(ItemId, WRect)> {
         let Some(c) = self.win().canvas() else { return Vec::new() };
-        let mut ids: Vec<ItemId> = if c.is_selected(primary) { c.selected.clone() } else { vec![primary] };
+        let primary_pinned = c.item(primary).map(|i| i.pin.is_some()).unwrap_or(false);
+        let mut ids: Vec<ItemId> = if c.is_selected(primary) && !primary_pinned {
+            c.selected.iter().copied().filter(|&i| c.item(i).map(|x| x.pin.is_none()).unwrap_or(false)).collect()
+        } else {
+            vec![primary]
+        };
         if !ids.contains(&primary) {
             ids.push(primary);
         }
