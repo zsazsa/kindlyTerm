@@ -582,6 +582,45 @@ impl App {
         Some((viewport_to_point(display_offset, Point::new(line, Column(col))), side))
     }
 
+    /// While a selection drag sits above or below the grid, how many lines
+    /// to scroll per tick (positive = up, toward history), from how far out
+    /// the pointer is. None when not selecting or inside the grid.
+    pub(super) fn autoscroll_lines(&self) -> Option<i32> {
+        let w = self.wins.get(self.cur)?;
+        if !w.selecting {
+            return None;
+        }
+        let l = w.layout?;
+        let tab = self.active_tab()?;
+        let (_, gy, zoom) = self.focused_grid_origin()?;
+        let ch = l.cell_h * zoom;
+        let my = w.mouse.y as f32;
+        let bottom = gy + tab.size.rows as f32 * ch;
+        let out = if my < gy { gy - my } else if my > bottom { -(my - bottom) } else { return None };
+        // One line per tick near the edge, up to ten well outside it.
+        let n = (1.0 + out.abs() / (ch * 2.0)).min(10.0) as i32;
+        Some(if out > 0.0 { n } else { -n })
+    }
+
+    /// Scroll the history under a selection drag that has left the grid,
+    /// and stretch the selection to the pointer. Called from the wait loop.
+    pub(super) fn tick_autoscroll(&mut self) {
+        let Some(lines) = self.autoscroll_lines() else { return };
+        let Some(tab) = self.win().active_term() else { return };
+        if tab.term.lock().mode().contains(TermMode::ALT_SCREEN) {
+            return; // a full-screen program has no history to scroll
+        }
+        tab.scroll(Scroll::Delta(lines));
+        let Some((point, side)) = self.mouse_point() else { return };
+        if let Some(tab) = self.win().active_term() {
+            let mut term = tab.term.lock();
+            if let Some(sel) = term.selection.as_mut() {
+                sel.update(point, side);
+            }
+        }
+        self.request_redraw();
+    }
+
     pub(super) fn tab_at(&self, x: f32) -> Option<TabHit> {
         self.wins[self.cur].tab_hits.iter().copied().find(|h| x >= h.x0 && x < h.x1)
     }

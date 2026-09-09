@@ -154,7 +154,7 @@ drag by the tab rather than the title bar.
 
 Terminal area:
 
-- Drag to select. Double-click selects a word, triple-click a line. `Shift`+click extends.
+- Drag to select. Drag past the top or bottom edge and the history scrolls under the selection, faster the farther out the pointer is, so a selection can be longer than the screen. Double-click selects a word, triple-click a line. `Shift`+click extends.
 - Selecting also fills the primary selection, so **middle click** pastes it.
 - **Right click** for a context menu: copy, paste, new tab, saved commands, save a command, clear scrollback, close tab.
 

@@ -1895,6 +1895,7 @@ impl ApplicationHandler<UserEvent> for App {
         }
         self.tick_monitors();
         self.tick_drips(now);
+        self.tick_autoscroll();
         if self.next_frame.map(|t| now >= t).unwrap_or(false) {
             self.next_frame = None;
             let anim = self.config.terminal.cursor_animation.clone();

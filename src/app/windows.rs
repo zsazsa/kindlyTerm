@@ -419,6 +419,10 @@ impl App {
         for d in &self.drips {
             consider(d.next, &mut next);
         }
+        // A selection drag outside the grid keeps scrolling the history.
+        if self.autoscroll_lines().is_some() {
+            consider(now + std::time::Duration::from_millis(50), &mut next);
+        }
         match next {
             Some(t) => event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(t)),
             None => event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait),
