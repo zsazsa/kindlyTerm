@@ -1,6 +1,17 @@
 # Plan: the Canvas — an infinite, zoomable terminal multiplexer
 
-Status: proposal, 2026-09-09. Nothing here is built yet.
+Status: approved 2026-09-09, in progress on the `canvas` branch. `main` stays
+at tag `v0.1-tabs` (the tabbed app) until the Canvas is good enough to merge;
+`git checkout v0.1-tabs` is the revert point.
+
+Decisions taken (2026-09-09):
+1. Tabs retire; canvases live in a sidebar.
+2. Canvas actions use `Ctrl+Shift` chords; the Deck's quick-run moves off
+   `Ctrl+Shift+P` (which becomes Pin) to tap-`Ctrl+Shift` and `Ctrl+Shift+Space`.
+3. Font stays fontconfig's monospace (no bundled font).
+4. State persists beside the config: `~/.config/kindlyterm/state.json`.
+5. MCP tools are shaped for Claude Code as the first client.
+The product and feature are simply "kindlyTerm" and "the Canvas".
 
 ## Vision
 
@@ -147,16 +158,16 @@ rest of the app.
 - **Links**: detect URLs across wrapped lines plus OSC 8 hyperlinks;
   `Ctrl+click` opens with `xdg-open`; hover underlines.
 - **Resize reflow**: already provided by alacritty; keep it.
-- **Font**: bundle JetBrains Mono (OFL) as the built-in default with the
-  current fontconfig fallback path, fitted box drawing (draw box glyphs
-  ourselves so they join), and colour emoji as today.
+- **Font**: fontconfig's monospace stays the default (any installed family
+  via config); add fitted box drawing (draw box glyphs ourselves so they
+  join) and keep colour emoji as today.
 - **Live configuration**: watch `~/.config/kindlyterm/*.toml` with inotify
   (`notify` crate) and re-apply without restart, using the same code paths
   the Deck already uses to apply settings live.
 
 ### 5. Persistence
 
-- State lives in `~/.local/state/kindlyterm/state.json` (XDG state dir),
+- State lives in `~/.config/kindlyterm/state.json` (beside the config),
   written debounced after every change and on exit: canvases (name, cwd,
   viewport, sidebar order), items (kind, geometry, name, title mode, theme,
   monitor settings, pin corner, mirror source, image path), groups, focus,
@@ -222,16 +233,11 @@ Rough relative sizes: 1 small · 2 large · 3 large · 4 large · 5 medium ·
   dies with it (same as today). Mitigation is process isolation, not magic.
 - **MCP exposure**: default off, local socket, user-visible logging.
 
-## Decisions needed before starting
+## Progress
 
-1. Retire tabs in favour of canvases (recommended), or keep tabs as
-   "canvas tabs" across the top in addition to the sidebar?
-2. Chord policy: `Ctrl+Shift` for canvas actions as proposed, moving the
-   Deck quick-run off `Ctrl+Shift+P`. Alternative: reserve `Super` and accept
-   that GNOME steals some of it.
-3. Bundle JetBrains Mono (adds ~1 MB to the binary) or keep fontconfig's
-   monospace as the default?
-4. Persist state under `~/.local/state/kindlyterm/` (XDG) or beside the
-   config in `~/.config/kindlyterm/`?
-5. MCP tool naming: use the list above as the initial contract, or shape it
-   after a specific client you plan to use first?
+- [ ] Phase 1: renderer groundwork
+- [ ] Phase 2: canvas core
+- [ ] Phase 3: PTY hosts
+- [ ] Phase 4: spatial features
+- [ ] Phase 5: keyboard and text
+- [ ] Phase 6: MCP server
