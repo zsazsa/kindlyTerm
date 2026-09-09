@@ -1,0 +1,15 @@
+
+   █ █  ▀█▀  █▄ █  █▀▄  █    █ █      ▀█▀  █▀▀  █▀▄  █▄ ▄█
+   █▀▄   █   █ ▀█  █ █  █    ▀█▀       █   █▀   █▀▄  █ ▀ █
+   ▀ ▀  ▀▀▀  ▀  ▀  ▀▀   ▀▀▀   ▀        ▀   ▀▀▀  ▀ ▀  ▀   ▀
+
+  the Canvas  ·  an infinite board where every shell is a card
+
+  pan with the wheel · zoom with Ctrl+wheel · Space+drag to fly around
+  group cards with Ctrl+Shift+G · pin one to the glass with Ctrl+Shift+P
+  mirror a terminal to watch it from two places · monitor one for silence
+
+  Claude Code drives it all over MCP: open, type, paste, move, read back
+  it sees what every shell is doing and never waits for the show
+
+  this text fell in as rain because an agent pasted it

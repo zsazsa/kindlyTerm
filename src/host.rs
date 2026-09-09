@@ -325,15 +325,21 @@ impl Host {
                 }
                 Ok(Some(ToHost::Kill)) => {
                     log::info!("client {id} asked to kill the session");
+                    // The shell is the session leader of the pty, so its
+                    // process group holds whatever it is running (a `top`,
+                    // an editor): hang up the whole group, not just bash,
+                    // or the child keeps the pty open and the host lives on.
                     unsafe {
+                        libc::kill(-self.child_pid, libc::SIGHUP);
                         libc::kill(self.child_pid, libc::SIGHUP);
                     }
                     // The reader thread notices the exit and finishes up. If
-                    // the shell ignores SIGHUP, follow with SIGKILL.
+                    // something ignores SIGHUP, follow with SIGKILL.
                     let pid = self.child_pid;
                     std::thread::spawn(move || {
                         std::thread::sleep(std::time::Duration::from_secs(3));
                         unsafe {
+                            libc::kill(-pid, libc::SIGKILL);
                             libc::kill(pid, libc::SIGKILL);
                         }
                     });

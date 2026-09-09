@@ -137,7 +137,18 @@ impl App {
         let drag = w.drag.filter(|d| d.active);
         let ghost_x = drag.map(|d| (w.mouse.x as f32 - d.grab_dx).clamp(0.0, (width - tabs[d.index.min(tabs.len() - 1)].w).max(0.0)));
 
+        // Agent input glow per tab: strongest touch among its terminals.
+        let tab_glow: Vec<f32> = w
+            .canvases
+            .iter()
+            .map(|c| c.tabs().filter_map(|t| w.terms.iter().find(|x| x.id == t)).map(|x| x.agent_glow()).fold(0.0, f32::max))
+            .collect();
         let draw_tab = |fonts: &mut FontSystem, batch: &mut Batch, i: usize, t: &T, tx: f32, active: bool, hovered: bool, close_hover: bool, lifted: bool| {
+            let glow = tab_glow.get(i).copied().unwrap_or(0.0);
+            if glow > 0.0 {
+                batch.rect(tx, 0.0, t.w, bar_h, with_alpha(theme.accent, 0.18 * glow));
+                batch.rect(tx, bar_h - 2.0 * s, t.w, 2.0 * s, with_alpha(theme.accent, glow));
+            }
             if active || lifted {
                 batch.rect(tx, 0.0, t.w, bar_h, theme.tab_active);
                 batch.rect(tx, 0.0, t.w, 2.0 * s, theme.accent);
@@ -275,8 +286,8 @@ impl App {
         let Some(ti) = w.active_term_index() else { return };
         let place = match self.debug.term_zoom {
             // Debug: draw zoomed and clipped to a box in the top-left quarter.
-            Some(z) => TermPlace { x: l.grid_x + 40.0, y: l.grid_y + 40.0, zoom: z, focused, clip: Some((l.grid_x + 20.0, l.grid_y + 20.0, 520.0, 320.0)) },
-            None => TermPlace { x: l.grid_x, y: l.grid_y, zoom: 1.0, focused, clip: None },
+            Some(z) => TermPlace { x: l.grid_x + 40.0, y: l.grid_y + 40.0, zoom: z, glyph_zoom: z, focused, clip: Some((l.grid_x + 20.0, l.grid_y + 20.0, 520.0, 320.0)) },
+            None => TermPlace { x: l.grid_x, y: l.grid_y, zoom: 1.0, glyph_zoom: 1.0, focused, clip: None },
         };
         if self.debug.term_zoom.is_some() {
             w.batch.outline(l.grid_x + 20.0, l.grid_y + 20.0, 520.0, 320.0, 6.0, 1.0, theme.accent);
@@ -296,6 +307,10 @@ pub(crate) struct TermPlace {
     pub y: f32,
     /// 1.0 = the window's base cell size. Text is rasterised at base × zoom.
     pub zoom: f32,
+    /// Zoom the glyphs are rasterised at. Equal to `zoom` normally; during a
+    /// view glide it stays at the previous size and the quads are scaled on
+    /// the GPU, so no frame waits on the rasteriser.
+    pub glyph_zoom: f32,
     pub focused: bool,
     /// Optional scissor rect (x, y, w, h) the drawing is clipped to.
     pub clip: Option<(f32, f32, f32, f32)>,
@@ -316,6 +331,8 @@ pub(crate) fn draw_term_view(
         let tab_id = tab.id;
         let focused = place.focused;
         let zoom = place.zoom;
+        let glyph_zoom = place.glyph_zoom;
+        let glyph_scale = zoom / glyph_zoom;
         let base_px = fonts.size_px;
         let rows = tab.size.rows;
         let anim = &mut tab.view.cursor_anim;
@@ -356,10 +373,23 @@ pub(crate) fn draw_term_view(
                 anim.pos = target;
                 anim.move_start = now - std::time::Duration::from_secs(1);
             } else if anim.to != target {
-                // Start a glide from wherever the cursor currently is drawn.
-                anim.from = anim.pos;
-                anim.to = target;
-                anim.move_start = now;
+                // A line wrap (one end of a row to the other end of the next
+                // or previous row) is not a journey across the grid: snap,
+                // so a held Backspace does not send Pac-Man on a diagonal.
+                let cols = tab.size.cols as f32;
+                let (lo, hi) = (anim.to.0.min(target.0), anim.to.0.max(target.0));
+                let wrap = (anim.to.1 - target.1).abs() >= 0.5 && lo <= 1.5 && hi >= cols - 2.5;
+                if wrap {
+                    anim.from = target;
+                    anim.to = target;
+                    anim.pos = target;
+                    anim.move_start = now - std::time::Duration::from_secs(1);
+                } else {
+                    // Start a glide from wherever the cursor currently is drawn.
+                    anim.from = anim.pos;
+                    anim.to = target;
+                    anim.move_start = now;
+                }
             }
         }
         let travel_t = anim.travel_t();
@@ -466,13 +496,13 @@ pub(crate) fn draw_term_view(
                 continue;
             }
             if c != ' ' && c != '\t'
-                && let Some(g) = fonts.glyph(GlyphKey::cell_zoomed(c, bold, italic, base_px, zoom)) {
-                    batch.glyph(x, y + m.ascent, &g, fg);
+                && let Some(g) = fonts.glyph(GlyphKey::cell_zoomed(c, bold, italic, base_px, glyph_zoom)) {
+                    batch.glyph_scaled(x, y + m.ascent, &g, fg, glyph_scale);
                 }
             if let Some(zw) = cell.zerowidth() {
                 for &z in zw {
-                    if let Some(g) = fonts.glyph(GlyphKey::cell_zoomed(z, bold, italic, base_px, zoom)) {
-                        batch.glyph(x, y + m.ascent, &g, fg);
+                    if let Some(g) = fonts.glyph(GlyphKey::cell_zoomed(z, bold, italic, base_px, glyph_zoom)) {
+                        batch.glyph_scaled(x, y + m.ascent, &g, fg, glyph_scale);
                     }
                 }
             }
@@ -552,7 +582,8 @@ pub(crate) fn draw_term_view(
                 let cx = x + m.width / 2.0 - size / 2.0;
                 let cy = y + m.height / 2.0 - size / 2.0;
                 let tt = anim.chomp.map(|(s, _, _)| s.elapsed().as_secs_f32()).unwrap_or(0.0);
-                let mouth = 0.08 + 0.55 * (tt * 16.0).sin().abs();
+                // About five chomps a second, closing fully each time.
+                let mouth = 0.02 + 0.6 * (tt * 16.0).sin().abs();
                 let facing = if left { std::f32::consts::PI } else { 0.0 };
                 let yellow = rgb([0xff, 0xe1, 0x35]);
                 batch.pacman(cx, cy, size, facing, mouth, yellow);

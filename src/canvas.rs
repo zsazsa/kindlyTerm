@@ -261,17 +261,81 @@ pub struct Canvas {
     /// Group whose label was clicked last; Focus Mode zooms to it.
     #[serde(skip)]
     pub group_sel: Option<GroupId>,
+    /// A view transition in flight: `view` is the interpolated frame,
+    /// `anim.to` the destination (what gets saved).
+    #[serde(skip)]
+    pub view_anim: Option<ViewAnim>,
 }
+
+/// Camera glide between two viewports: zoom moves geometrically and the
+/// centre linearly, eased, so a jump reads as a camera move.
+#[derive(Clone, Copy, Debug)]
+pub struct ViewAnim {
+    pub from: Viewport,
+    pub to: Viewport,
+    pub start: std::time::Instant,
+    pub ms: u32,
+    /// Canvas area at glide time (centre maths needs it).
+    pub area: WRect,
+    /// Zoom the glyph atlas already holds; text is drawn from it, scaled,
+    /// until the glide lands.
+    pub glyph_zoom: f32,
+}
+
+/// How long a view glide takes.
+pub const VIEW_GLIDE_MS: u32 = 320;
 
 impl Canvas {
     pub fn new(id: CanvasId, name: impl Into<String>) -> Self {
-        Self { id, name: name.into(), mode: CanvasMode::Free, cwd: None, view: Viewport::default(), items: Vec::new(), focus: None, focus_prev: None, spawn_n: 0, groups: Vec::new(), selected: Vec::new(), group_sel: None }
+        Self { id, name: name.into(), mode: CanvasMode::Free, cwd: None, view: Viewport::default(), items: Vec::new(), focus: None, focus_prev: None, spawn_n: 0, groups: Vec::new(), selected: Vec::new(), group_sel: None, view_anim: None }
+    }
+
+    /// Start gliding the camera to `to`. A glide already running continues
+    /// from wherever it is now.
+    pub fn glide_to(&mut self, to: Viewport, area: WRect) {
+        let from = self.view;
+        if (from.x - to.x).abs() < 0.5 && (from.y - to.y).abs() < 0.5 && (from.zoom - to.zoom).abs() < 1e-4 {
+            self.view = to;
+            self.view_anim = None;
+            return;
+        }
+        let glyph_zoom = self.view_anim.map(|a| a.glyph_zoom).unwrap_or(from.zoom);
+        self.view_anim = Some(ViewAnim { from, to, start: std::time::Instant::now(), ms: VIEW_GLIDE_MS, area, glyph_zoom });
+    }
+
+    /// Stop a glide where it is (the user grabbed the camera).
+    pub fn settle_view(&mut self) {
+        self.view_anim = None;
+    }
+
+    /// The view that should be persisted: a glide's destination.
+    pub fn target_view(&self) -> Viewport {
+        self.view_anim.map(|a| a.to).unwrap_or(self.view)
+    }
+
+    /// Advance the glide. Returns true while still animating.
+    pub fn tick_view(&mut self, now: std::time::Instant) -> bool {
+        let Some(a) = self.view_anim else { return false };
+        let t = (now.duration_since(a.start).as_secs_f32() * 1000.0 / a.ms.max(1) as f32).min(1.0);
+        if t >= 1.0 {
+            self.view = a.to;
+            self.view_anim = None;
+            return false;
+        }
+        let e = t * t * (3.0 - 2.0 * t);
+        let zoom = a.from.zoom * (a.to.zoom / a.from.zoom).powf(e);
+        let (hw0, hh0) = (a.area.w / 2.0 / a.from.zoom, a.area.h / 2.0 / a.from.zoom);
+        let (hw1, hh1) = (a.area.w / 2.0 / a.to.zoom, a.area.h / 2.0 / a.to.zoom);
+        let cx = (a.from.x + hw0) + ((a.to.x + hw1) - (a.from.x + hw0)) * e;
+        let cy = (a.from.y + hh0) + ((a.to.y + hh1) - (a.from.y + hh0)) * e;
+        self.view = Viewport { x: cx - a.area.w / 2.0 / zoom, y: cy - a.area.h / 2.0 / zoom, zoom };
+        true
     }
 
     /// A classic terminal tab: one maximized item.
     pub fn single(id: CanvasId, item: Item) -> Self {
         let focus = Some(item.id);
-        Self { id, name: String::new(), mode: CanvasMode::Single, cwd: None, view: Viewport::default(), items: vec![item], focus, focus_prev: None, spawn_n: 0, groups: Vec::new(), selected: Vec::new(), group_sel: None }
+        Self { id, name: String::new(), mode: CanvasMode::Single, cwd: None, view: Viewport::default(), items: vec![item], focus, focus_prev: None, spawn_n: 0, groups: Vec::new(), selected: Vec::new(), group_sel: None, view_anim: None }
     }
 
     pub fn is_single(&self) -> bool {
@@ -509,9 +573,17 @@ pub struct SavedState {
 pub struct SavedWindow {
     pub width: u32,
     pub height: u32,
+    #[serde(default)]
+    pub maximized: bool,
     /// Tabs, in tab-bar order.
     pub canvases: Vec<Canvas>,
     pub active: usize,
+}
+
+impl SavedWindow {
+    pub fn geometry(&self) -> Option<crate::app::WinGeometry> {
+        Some(crate::app::WinGeometry { width: self.width, height: self.height, maximized: self.maximized })
+    }
 }
 
 impl SavedState {

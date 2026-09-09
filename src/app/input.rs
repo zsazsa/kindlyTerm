@@ -523,15 +523,18 @@ impl App {
     /// Paste rain: capture the screen before the shell echoes the paste, so
     /// the cells it changes can be dropped in from the top.
     pub(super) fn arm_paste_rain(&mut self, text: &str) {
-        if !self.effects.paste_rain.enabled || text.chars().count() < self.effects.paste_rain.min_chars {
-            return;
+        let cfg = self.effects.paste_rain.clone();
+        if let Some(tab) = self.win_mut().active_term_mut() {
+            Self::arm_paste_rain_on(tab, &cfg, text);
         }
-        if self.win().active_term().is_none() {
+    }
+
+    /// Same, for a given terminal (tool input may land on any of them).
+    pub(super) fn arm_paste_rain_on(tab: &mut crate::terminal::Terminal, cfg: &crate::effects::RainConfig, text: &str) {
+        if !cfg.enabled || text.chars().count() < cfg.min_chars {
             return;
         }
         let snap = {
-            let w = self.win();
-            let Some(tab) = w.active_term() else { return };
             let mut term = tab.term.lock();
             term.scroll_display(Scroll::Bottom);
             let grid = term.grid();
@@ -545,10 +548,7 @@ impl App {
             }
             GridSnapshot { cells, cols, rows, history: grid.history_size() }
         };
-        let cfg = self.effects.paste_rain.clone();
-        if let Some(v) = self.win_mut().view_mut() {
-            v.fx.begin_paste(&cfg, text, snap);
-        }
+        tab.view.fx.begin_paste(cfg, text, snap);
     }
 
     /// Remove anything from pasted text that could act as a command to the

@@ -192,8 +192,9 @@ holding a free canvas show a `▦` marker in the tab bar.
   or a tail can stay in the corner while you work elsewhere.
 - **Watch for quiet**: a terminal's menu → *Tell me when it goes quiet*.
   After 30 seconds without output its frame blinks and the tab bar says
-  so, until output resumes. Good for builds and long jobs you have panned
-  away from. The title shows ◔ while a terminal is watched.
+  so, until output resumes or you turn the watch off from the same menu
+  (clicking the card does not clear it). Good for builds and long jobs you
+  have panned away from. The title shows ◔ while a terminal is watched.
 - **Mirror** a terminal (its menu → *Mirror here*) to get a second live view
   of the same shell. Both render the same screen and either can type;
   resizing one resizes both. Closing a mirror only removes that view.
@@ -210,7 +211,13 @@ holding a free canvas show a `▦` marker in the tab bar.
 
 The layout (windows, tabs, item positions, zoom, and what each item was
 launched with) is saved to `~/.config/kindlyterm/state.json` and restored on
-the next start, together with the shells themselves (next section).
+the next start, together with the shells themselves (next section). Maximized
+windows come back maximized.
+
+kindlyTerm runs as one instance: launching it again (dock, `kindlyterm` in a
+shell, `kindlyterm --deck`) opens a new window in the running one, with the
+shell started in the launching directory, rather than restoring the same
+layout and shells a second time.
 
 ## Shells that survive a restart
 
@@ -254,7 +261,31 @@ terminal's screen or scrollback, type text and keys, open and close
 terminals (with a command and working directory), move, resize, rename,
 group, pin and mirror items, watch a terminal for silence, place images,
 set the view, and take a screenshot. Every action that types, closes, or
-moves something is announced in the tab bar.
+moves something is announced in the tab bar, and typing lights the
+terminal up: its frame (and its tab, if it is not the one showing) glows
+in the accent colour for a moment, short text replays the typing trail
+and longer text falls in as paste rain. The bytes reach the shell before
+any of that starts, so an agent is never slowed down by the show. For a
+slower, watchable version an agent can pass `typing` (characters per
+second) to `send_text`, or `count` to `send_key` to hold a key down: held
+Backspace or Delete brings out the Pac-Man cursor. Both return at once
+and play out on the app's timer.
+
+To see all of it in one go, `python3 demo/showtime.py` plays a scripted
+tour on the running window (or `/showtime` from Claude Code in this repo):
+typing, Pac-Man both ways, a banner falling in as rain, then real work (a
+cargo build with a silence monitor, a docs server and a client, git) and a
+pan and zoom around the board. Then an agent takes over: it narrates its
+plan in a log card of its own and pins it to the screen so it stays in
+view while the camera follows its work. It spawns three workers, reads
+their screens back and writes down what each found, lines the cards up,
+groups two of them, adds the third so the frame grows, renames the group,
+closes the finished workers, and regroups around the one that is left.
+Then it turns to the rest of the board: it notices the build card's
+silence monitor firing, reads the finished build and clears the monitor,
+groups build with git as "repo" and the docs server with its client as
+"docs site", unpins its log, and zooms out to the whole board. `--fast`
+shortens the pauses, `--cleanup` closes the tab after.
 
 How it works: with the toggle on, the running app serves a small JSON API on
 a private Unix socket (`$XDG_RUNTIME_DIR/kindlyterm/control.sock`, mode
@@ -427,6 +458,7 @@ src/app/canvas_ui.rs canvas interaction, drawing, and state save/restore
 src/app/debug.rs    developer hooks (KINDLYTERM_DEBUG=1)
 src/canvas.rs       canvas model: viewport maths, items, hit testing, state.json
 src/session.rs      UI <-> host wire protocol and the session socket directory
+src/instance.rs     single-instance socket: later launches become new windows
 src/host.rs         the detached PTY host: output ring, headless Term, snapshots
 src/control.rs      control socket: JSON lines between the UI and tool bridges
 src/mcp.rs          `--mcp` stdio Model Context Protocol server (Claude Code)

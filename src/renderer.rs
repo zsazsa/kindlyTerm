@@ -214,12 +214,18 @@ impl Batch {
 
     /// Place a glyph with its origin (baseline-left) at (ox, oy).
     pub fn glyph(&mut self, ox: f32, oy: f32, g: &Glyph, color: Rgba) {
-        let x = ox + g.left as f32;
-        let y = oy - g.top as f32;
+        self.glyph_scaled(ox, oy, g, color, 1.0);
+    }
+
+    /// A glyph quad scaled by `s` about its baseline origin (the atlas
+    /// sample is stretched by the GPU; used while the view is gliding).
+    pub fn glyph_scaled(&mut self, ox: f32, oy: f32, g: &Glyph, color: Rgba, s: f32) {
+        let x = ox + g.left as f32 * s;
+        let y = oy - g.top as f32 * s;
         self.push(
             Instance {
                 pos: [x, y],
-                size: [g.w as f32, g.h as f32],
+                size: [g.w as f32 * s, g.h as f32 * s],
                 uv0: [g.x as f32, g.y as f32],
                 uv1: [(g.x + g.w) as f32, (g.y + g.h) as f32],
                 color,

@@ -359,7 +359,11 @@ impl FontSystem {
         let (font, gid) = self.find_font(key)?;
         let fref = font.as_ref();
         let px = key.px(self.size_px);
-        let mut scaler = self.scale.builder(fref).size(px).hint(true).build();
+        // Hint only at the base size: TrueType hinting at a fractional
+        // pixel size (a zoomed canvas) can drop outline rows, cutting the
+        // bottoms off glyphs. Zoomed text is rendered unhinted and smooth.
+        let hint = key.size10 == 0;
+        let mut scaler = self.scale.builder(fref).size(px).hint(hint).build();
         let image = Render::new(&[
             RenderSource::ColorOutline(0),
             RenderSource::ColorBitmap(StrikeWith::BestFit),

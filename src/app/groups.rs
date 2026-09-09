@@ -181,9 +181,11 @@ impl App {
         {
             let r = WRect::new(g.rect.x, g.rect.y - GROUP_LABEL_H, g.rect.w, g.rect.h + GROUP_LABEL_H);
             if c.focus_prev.is_none() {
-                c.focus_prev = Some(c.view);
+                c.focus_prev = Some(c.target_view());
             }
-            c.view.fit(l.area, r, 24.0);
+            let mut v = c.target_view();
+            v.fit(l.area, r, 24.0);
+            c.glide_to(v, l.area);
             c.group_sel = Some(gid);
         }
         w.dirty = true;

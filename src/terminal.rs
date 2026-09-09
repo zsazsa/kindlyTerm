@@ -31,6 +31,8 @@ pub const SYS_DROP_TIMEOUT: TabId = u64::MAX - 1;
 pub const SYS_CONFIG_CHANGED: TabId = u64::MAX - 2;
 /// Reserved `UserEvent.tab` value: control-socket requests are queued.
 pub const SYS_CONTROL: TabId = u64::MAX - 3;
+/// Reserved `UserEvent.tab` value: another launch asked for a window.
+pub const SYS_INSTANCE: TabId = u64::MAX - 4;
 
 /// Event sent from the PTY thread to the winit event loop.
 #[derive(Debug)]
@@ -148,7 +150,13 @@ pub struct Terminal {
     pub last_output: std::time::Instant,
     /// Set by the monitor once the quiet threshold passed; cleared by output.
     pub quiet_alert: bool,
+    /// When an agent (control API) last typed here: the frame glows briefly
+    /// so tool input is visible even on a small or unfocused terminal.
+    pub agent_touch: Option<std::time::Instant>,
 }
+
+/// How long the agent-input glow lasts.
+pub const AGENT_GLOW_MS: u64 = 1400;
 
 impl Terminal {
     pub fn spawn(
@@ -196,6 +204,7 @@ impl Terminal {
             shortcut: launch.shortcut.clone(),
             last_output: std::time::Instant::now(),
             quiet_alert: false,
+            agent_touch: None,
         })
     }
 
@@ -332,7 +341,19 @@ impl Terminal {
             shortcut: None,
             last_output: std::time::Instant::now(),
             quiet_alert: false,
+            agent_touch: None,
         })
+    }
+
+    /// Strength of the agent-input glow right now, 1.0 fading to 0.0.
+    pub fn agent_glow(&self) -> f32 {
+        match self.agent_touch {
+            Some(at) => {
+                let t = at.elapsed().as_millis() as f32 / AGENT_GLOW_MS as f32;
+                if t >= 1.0 { 0.0 } else { (1.0 - t) * (1.0 - t) }
+            }
+            None => 0.0,
+        }
     }
 
     pub fn display_title(&self) -> &str {

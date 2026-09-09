@@ -4,7 +4,6 @@
 use super::*;
 use super::draw::{draw_term_view, TermPlace};
 use crate::canvas::{item_part, Edge, GroupPart, Viewport, EDGE_PX, MAX_ZOOM, MIN_ZOOM, SNAP_PX};
-use winit::dpi::PhysicalSize;
 
 /// Minimum item grid while resizing.
 const MIN_COLS: usize = 10;
@@ -158,7 +157,15 @@ impl App {
         });
         let w = self.win_mut();
         if let Some(c) = w.canvas_mut() {
-            c.view.zoom_about(l.area, sx, sy, factor);
+            if about.is_some() {
+                // Under the wheel: instant, and it takes over any glide.
+                c.settle_view();
+                c.view.zoom_about(l.area, sx, sy, factor);
+            } else {
+                let mut v = c.target_view();
+                v.zoom_about(l.area, sx, sy, factor);
+                c.glide_to(v, l.area);
+            }
             c.focus_prev = None;
         }
         w.dirty = true;
@@ -170,11 +177,13 @@ impl App {
         let w = self.win_mut();
         if let Some(c) = w.canvas_mut() {
             let center = c.focus.and_then(|id| c.item(id)).map(|it| it.rect.center());
-            c.view.zoom = 1.0;
+            let mut v = c.target_view();
+            v.zoom = 1.0;
             if let Some((cx, cy)) = center {
-                c.view.x = cx - l.area.w / 2.0;
-                c.view.y = cy - l.area.h / 2.0;
+                v.x = cx - l.area.w / 2.0;
+                v.y = cy - l.area.h / 2.0;
             }
+            c.glide_to(v, l.area);
             c.focus_prev = None;
         }
         w.dirty = true;
@@ -187,14 +196,16 @@ impl App {
         let w = self.win_mut();
         if let Some(c) = w.canvas_mut()
             && let Some(b) = c.bounds() {
-                c.view.fit(l.area, b, 40.0);
-                if c.view.zoom > 1.0 {
+                let mut v = c.target_view();
+                v.fit(l.area, b, 40.0);
+                if v.zoom > 1.0 {
                     // Fit never magnifies: cap at 1:1 and keep things centred.
-                    c.view.zoom = 1.0;
+                    v.zoom = 1.0;
                     let (cx, cy) = b.center();
-                    c.view.x = cx - l.area.w / 2.0;
-                    c.view.y = cy - l.area.h / 2.0;
+                    v.x = cx - l.area.w / 2.0;
+                    v.y = cy - l.area.h / 2.0;
                 }
+                c.glide_to(v, l.area);
                 c.focus_prev = None;
             }
         w.dirty = true;
@@ -207,7 +218,7 @@ impl App {
         let w = self.win_mut();
         if let Some(c) = w.canvas_mut() {
             if let Some(prev) = c.focus_prev.take() {
-                c.view = prev;
+                c.glide_to(prev, l.area);
             } else {
                 // A selected group, a multi-selection, or the focused item.
                 let target = c
@@ -217,8 +228,10 @@ impl App {
                     .or_else(|| if c.selected.len() > 1 { c.bounds_of(&c.selected) } else { None })
                     .or_else(|| c.focus.and_then(|f| c.item(f)).map(|i| i.rect));
                 if let Some(r) = target {
-                    c.focus_prev = Some(c.view);
-                    c.view.fit(l.area, r, 24.0);
+                    c.focus_prev = Some(c.target_view());
+                    let mut v = c.target_view();
+                    v.fit(l.area, r, 24.0);
+                    c.glide_to(v, l.area);
                 }
             }
         }
@@ -501,6 +514,7 @@ impl App {
             CDrag::Pan { last } => {
                 let w = self.win_mut();
                 if let Some(c) = w.canvas_mut() {
+                    c.settle_view();
                     c.view.x -= (mx - last.0) / c.view.zoom;
                     c.view.y -= (my - last.1) / c.view.zoom;
                     c.focus_prev = None;
@@ -653,6 +667,7 @@ impl App {
         let (px, py) = if self.mods.shift_key() { (dy, dx) } else { (dx, dy) };
         let w = self.win_mut();
         if let Some(c) = w.canvas_mut() {
+            c.settle_view();
             c.view.x -= px / c.view.zoom;
             c.view.y -= py / c.view.zoom;
             c.focus_prev = None;
@@ -745,6 +760,11 @@ impl App {
         if ci >= w.canvases.len() {
             return;
         }
+        // Advance a view glide. While it runs, text keeps the glyph size it
+        // had when the glide started and is scaled on the GPU, so no frame
+        // waits on the rasteriser; the last frame rasterises at the exact size.
+        w.canvases[ci].tick_view(Instant::now());
+        let glyph_zoom = w.canvases[ci].view_anim.map(|a| a.glyph_zoom);
         let view = w.canvases[ci].view;
         let focus = w.canvases[ci].focus;
         let hover = w.hover_part;
@@ -801,9 +821,9 @@ impl App {
             if focused {
                 w.batch.rect(sr.x, sr.y, sr.w, (2.0 * zoom).max(1.5), theme.accent);
             }
-            let quiet = match kind {
-                ItemKind::Terminal(t) => w.terms.iter().any(|x| x.id == t && x.quiet_alert),
-                _ => false,
+            let (quiet, glow) = match kind {
+                ItemKind::Terminal(t) => w.terms.iter().find(|x| x.id == t).map(|x| (x.quiet_alert, x.agent_glow())).unwrap_or((false, 0.0)),
+                _ => (false, 0.0),
             };
             if let ItemKind::Image { path } = &kind {
                 Self::ensure_image_loaded(w, id, path);
@@ -818,6 +838,12 @@ impl App {
                     w.batch.outline(sr.x - 1.0, sr.y - 1.0, sr.w + 2.0, sr.h + 2.0, radius + 1.0, 2.5, c);
                     w.batch.rrect(sr.x, sr.y, sr.w, sr.h, radius, with_alpha(c, 0.08));
                 }
+            }
+            if glow > 0.0 {
+                // Agent input: an accent halo that fades out.
+                let c = theme.accent;
+                w.batch.outline(sr.x - 1.5, sr.y - 1.5, sr.w + 3.0, sr.h + 3.0, radius + 1.5, 3.0, with_alpha(c, 0.9 * glow));
+                w.batch.rrect(sr.x, sr.y, sr.w, sr.h, radius, with_alpha(c, 0.10 * glow));
             }
             if selected {
                 w.batch.rrect(sr.x, sr.y, sr.w, sr.h, radius, with_alpha(theme.accent, 0.06));
@@ -942,7 +968,7 @@ impl App {
                     drop(term);
                     w.batch.pop_clip();
                 } else {
-                    let place = TermPlace { x: cx, y: cy, zoom, focused: focused && win_focused, clip: Some(clip) };
+                    let place = TermPlace { x: cx, y: cy, zoom, glyph_zoom: if pinned { 1.0 } else { glyph_zoom.unwrap_or(zoom) }, focused: focused && win_focused, clip: Some(clip) };
                     let tab_id = w.terms[ti].id;
                     let tab = &mut w.terms[ti];
                     draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
@@ -975,6 +1001,8 @@ impl App {
         for w in &self.wins {
             let mut canvases = w.canvases.clone();
             for c in &mut canvases {
+                c.view = c.target_view();
+                c.view_anim = None;
                 for it in &mut c.items {
                     if let ItemKind::Terminal(t) = it.kind {
                         // The terminal itself is not persisted (yet): keep its
@@ -991,7 +1019,7 @@ impl App {
                 }
             }
             let size = w.window.inner_size();
-            st.windows.push(SavedWindow { width: size.width, height: size.height, canvases, active: w.active });
+            st.windows.push(SavedWindow { width: size.width, height: size.height, maximized: w.window.is_maximized(), canvases, active: w.active });
         }
         if let Err(e) = st.save() {
             log::warn!("could not save state: {e}");
@@ -1066,7 +1094,6 @@ impl App {
     /// Recreate a saved window's tabs and terminals into window `wi`.
     pub(super) fn restore_window(&mut self, wi: usize, saved: SavedWindow) {
         self.cur = wi;
-        let _ = self.win().window.request_inner_size(PhysicalSize::new(saved.width.max(400), saved.height.max(300)));
         let mut canvases = saved.canvases;
         canvases.retain(|c| !(c.is_single() && c.items.is_empty()));
         if canvases.is_empty() {

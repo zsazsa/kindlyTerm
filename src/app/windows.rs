@@ -2,16 +2,26 @@
 //! drag-and-drop resolution, and animation wake-up scheduling.
 
 use super::*;
+use winit::dpi::PhysicalSize;
 
 /// What a new window starts with.
 #[allow(clippy::large_enum_variant)]
 pub(super) enum NewWindow {
     /// One tab with a fresh shell.
     Shell,
-    /// Nothing; the caller fills it (state restore).
-    Empty,
+    /// Nothing; the caller fills it (state restore). Carries the saved
+    /// window geometry so the compositor places it right the first time.
+    Empty(Option<WinGeometry>),
     /// A canvas and its terminals moved from another window.
     Bundle(Canvas, Vec<Terminal>),
+}
+
+/// Size to open a window at.
+#[derive(Clone, Copy, Debug)]
+pub struct WinGeometry {
+    pub width: u32,
+    pub height: u32,
+    pub maximized: bool,
 }
 
 impl App {
@@ -21,10 +31,27 @@ impl App {
         // The app id / WM_CLASS must match the .desktop file name so GNOME
         // pairs the window with its launcher entry and icon.
         #[allow(unused_mut)]
-        let mut attrs = Window::default_attributes()
-            .with_title("kindlyTerm")
-            .with_transparent(true)
-            .with_inner_size(LogicalSize::new(1100.0, 720.0));
+        let mut attrs = Window::default_attributes().with_title("kindlyTerm").with_transparent(true);
+        let geometry = match &content {
+            NewWindow::Empty(g) => *g,
+            _ => None,
+        };
+        attrs = match geometry {
+            // A window that filled the screen last time comes back
+            // maximized instead of as a floating window bigger than the
+            // work area (which the compositor shoves under the top bar).
+            Some(g) if g.maximized || self.fills_screen(event_loop, g) => {
+                attrs.with_inner_size(LogicalSize::new(1100.0, 720.0)).with_maximized(true)
+            }
+            Some(g) => attrs.with_inner_size(PhysicalSize::new(g.width.max(400), g.height.max(300))),
+            None => attrs.with_inner_size(LogicalSize::new(1100.0, 720.0)),
+        };
+        // Redeem the launcher's startup-notification token: focuses the
+        // window and ends the desktop's "launching" spinner.
+        if let Some(token) = self.launch_request.token.take() {
+            use winit::platform::startup_notify::WindowAttributesExtStartupNotify;
+            attrs = attrs.with_activation_token(winit::window::ActivationToken::from_raw(token));
+        }
         {
             use winit::platform::wayland::WindowAttributesExtWayland;
             attrs = attrs.with_name("kindlyterm", "kindlyterm");
@@ -126,12 +153,51 @@ impl App {
                 self.update_window_title();
             }
             NewWindow::Shell => {
-                let launch = self.shell_launch();
+                let mut launch = self.shell_launch();
+                launch.cwd = self.launch_request.cwd.take().filter(|d| std::path::Path::new(d).is_dir());
                 self.open_tab(launch);
             }
-            NewWindow::Empty => {}
+            NewWindow::Empty(_) => {}
         }
         Some(wi)
+    }
+
+    /// Does a saved size cover (nearly) the whole of some monitor? Older
+    /// state files carry no maximized flag; this catches those.
+    fn fills_screen(&self, event_loop: &ActiveEventLoop, g: WinGeometry) -> bool {
+        event_loop.available_monitors().any(|m| {
+            let s = m.size();
+            s.width > 0 && s.height > 0 && g.width as f32 >= s.width as f32 * 0.95 && g.height as f32 >= s.height as f32 * 0.9
+        })
+    }
+
+    /// Listen for further launches once the first window is up.
+    pub(super) fn start_instance_listener(&mut self) {
+        if self.instance.is_some() {
+            return;
+        }
+        let proxy = self.proxy.clone();
+        match crate::instance::Listener::start(move || {
+            let _ = proxy.send_event(UserEvent { tab: crate::terminal::SYS_INSTANCE, event: Event::Wakeup });
+        }) {
+            Ok(l) => self.instance = Some(l),
+            Err(e) => log::warn!("single-instance socket failed: {e}; further launches will run separately"),
+        }
+    }
+
+    /// Open a window for every launch that was handed to this instance.
+    pub(super) fn drain_instance_requests(&mut self, event_loop: &ActiveEventLoop) {
+        let reqs = match &self.instance {
+            Some(l) => l.drain(),
+            None => return,
+        };
+        for req in reqs {
+            self.launch_request = req;
+            if self.create_window(event_loop, NewWindow::Shell).is_some() && self.launch_request.deck {
+                self.win_mut().deck.open(PageId::Home);
+            }
+        }
+        self.launch_request = Default::default();
     }
 
     /// Close a window, shutting down its terminals. Exits when none remain.
@@ -305,6 +371,9 @@ impl App {
         if w.terms.iter().any(|t| t.quiet_alert) || Self::any_animated_image(w) {
             return true;
         }
+        if w.canvases.iter().any(|c| c.view_anim.is_some()) {
+            return true;
+        }
         // Resting breath/blink only while focused and the app shows a cursor.
         w.focused
     }
@@ -344,6 +413,9 @@ impl App {
                     }
                 }
             }
+        }
+        for d in &self.drips {
+            consider(d.next, &mut next);
         }
         match next {
             Some(t) => event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(t)),

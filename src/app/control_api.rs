@@ -9,6 +9,26 @@ use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::index::{Column, Line};
 use alacritty_terminal::term::cell::Flags;
 use serde_json::{Value, json};
+use std::collections::VecDeque;
+
+/// One unit of timed tool input.
+pub(super) enum DripStep {
+    /// A typed character (bytes to send) that lights the typing trail.
+    Char(char, Vec<u8>),
+    /// A Backspace (true) or Delete (false) repeat that chomps.
+    Eat(bool, Vec<u8>),
+}
+
+/// Tool input fed to a terminal over time so the user can watch it: typed
+/// text at a typing speed, or a key held down. The tool call returns at
+/// once; the app plays the queue on its timer.
+pub(super) struct Drip {
+    pub wi: usize,
+    pub tab: TabId,
+    pub steps: VecDeque<DripStep>,
+    pub next: Instant,
+    pub interval: std::time::Duration,
+}
 
 type R = Result<Value, String>;
 
@@ -128,6 +148,94 @@ impl App {
         self.set_status(format!("tool: {msg}"));
     }
 
+    /// Queue timed tool input. A drip for a terminal that already has one
+    /// in flight starts when that one ends, so typing and key holds never
+    /// interleave.
+    fn push_drip(&mut self, mut d: Drip) {
+        let after = self.drips.iter().filter(|x| x.wi == d.wi && x.tab == d.tab).map(|x| x.next + x.interval * x.steps.len() as u32).max();
+        if let Some(t) = after {
+            d.next = d.next.max(t);
+        }
+        self.drips.push(d);
+    }
+
+    /// Feed queued tool input to its terminal, one step per interval.
+    pub(super) fn tick_drips(&mut self, now: Instant) {
+        if self.drips.is_empty() {
+            return;
+        }
+        let trail = self.effects.typing_trail.clone();
+        let mut i = 0;
+        while i < self.drips.len() {
+            let mut done = false;
+            while self.drips[i].next <= now {
+                let d = &mut self.drips[i];
+                let Some(step) = d.steps.pop_front() else {
+                    done = true;
+                    break;
+                };
+                d.next += d.interval;
+                let (wi, tab) = (d.wi, d.tab);
+                log::debug!("drip: tab {tab} step, {} left", d.steps.len());
+                let Some(term) = self.wins.get_mut(wi).and_then(|w| w.term_mut(tab)) else {
+                    done = true;
+                    break;
+                };
+                term.agent_touch = Some(now);
+                match step {
+                    DripStep::Char(ch, bytes) => {
+                        let (col, row) = term.view.cursor_anim.target();
+                        term.view.fx.typed(&trail, ch, col, row);
+                        term.write(bytes);
+                    }
+                    DripStep::Eat(left, bytes) => {
+                        // A held key: chomping from the first repeat. The
+                        // start is set once so the mouth keeps its rhythm.
+                        let start = match term.view.cursor_anim.chomp {
+                            Some((s, _, l)) if l == left => s,
+                            _ => now - std::time::Duration::from_millis(super::CursorAnim::CHOMP_AFTER_MS as u64),
+                        };
+                        term.view.cursor_anim.chomp = Some((start, now, left));
+                        term.write(bytes);
+                    }
+                }
+                if let Some(w) = self.wins.get(wi) {
+                    w.window.request_redraw();
+                }
+            }
+            if done || self.drips[i].steps.is_empty() {
+                self.drips.remove(i);
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    /// Make tool input visible: the frame glows, single-line text replays
+    /// the typing trail, longer text arms the paste rain. Called after the
+    /// bytes went to the PTY, so it never delays the agent.
+    fn show_agent_input(&mut self, wi: usize, ti: usize, text: &str) {
+        let trail = self.effects.typing_trail.clone();
+        let mut rain = self.effects.paste_rain.clone();
+        // A tool paste is something the user did not do themselves: let a
+        // big one rain for longer (up to 4x) so it registers.
+        let lines = text.lines().count().max(1) as f32;
+        rain.duration_ms = (rain.duration_ms as f32 * (lines / 6.0).clamp(1.0, 4.0)) as u32;
+        let tab = &mut self.wins[wi].terms[ti];
+        tab.agent_touch = Some(Instant::now());
+        if !text.is_empty() {
+            if text.contains('\n') || text.chars().count() >= rain.min_chars {
+                Self::arm_paste_rain_on(tab, &rain, text);
+            } else {
+                let (col, row) = tab.view.cursor_anim.target();
+                for (i, ch) in text.chars().enumerate() {
+                    tab.view.fx.typed(&trail, ch, col + i as f32, row);
+                }
+            }
+        }
+        self.wins[wi].window.request_redraw();
+    }
+
     fn item_json(&self, w: &Win, c: &Canvas, it: &Item) -> Value {
         let mut v = json!({
             "item_id": it.id,
@@ -144,6 +252,9 @@ impl App {
                 v["terminal_id"] = json!(t);
                 if let Some(term) = w.term(*t) {
                     v["title"] = json!(term.display_title());
+                    // A terminal's custom name lives on the terminal until
+                    // the next save copies it to the item.
+                    v["name"] = json!(term.custom_title);
                     v["cols"] = json!(term.size.cols);
                     v["rows"] = json!(term.size.rows);
                     v["session"] = json!(term.session);
@@ -180,7 +291,8 @@ impl App {
                                 "name": w.tab_title(ci),
                                 "mode": if c.is_single() { "single" } else { "free" },
                                 "active": w.active == ci,
-                                "view": {"x": c.view.x, "y": c.view.y, "zoom": c.view.zoom},
+                                "view": {"x": c.view.x, "y": c.view.y, "zoom": c.view.zoom,
+                                         "area_w": w.layout.map(|l| l.area.w).unwrap_or(0.0), "area_h": w.layout.map(|l| l.area.h).unwrap_or(0.0)},
                                 "items": c.items.iter().map(|it| self.item_json(w, c, it)).collect::<Vec<_>>(),
                                 "groups": c.groups.iter().map(Self::group_json).collect::<Vec<_>>(),
                             })
@@ -227,12 +339,25 @@ impl App {
                 let text = need_str(p, "text")?.to_string();
                 let enter = p.get("enter").and_then(|v| v.as_bool()).unwrap_or(false);
                 let (wi, ti) = self.find_term(tab).ok_or("no such terminal")?;
-                let mut bytes = text.clone().into_bytes();
-                if enter {
-                    bytes.push(b'\r');
-                }
                 let name = self.wins[wi].terms[ti].display_title().to_string();
-                self.wins[wi].terms[ti].write(bytes);
+                if let Some(cps) = p.get("typing").and_then(|v| v.as_f64()).filter(|c| *c > 0.0) {
+                    // Type it out at `typing` characters per second.
+                    let mut steps: VecDeque<DripStep> = text.chars().map(|c| DripStep::Char(c, c.to_string().into_bytes())).collect();
+                    if enter {
+                        steps.push_back(DripStep::Char('\r', b"\r".to_vec()));
+                    }
+                    let tab_id = self.wins[wi].terms[ti].id;
+                    self.push_drip(Drip { wi, tab: tab_id, steps, next: Instant::now(), interval: std::time::Duration::from_secs_f64((1.0 / cps).clamp(0.005, 2.0)) });
+                    self.wins[wi].terms[ti].agent_touch = Some(Instant::now());
+                    self.wins[wi].window.request_redraw();
+                } else {
+                    let mut bytes = text.clone().into_bytes();
+                    if enter {
+                        bytes.push(b'\r');
+                    }
+                    self.wins[wi].terms[ti].write(bytes);
+                    self.show_agent_input(wi, ti, &text);
+                }
                 let shown: String = text.chars().take(40).collect();
                 self.notice(format!("typed into '{name}': {shown}{}", if text.chars().count() > 40 { "…" } else { "" }));
                 Ok(json!({"ok": true}))
@@ -287,7 +412,24 @@ impl App {
                     _ => return Err(format!("unsupported key {key}")),
                 };
                 let name = self.wins[wi].terms[ti].display_title().to_string();
+                let count = p.get("count").and_then(|v| v.as_u64()).unwrap_or(1).clamp(1, 2000) as usize;
+                if count > 1 {
+                    // Hold the key: repeats at the usual auto-repeat rate.
+                    // Backspace and Delete get the Pac-Man chomp.
+                    let eater = match key.as_str() { "backspace" => Some(true), "delete" => Some(false), _ => None };
+                    let steps: VecDeque<DripStep> = (0..count).map(|_| match eater {
+                        Some(left) => DripStep::Eat(left, bytes.clone()),
+                        None => DripStep::Char('\0', bytes.clone()),
+                    }).collect();
+                    let tab_id = self.wins[wi].terms[ti].id;
+                    self.push_drip(Drip { wi, tab: tab_id, steps, next: Instant::now(), interval: std::time::Duration::from_millis(40) });
+                    self.wins[wi].terms[ti].agent_touch = Some(Instant::now());
+                    self.wins[wi].window.request_redraw();
+                    self.notice(format!("holding {key} ×{count} in '{name}'"));
+                    return Ok(json!({"ok": true}));
+                }
                 self.wins[wi].terms[ti].write(bytes);
+                self.show_agent_input(wi, ti, "");
                 self.notice(format!("pressed {key} in '{name}'"));
                 Ok(json!({"ok": true}))
             }
@@ -424,8 +566,10 @@ impl App {
                     if let Some(c) = self.win_mut().canvas_mut()
                         && let Some(r) = c.item(id).map(|i| i.rect)
                     {
-                        c.focus_prev = Some(c.view);
-                        c.view.fit(l.area, r, 24.0);
+                        c.focus_prev = Some(c.target_view());
+                        let mut v = c.target_view();
+                        v.fit(l.area, r, 24.0);
+                        c.glide_to(v, l.area);
                         c.focus = Some(id);
                     }
                 } else if let Some(gid) = arg_u64(p, "group_id") {
@@ -447,19 +591,30 @@ impl App {
             "set_viewport" => {
                 let cid = need_u64(p, "canvas_id")?;
                 let (wi, ci) = self.find_canvas(cid).ok_or("no such canvas")?;
+                let area = self.wins[wi].layout.map(|l| l.area);
                 let c = &mut self.wins[wi].canvases[ci];
+                let mut v = c.target_view();
                 if let Some(x) = arg_f32(p, "x") {
-                    c.view.x = x;
+                    v.x = x;
                 }
                 if let Some(y) = arg_f32(p, "y") {
-                    c.view.y = y;
+                    v.y = y;
                 }
                 if let Some(z) = arg_f32(p, "zoom") {
-                    c.view.zoom = z.clamp(crate::canvas::MIN_ZOOM, crate::canvas::MAX_ZOOM);
+                    v.zoom = z.clamp(crate::canvas::MIN_ZOOM, crate::canvas::MAX_ZOOM);
+                }
+                // `animate: false` jumps (for callers doing their own stepping).
+                let animate = p.get("animate").and_then(|x| x.as_bool()).unwrap_or(true);
+                match (animate, area) {
+                    (true, Some(area)) => c.glide_to(v, area),
+                    _ => { c.settle_view(); c.view = v; }
                 }
                 c.focus_prev = None;
+                let view = json!({"x": v.x, "y": v.y, "zoom": v.zoom});
+                let area = self.wins[wi].layout.map(|l| (l.area.w, l.area.h)).unwrap_or((0.0, 0.0));
                 self.wins[wi].dirty = true;
-                Ok(json!({"ok": true}))
+                self.wins[wi].window.request_redraw();
+                Ok(json!({"ok": true, "view": view, "area_w": area.0, "area_h": area.1}))
             }
             "create_canvas" => {
                 self.open_canvas_tab();
@@ -502,6 +657,10 @@ impl App {
                 let first = *ids.first().ok_or("item_ids is empty")?;
                 let (wi, ci) = self.find_item(first).ok_or("no such item")?;
                 self.go_to(wi, ci);
+                // The grouped set is the selection plus the focused item, so
+                // focus one of the requested items: otherwise whatever the
+                // user (or a previous tool call) left focused would join too.
+                self.focus_item(first);
                 if let Some(c) = self.win_mut().canvas_mut() {
                     c.selected = ids.clone();
                     c.group_sel = None;
@@ -522,6 +681,40 @@ impl App {
                 self.ungroup(gid);
                 Ok(json!({"ok": true}))
             }
+            "rename_group" => {
+                let gid: GroupId = need_u64(p, "group_id")?;
+                let name = need_str(p, "name")?.trim().to_string();
+                let (wi, ci) = self.wins.iter().enumerate().find_map(|(wi, w)| w.canvases.iter().position(|c| c.group(gid).is_some()).map(|ci| (wi, ci))).ok_or("no such group")?;
+                if let Some(g) = self.wins[wi].canvases[ci].group_mut(gid) {
+                    g.name = name;
+                }
+                self.wins[wi].dirty = true;
+                self.wins[wi].window.request_redraw();
+                Ok(json!({"ok": true}))
+            }
+            "add_to_group" => {
+                // Groups are frames: grow the frame to enclose the item, and
+                // membership follows from what the frame contains.
+                let gid: GroupId = need_u64(p, "group_id")?;
+                let id = need_u64(p, "item_id")?;
+                let (wi, ci) = self.wins.iter().enumerate().find_map(|(wi, w)| w.canvases.iter().position(|c| c.group(gid).is_some()).map(|ci| (wi, ci))).ok_or("no such group")?;
+                let c = &mut self.wins[wi].canvases[ci];
+                let it = c.item(id).ok_or("no such item on that canvas")?;
+                if it.pin.is_some() {
+                    return Err("that item is pinned to the screen; unpin it first".into());
+                }
+                let r = it.rect;
+                let pad = crate::canvas::GROUP_PAD;
+                let padded = WRect::new(r.x - pad, r.y - pad, r.w + 2.0 * pad, r.h + 2.0 * pad);
+                if let Some(g) = c.group_mut(gid) {
+                    g.rect = g.rect.union(&padded);
+                }
+                c.recompute_membership();
+                let members = c.group(gid).map(|g| g.members.clone()).unwrap_or_default();
+                self.wins[wi].dirty = true;
+                self.wins[wi].window.request_redraw();
+                Ok(json!({"ok": true, "members": members}))
+            }
             "pin_item" => {
                 let id = need_u64(p, "item_id")?;
                 let want = p.get("pinned").and_then(|v| v.as_bool()).ok_or("missing pinned")?;
@@ -529,6 +722,17 @@ impl App {
                 self.go_to(wi, ci);
                 if self.is_pinned(id) != want {
                     self.toggle_pin(id);
+                }
+                // Optional screen position for a pinned item: pixels from the
+                // canvas area's top-left, clamped so it stays on screen.
+                if want && let (Some(x), Some(y)) = (arg_f32(p, "x"), arg_f32(p, "y")) {
+                    if let Some(it) = self.win_mut().canvas_mut().and_then(|c| c.item_mut(id)) {
+                        it.rect.x = x;
+                        it.rect.y = y;
+                    }
+                    self.settle_pin(id);
+                    self.win_mut().dirty = true;
+                    self.request_redraw();
                 }
                 Ok(json!({"ok": true}))
             }

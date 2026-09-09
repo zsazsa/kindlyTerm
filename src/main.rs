@@ -9,6 +9,7 @@ mod deck;
 mod effects;
 mod font;
 mod host;
+mod instance;
 mod keys;
 mod mcp;
 mod menu;
@@ -43,6 +44,19 @@ fn main() -> Result<()> {
         _ => {}
     }
 
+    // The launcher's startup-notification token: redeemed by the first
+    // window (or handed to the running instance) so the desktop knows we
+    // are up, and kept out of the shells we spawn.
+    let token = ["XDG_ACTIVATION_TOKEN", "DESKTOP_STARTUP_ID"].iter().find_map(|k| std::env::var(k).ok().filter(|v| !v.is_empty()));
+    for k in ["XDG_ACTIVATION_TOKEN", "DESKTOP_STARTUP_ID"] {
+        unsafe { std::env::remove_var(k) };
+    }
+    let want_deck = std::env::args().any(|a| a == "--deck");
+    let request = instance::Request { deck: want_deck, token, cwd: std::env::current_dir().ok().map(|p| p.to_string_lossy().into_owned()) };
+    if instance::forward(&request) {
+        return Ok(());
+    }
+
     let config = Config::load();
     let store = CommandStore::load();
     log::info!(
@@ -54,7 +68,7 @@ fn main() -> Result<()> {
     let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
     event_loop.set_control_flow(ControlFlow::Wait);
     let proxy = event_loop.create_proxy();
-    let mut app = App::new(config, store, proxy);
+    let mut app = App::new(config, store, proxy, request);
     event_loop.run_app(&mut app)?;
     Ok(())
 }

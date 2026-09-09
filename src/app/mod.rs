@@ -72,6 +72,7 @@ mod watch;
 mod draw;
 mod input;
 mod windows;
+pub use windows::WinGeometry;
 
 fn rgb_to_rgba(c: Rgb) -> Rgba {
     rgb([c.r, c.g, c.b])
@@ -189,7 +190,7 @@ pub struct CursorAnim {
     /// Tab id the position belongs to; switching tabs snaps instead of sliding.
     tab: TabId,
     /// Backspace/Delete held since (start, last repeat, eats-left?).
-    chomp: Option<(Instant, Instant, bool)>,
+    pub(super) chomp: Option<(Instant, Instant, bool)>,
 }
 
 impl Default for CursorAnim {
@@ -203,7 +204,7 @@ impl CursorAnim {
         let now = Instant::now();
         Self { pos: (0.0, 0.0), from: (0.0, 0.0), to: (0.0, 0.0), move_start: now, pulse_start: None, last_input: now, tab: 0, chomp: None }
     }
-    const CHOMP_AFTER_MS: u128 = 1400;
+    pub(super) const CHOMP_AFTER_MS: u128 = 1400;
     /// Pac-Man mode: held long enough and still being repeated recently.
     fn chomping(&self) -> Option<bool> {
         let (start, last, left) = self.chomp?;
@@ -217,6 +218,10 @@ impl CursorAnim {
     fn pulse_t(&self) -> Option<f32> {
         let t = self.pulse_start?.elapsed().as_secs_f32() * 1000.0 / Self::PULSE_MS;
         (t < 1.0).then_some(t)
+    }
+    /// Cell the cursor is heading for (column, line).
+    pub(super) fn target(&self) -> (f32, f32) {
+        self.to
     }
     /// True while a short (60 fps) animation is running.
     fn transient(&self) -> bool {
@@ -324,7 +329,8 @@ impl Win {
     }
     /// Any terminal in this window still animating?
     fn any_view_transient(&self) -> bool {
-        self.terms.iter().any(|t| t.view.cursor_anim.transient() || t.view.fx.active())
+        self.terms.iter().any(|t| t.view.cursor_anim.transient() || t.view.fx.active() || t.agent_glow() > 0.0)
+            || self.canvases.iter().any(|c| c.view_anim.is_some())
     }
     /// Title shown on tab `i`.
     fn tab_title(&self, i: usize) -> String {
@@ -360,6 +366,11 @@ pub struct App {
     _watcher: Option<notify::RecommendedWatcher>,
     /// Control socket server while the API is enabled.
     control: Option<crate::control::Server>,
+    /// Single-instance socket: second launches land here as new windows.
+    instance: Option<crate::instance::Listener>,
+    /// What this launch was asked for (deck, startup token). The token is
+    /// spent by the next window created.
+    launch_request: crate::instance::Request,
 
     /// All open windows; `cur` is the one the event being handled belongs to.
     wins: Vec<Win>,
@@ -380,6 +391,8 @@ pub struct App {
     /// Next time an animation frame is due (cursor breath/travel/pulse).
     next_frame: Option<Instant>,
     effects: EffectsConfig,
+    /// Tool input being fed to terminals over time (typed text, held keys).
+    drips: Vec<control_api::Drip>,
 
     deck_state: DeckState,
     /// Set when Ctrl+Shift are both held with nothing else; cleared by any
@@ -445,7 +458,7 @@ impl DebugOptions {
     }
 }
 impl App {
-    pub fn new(config: Config, store: CommandStore, proxy: EventLoopProxy<UserEvent>) -> Self {
+    pub fn new(config: Config, store: CommandStore, proxy: EventLoopProxy<UserEvent>, launch_request: crate::instance::Request) -> Self {
         let theme = Theme::from_config(&config.colors);
         let font_pt = config.font.size;
         let watcher = watch::start_config_watcher(proxy.clone());
@@ -456,6 +469,8 @@ impl App {
             proxy,
             _watcher: watcher,
             control: None,
+            instance: None,
+            launch_request,
             wins: Vec::new(),
             cur: 0,
             font_pt,
@@ -472,6 +487,7 @@ impl App {
             epoch: Instant::now(),
             next_frame: None,
             effects: EffectsConfig::load(),
+            drips: Vec::new(),
             deck_state: DeckState::load(),
             chord_armed: None,
             font_families: Vec::new(),
@@ -882,6 +898,8 @@ impl App {
         if c.focus.map(|f| gone.contains(&f)).unwrap_or(false) {
             c.focus = c.items.last().map(|i| i.id);
         }
+        // Groups list what their frames contain; a closed card leaves them.
+        c.recompute_membership();
         w.dirty = true;
         self.update_window_title();
         self.request_redraw();
@@ -1791,13 +1809,13 @@ impl ApplicationHandler<UserEvent> for App {
             Some(st) => {
                 let mut wins = st.windows.into_iter();
                 let first = wins.next().expect("non-empty");
-                let Some(wi) = self.create_window(event_loop, windows::NewWindow::Empty) else {
+                let Some(wi) = self.create_window(event_loop, windows::NewWindow::Empty(first.geometry())) else {
                     event_loop.exit();
                     return;
                 };
                 self.restore_window(wi, first);
                 for sw in wins {
-                    if let Some(wi) = self.create_window(event_loop, windows::NewWindow::Empty) {
+                    if let Some(wi) = self.create_window(event_loop, windows::NewWindow::Empty(sw.geometry())) {
                         self.restore_window(wi, sw);
                     }
                 }
@@ -1814,8 +1832,9 @@ impl ApplicationHandler<UserEvent> for App {
         // claimed (a crash, or state.json lost): give them a home.
         self.adopt_orphans();
         self.sync_control_server();
+        self.start_instance_listener();
 
-        if std::env::args().any(|a| a == "--deck") {
+        if self.launch_request.deck {
             self.win_mut().deck.open(PageId::Home);
         }
 
@@ -1862,6 +1881,7 @@ impl ApplicationHandler<UserEvent> for App {
             }
         }
         self.tick_monitors();
+        self.tick_drips(now);
         if self.next_frame.map(|t| now >= t).unwrap_or(false) {
             self.next_frame = None;
             let anim = self.config.terminal.cursor_animation.clone();
@@ -1890,6 +1910,10 @@ impl ApplicationHandler<UserEvent> for App {
             if !self.wins.is_empty() {
                 self.drain_control_requests(event_loop);
             }
+            return;
+        }
+        if event.tab == crate::terminal::SYS_INSTANCE {
+            self.drain_instance_requests(event_loop);
             return;
         }
         if event.tab == 0 {
