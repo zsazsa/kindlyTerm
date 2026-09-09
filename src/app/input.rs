@@ -8,6 +8,10 @@ impl App {
     // -----------------------------------------------------------------------
 
     pub(super) fn on_key(&mut self, event: KeyEvent, event_loop: &ActiveEventLoop) {
+        // Space held + left-drag pans a free canvas (the key still types).
+        if matches!(event.logical_key, Key::Named(NamedKey::Space)) && !self.wins.is_empty() {
+            self.win_mut().space_held = event.state == ElementState::Pressed;
+        }
         // Pac-Man mode: track how long Backspace/Delete has been held.
         let is_eater = matches!(event.logical_key, Key::Named(NamedKey::Backspace) | Key::Named(NamedKey::Delete));
         if let Some(view) = self.wins.get_mut(self.cur).and_then(|w| w.view_mut()) {
@@ -94,7 +98,7 @@ impl App {
         if let Some(v) = self.win_mut().view_mut() {
             v.cursor_anim.last_input = Instant::now();
         }
-        let mode = match self.win().tabs.get(self.win().active) {
+        let mode = match self.win().active_term() {
             Some(tab) => *tab.term.lock().mode(),
             None => return,
         };
@@ -111,7 +115,7 @@ impl App {
                         }
                     }
                 }
-            let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) else { return };
+            let Some(tab) = self.win().active_term() else { return };
             // Typing jumps back to the live view.
             {
                 let mut term = tab.term.lock();
@@ -143,11 +147,19 @@ impl App {
                         return true;
                     }
                     "w" => {
-                        self.close_tab(self.wins[self.cur].active, event_loop);
+                        if self.on_free_canvas() {
+                            if let Some(t) = self.win().focused_tab() {
+                                self.close_terminal(t, event_loop);
+                            } else {
+                                self.close_tab(self.wins[self.cur].active, event_loop);
+                            }
+                        } else {
+                            self.close_tab(self.wins[self.cur].active, event_loop);
+                        }
                         return true;
                     }
                     "n" => {
-                        self.create_window(event_loop, Vec::new());
+                        self.create_window(event_loop, None);
                         return true;
                     }
                     "p" => {
@@ -179,21 +191,56 @@ impl App {
                         event_loop.exit();
                         return true;
                     }
+                    "k" => {
+                        self.open_canvas_tab();
+                        return true;
+                    }
+                    "f" => {
+                        if self.on_free_canvas() {
+                            self.toggle_focus_mode();
+                        } else {
+                            self.set_status("Focus mode works on a canvas tab (Ctrl+Shift+Enter turns this one into a canvas)".into());
+                        }
+                        return true;
+                    }
+                    "a" => {
+                        if self.on_free_canvas() {
+                            self.fit_all();
+                        }
+                        return true;
+                    }
                     "=" | "+" => {
-                        self.set_font_pt(self.font_pt + 1.0);
+                        if self.on_free_canvas() { self.zoom_by(1.25, None) } else { self.set_font_pt(self.font_pt + 1.0) }
                         return true;
                     }
                     "-" | "_" => {
-                        self.set_font_pt(self.font_pt - 1.0);
+                        if self.on_free_canvas() { self.zoom_by(0.8, None) } else { self.set_font_pt(self.font_pt - 1.0) }
                         return true;
                     }
                     "0" | ")" => {
-                        self.set_font_pt(self.config.font.size);
+                        if self.on_free_canvas() { self.reset_zoom() } else { self.set_font_pt(self.config.font.size) }
                         return true;
                     }
                     _ => {}
                 }
             }
+        // Ctrl+Shift+Enter: add a terminal to the canvas (converting a
+        // single tab); Ctrl+Shift+Space: Deck quick-run; Ctrl+Shift+W on a
+        // canvas closes only the focused terminal.
+        if ctrl && shift && !alt {
+            match &event.logical_key {
+                Key::Named(NamedKey::Enter) => {
+                    let l = self.shell_launch();
+                    self.new_terminal_in_canvas(l, None, None);
+                    return true;
+                }
+                Key::Named(NamedKey::Space) => {
+                    self.wins[self.cur].deck.open(PageId::Home);
+                    return true;
+                }
+                _ => {}
+            }
+        }
         // Zoom without shift too (Ctrl+= / Ctrl+-), common muscle memory.
         if ctrl && !shift && !alt
             && let Key::Character(c) = &base {
@@ -204,6 +251,10 @@ impl App {
                     }
                     "-" => {
                         self.set_font_pt(self.font_pt - 1.0);
+                        return true;
+                    }
+                    "0" => {
+                        self.set_font_pt(self.config.font.size);
                         return true;
                     }
                     _ => {}
@@ -224,7 +275,7 @@ impl App {
                 match c.as_str() {
                     "c" if self.config.clipboard.ctrl_c_copies_selection && self.has_selection() => {
                         if self.copy_selection()
-                            && let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) {
+                            && let Some(tab) = self.win().active_term() {
                                 tab.term.lock().selection = None;
                             }
                         return true;
@@ -252,14 +303,25 @@ impl App {
             && let Key::Character(c) = &base
                 && let Some(d) = c.chars().next().and_then(|ch| ch.to_digit(10))
                     && d >= 1 {
-                        let idx = if d == 9 { self.wins[self.cur].tabs.len().saturating_sub(1) } else { d as usize - 1 };
+                        let idx = if d == 9 { self.wins[self.cur].canvases.len().saturating_sub(1) } else { d as usize - 1 };
                         self.switch_tab(idx);
                         return true;
                     }
         if let Key::Named(named) = &event.logical_key {
             match named {
                 NamedKey::Tab if ctrl => {
-                    let n = self.wins[self.cur].tabs.len();
+                    if self.on_free_canvas() && self.win().canvas().map(|c| c.items.len() > 1).unwrap_or(false) {
+                        // Cycle focus through the canvas' terminals.
+                        let w = self.win();
+                        let c = w.canvas().expect("canvas");
+                        let ids: Vec<ItemId> = c.items.iter().map(|i| i.id).collect();
+                        let cur = c.focus.and_then(|f| ids.iter().position(|&i| i == f)).unwrap_or(0);
+                        let n = ids.len();
+                        let next = if shift { (cur + n - 1) % n } else { (cur + 1) % n };
+                        self.focus_item(ids[next]);
+                        return true;
+                    }
+                    let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
                         let next = if shift { (self.wins[self.cur].active + n - 1) % n } else { (self.wins[self.cur].active + 1) % n };
                         self.switch_tab(next);
@@ -267,14 +329,14 @@ impl App {
                     return true;
                 }
                 NamedKey::PageDown if ctrl && !shift => {
-                    let n = self.wins[self.cur].tabs.len();
+                    let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
                         self.switch_tab((self.wins[self.cur].active + 1) % n);
                     }
                     return true;
                 }
                 NamedKey::PageUp if ctrl && !shift => {
-                    let n = self.wins[self.cur].tabs.len();
+                    let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
                         self.switch_tab((self.wins[self.cur].active + n - 1) % n);
                     }
@@ -323,7 +385,7 @@ impl App {
     }
 
     pub(super) fn scroll_active(&mut self, scroll: Scroll) {
-        if let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) {
+        if let Some(tab) = self.win().active_term() {
             let alt_screen = tab.term.lock().mode().contains(TermMode::ALT_SCREEN);
             if !alt_screen {
                 tab.scroll(scroll);
@@ -335,7 +397,7 @@ impl App {
     /// Copy the current selection to the system clipboard. Returns true if
     /// something was copied.
     pub(super) fn copy_selection(&mut self) -> bool {
-        let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) else { return false };
+        let Some(tab) = self.win().active_term() else { return false };
         let text = tab.term.lock().selection_to_string();
         let Some(text) = text.filter(|t| !t.is_empty()) else { return false };
         let n = text.chars().count();
@@ -369,14 +431,14 @@ impl App {
     }
 
     pub(super) fn paste_text(&mut self, text: String) {
-        if self.win().tabs.get(self.win().active).is_none() {
+        if self.win().active_term().is_none() {
             return;
         }
         let mut text = Self::sanitize_paste(&text);
         // Without bracketed paste every newline runs a command: ask first.
         let lines = text.lines().count();
         if lines > 1 && self.config.clipboard.confirm_multiline_paste {
-            let bracketed = self.win().tabs[self.win().active].term.lock().mode().contains(TermMode::BRACKETED_PASTE);
+            let bracketed = self.win().active_term().map(|t| t.term.lock().mode().contains(TermMode::BRACKETED_PASTE)).unwrap_or(false);
             if !bracketed && self.win().menu.is_none() {
                 let (w, h) = (self.win().renderer.width as f32, self.win().renderer.height as f32);
                 self.win_mut().menu = Some(Menu::confirm_paste(w / 2.0 - 140.0, h / 2.0 - 40.0, lines, text));
@@ -394,7 +456,7 @@ impl App {
         }
         self.arm_paste_rain(&text);
         let w = self.win();
-        let tab = &w.tabs[w.active];
+        let Some(tab) = w.active_term() else { return };
         let bracketed = tab.term.lock().mode().contains(TermMode::BRACKETED_PASTE);
         if bracketed {
             let mut bytes = b"\x1b[200~".to_vec();
@@ -415,12 +477,12 @@ impl App {
         if !self.effects.paste_rain.enabled || text.chars().count() < self.effects.paste_rain.min_chars {
             return;
         }
-        if self.win().tabs.get(self.win().active).is_none() {
+        if self.win().active_term().is_none() {
             return;
         }
         let snap = {
             let w = self.win();
-            let tab = &w.tabs[w.active];
+            let Some(tab) = w.active_term() else { return };
             let mut term = tab.term.lock();
             term.scroll_display(Scroll::Bottom);
             let grid = term.grid();
@@ -459,11 +521,13 @@ impl App {
     pub(super) fn mouse_point(&self) -> Option<(Point, Side)> {
         let l = self.wins[self.cur].layout?;
         let tab = self.active_tab()?;
-        let x = (self.wins[self.cur].mouse.x as f32 - l.grid_x).max(0.0);
-        let y = (self.wins[self.cur].mouse.y as f32 - l.grid_y).max(0.0);
-        let col = ((x / l.cell_w) as usize).min(l.cols - 1);
-        let line = ((y / l.cell_h) as usize).min(l.rows - 1);
-        let frac = (x / l.cell_w) - col as f32;
+        let (gx, gy, zoom) = self.focused_grid_origin()?;
+        let (cw, ch) = (l.cell_w * zoom, l.cell_h * zoom);
+        let x = (self.wins[self.cur].mouse.x as f32 - gx).max(0.0);
+        let y = (self.wins[self.cur].mouse.y as f32 - gy).max(0.0);
+        let col = ((x / cw) as usize).min(tab.size.cols.saturating_sub(1));
+        let line = ((y / ch) as usize).min(tab.size.rows.saturating_sub(1));
+        let frac = (x / cw) - col as f32;
         let side = if frac < 0.5 { Side::Left } else { Side::Right };
         let display_offset = tab.term.lock().grid().display_offset();
         Some((viewport_to_point(display_offset, Point::new(line, Column(col))), side))
@@ -577,8 +641,8 @@ impl App {
             && let Some(d) = self.win_mut().drag.take()
                 && d.active {
                     if d.outside
-                        && let Some(tab) = self.win().tabs.get(d.index).map(|t| t.id) {
-                            self.start_pending_drop(tab);
+                        && let Some(cid) = self.win().canvases.get(d.index).map(|c| c.id) {
+                            self.start_pending_drop(cid);
                         }
                     self.request_redraw();
                     return;
@@ -619,7 +683,13 @@ impl App {
             return;
         }
 
-        // Terminal area.
+        // Free canvas: items, panning, resizing.
+        if (self.on_free_canvas() || matches!(self.win().cdrag, CDrag::Pan { .. }))
+            && self.canvas_mouse_button(state, button, event_loop) {
+                return;
+            }
+
+        // Terminal area (single-terminal tab).
         match button {
             MouseButton::Right => {
                 if state == ElementState::Pressed {
@@ -655,7 +725,7 @@ impl App {
                     3 => SelectionType::Lines,
                     _ => SelectionType::Simple,
                 };
-                if let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) {
+                if let Some(tab) = self.win().active_term() {
                     let mut term = tab.term.lock();
                     if self.mods.shift_key() && term.selection.is_some() {
                         if let Some(sel) = term.selection.as_mut() {
@@ -671,7 +741,7 @@ impl App {
             ElementState::Released => {
                 self.wins[self.cur].selecting = false;
                 let mut text = None;
-                if let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) {
+                if let Some(tab) = self.win().active_term() {
                     let mut term = tab.term.lock();
                     if term.selection.as_ref().map(|s| s.is_empty()).unwrap_or(false) {
                         term.selection = None;
@@ -711,6 +781,11 @@ impl App {
                 self.request_redraw();
             }
             self.set_cursor(CursorIcon::Default);
+            return;
+        }
+
+        // Free canvas drags and hover.
+        if self.win().drag.is_none() && (self.on_free_canvas() || matches!(self.win().cdrag, CDrag::Pan { .. })) && self.canvas_mouse_move() {
             return;
         }
 
@@ -778,7 +853,7 @@ impl App {
             return;
         }
         let Some((point, side)) = self.mouse_point() else { return };
-        if let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) {
+        if let Some(tab) = self.win().active_term() {
             let mut term = tab.term.lock();
             if let Some(sel) = term.selection.as_mut() {
                 sel.update(point, side);
@@ -823,11 +898,14 @@ impl App {
                 MouseScrollDelta::LineDelta(x, y) => (y + x).signum() as i32,
                 MouseScrollDelta::PixelDelta(p) => (p.y + p.x).signum() as i32,
             };
-            let n = self.wins[self.cur].tabs.len();
+            let n = self.wins[self.cur].canvases.len();
             if dir != 0 && n > 1 {
                 let next = if dir < 0 { (self.wins[self.cur].active + 1) % n } else { (self.wins[self.cur].active + n - 1) % n };
                 self.switch_tab(next);
             }
+            return;
+        }
+        if self.on_free_canvas() && self.canvas_wheel(delta) {
             return;
         }
         let lines = match delta {
@@ -837,7 +915,7 @@ impl App {
         if lines == 0 {
             return;
         }
-        let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) else { return };
+        let Some(tab) = self.win().active_term() else { return };
         let mode = *tab.term.lock().mode();
         if mode.contains(TermMode::ALT_SCREEN) && mode.contains(TermMode::ALTERNATE_SCROLL) {
             // Full-screen apps: turn the wheel into arrow keys.

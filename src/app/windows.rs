@@ -6,7 +6,7 @@ use super::*;
 impl App {
     /// Create a new top-level window holding `tabs` (may be empty, in which
     /// case a shell tab is opened). Returns its index in `wins`.
-    pub(super) fn create_window(&mut self, event_loop: &ActiveEventLoop, tabs: Vec<Terminal>) -> Option<usize> {
+    pub(super) fn create_window(&mut self, event_loop: &ActiveEventLoop, bundle: Option<(Canvas, Vec<Terminal>)>) -> Option<usize> {
         // The app id / WM_CLASS must match the .desktop file name so GNOME
         // pairs the window with its launcher entry and icon.
         #[allow(unused_mut)]
@@ -71,8 +71,16 @@ impl App {
             batch: Batch::default(),
             layout: None,
             scale,
-            tabs,
+            terms: Vec::new(),
+            canvases: Vec::new(),
             active: 0,
+            cdrag: CDrag::None,
+            hover_part: None,
+            space_held: false,
+            pan_mode: false,
+            last_ctrl_release: None,
+            last_title_click: None,
+            dirty: false,
             palette: None,
             menu: None,
             tab_hits: Vec::new(),
@@ -94,11 +102,20 @@ impl App {
         let wi = self.wins.len() - 1;
         self.cur = wi;
         self.relayout_win(wi);
-        if self.wins[wi].tabs.is_empty() {
-            let launch = self.shell_launch();
-            self.open_tab(launch);
-        } else {
-            self.update_window_title();
+        match bundle {
+            Some((canvas, terms)) => {
+                let w = &mut self.wins[wi];
+                w.terms = terms;
+                w.canvases.push(canvas);
+                w.active = 0;
+                w.dirty = true;
+                self.relayout_win(wi);
+                self.update_window_title();
+            }
+            None => {
+                let launch = self.shell_launch();
+                self.open_tab(launch);
+            }
         }
         Some(wi)
     }
@@ -108,11 +125,18 @@ impl App {
         if wi >= self.wins.len() {
             return;
         }
+        // Persist before the last window disappears so it comes back next time.
+        if self.wins.len() == 1 {
+            self.save_state();
+        }
         let w = self.wins.remove(wi);
-        for t in &w.tabs {
+        for t in &w.terms {
             t.shutdown();
         }
         drop(w);
+        if !self.wins.is_empty() {
+            self.save_state();
+        }
         log::info!("closed window {wi}; {} left", self.wins.len());
         if self.wins.is_empty() {
             log::info!("last window closed: exiting");
@@ -129,21 +153,30 @@ impl App {
     }
 
     pub(super) fn window_of_tab(&self, tab: TabId) -> Option<usize> {
-        self.wins.iter().position(|w| w.tabs.iter().any(|t| t.id == tab))
+        self.wins.iter().position(|w| w.terms.iter().any(|t| t.id == tab))
     }
 
-    /// Take a tab out of window `from` (by tab id).
-    pub(super) fn detach_tab(&mut self, from: usize, tab: TabId, event_loop: &ActiveEventLoop) -> Option<Terminal> {
+    /// Take tab (canvas) `index` out of window `from`, with its terminals.
+    pub(super) fn detach_canvas(&mut self, from: usize, index: usize, event_loop: &ActiveEventLoop) -> Option<(Canvas, Vec<Terminal>)> {
         let w = self.wins.get_mut(from)?;
-        let idx = w.tabs.iter().position(|t| t.id == tab)?;
-        let term = w.tabs.remove(idx);
+        if index >= w.canvases.len() {
+            return None;
+        }
+        let canvas = w.canvases.remove(index);
+        let mut terms = Vec::new();
+        for t in canvas.tabs() {
+            if let Some(i) = w.term_index(t) {
+                terms.push(w.terms.remove(i));
+            }
+        }
         w.drag = None;
-        if w.tabs.is_empty() {
+        w.dirty = true;
+        if w.canvases.is_empty() {
             self.close_window(from, event_loop);
         } else {
-            if w.active >= w.tabs.len() {
-                w.active = w.tabs.len() - 1;
-            } else if idx < w.active {
+            if w.active >= w.canvases.len() {
+                w.active = w.canvases.len() - 1;
+            } else if index < w.active {
                 w.active -= 1;
             }
             let saved = self.cur;
@@ -152,35 +185,36 @@ impl App {
             self.request_redraw();
             self.cur = saved.min(self.wins.len().saturating_sub(1));
         }
-        Some(term)
+        Some((canvas, terms))
     }
 
     /// Put a detached tab into window `to` and make it active.
-    pub(super) fn attach_tab(&mut self, to: usize, mut term: Terminal) {
+    pub(super) fn attach_canvas(&mut self, to: usize, canvas: Canvas, terms: Vec<Terminal>) {
         if to >= self.wins.len() {
             return;
         }
-        let size = Self::grid_size_of(&self.wins[to]);
-        term.resize(size);
         let w = &mut self.wins[to];
-        w.tabs.push(term);
-        w.active = w.tabs.len() - 1;
+        w.terms.extend(terms);
+        w.canvases.push(canvas);
+        w.active = w.canvases.len() - 1;
+        w.dirty = true;
         let saved = self.cur;
         self.cur = to;
+        self.relayout_win(to);
         self.update_window_title();
         self.request_redraw();
         self.cur = saved;
     }
 
     /// Move a tab into a brand-new window.
-    pub(super) fn tear_off(&mut self, from: usize, tab: TabId, event_loop: &ActiveEventLoop) {
+    pub(super) fn tear_off(&mut self, from: usize, index: usize, event_loop: &ActiveEventLoop) {
         // A window with a single tab is already "its own window".
-        if self.wins.get(from).map(|w| w.tabs.len() <= 1).unwrap_or(true) {
+        if self.wins.get(from).map(|w| w.canvases.len() <= 1).unwrap_or(true) {
             return;
         }
-        let Some(term) = self.detach_tab(from, tab, event_loop) else { return };
-        let title = term.display_title().to_string();
-        match self.create_window(event_loop, vec![term]) {
+        let title = self.wins[from].tab_title(index);
+        let Some(bundle) = self.detach_canvas(from, index, event_loop) else { return };
+        match self.create_window(event_loop, Some(bundle)) {
             Some(wi) => {
                 log::info!("tear-off: '{title}' -> new window ({} windows)", self.wins.len());
                 self.wins[wi].status = Some((format!("{title} → new window"), Instant::now()));
@@ -189,27 +223,26 @@ impl App {
         }
     }
 
-    /// Move a tab from window `from` into window `to`.
-    pub(super) fn move_tab_to_window(&mut self, from: usize, tab: TabId, to: usize, event_loop: &ActiveEventLoop) {
+    /// Move tab `index` from window `from` into window `to`.
+    pub(super) fn move_tab_to_window(&mut self, from: usize, index: usize, to: usize, event_loop: &ActiveEventLoop) {
         if from == to {
             return;
         }
         let to_id = self.wins.get(to).map(|w| w.window.id());
-        let Some(term) = self.detach_tab(from, tab, event_loop) else { return };
+        let title = self.wins.get(from).map(|w| w.tab_title(index)).unwrap_or_default();
+        let Some(bundle) = self.detach_canvas(from, index, event_loop) else { return };
         // Indices may have shifted if `from` closed.
         let Some(to) = to_id.and_then(|id| self.window_index(id)) else { return };
-        let title = term.display_title().to_string();
-        self.attach_tab(to, term);
+        self.attach_canvas(to, bundle.0, bundle.1);
         log::info!("merge: '{title}' moved into window {to} ({} windows)", self.wins.len());
         self.wins[to].status = Some((format!("{title} moved here"), Instant::now()));
-        self.wins[to].window.focus_window();
     }
 
     /// Called when a dragged tab is released outside its window.
-    pub(super) fn start_pending_drop(&mut self, tab: TabId) {
+    pub(super) fn start_pending_drop(&mut self, canvas: CanvasId) {
         let from = self.win().window.id();
-        log::debug!("pending drop: tab {tab} released outside window {from:?}");
-        self.pending_drop = Some(PendingDrop { from, tab, at: Instant::now() });
+        log::debug!("pending drop: tab {canvas} released outside window {from:?}");
+        self.pending_drop = Some(PendingDrop { from, tab: canvas, at: Instant::now() });
         let proxy = self.proxy.clone();
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(900));
@@ -221,15 +254,16 @@ impl App {
         let Some(p) = self.pending_drop.take() else { return };
         log::debug!("resolve drop: entered {entered:?} from {:?} after {:?}", p.from, p.at.elapsed());
         let Some(from) = self.window_index(p.from) else { return };
+        let Some(index) = self.wins[from].canvases.iter().position(|c| c.id == p.tab) else { return };
         match entered {
             Some(id) if id != p.from => {
                 if let Some(to) = self.window_index(id) {
-                    self.move_tab_to_window(from, p.tab, to, event_loop);
+                    self.move_tab_to_window(from, index, to, event_loop);
                 }
             }
             _ => {
                 if p.at.elapsed().as_millis() < 2000 {
-                    self.tear_off(from, p.tab, event_loop);
+                    self.tear_off(from, index, event_loop);
                 }
             }
         }

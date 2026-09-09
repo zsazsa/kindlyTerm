@@ -37,6 +37,7 @@ pub const KIND_COLOR: u32 = 2;
 pub const KIND_OUTLINE: u32 = 3;
 pub const KIND_PACMAN: u32 = 4;
 /// Samples the per-segment image texture (bind group 1) with uv in 0..1.
+#[allow(dead_code)] // used by canvas images (phase 4)
 pub const KIND_IMAGE: u32 = 5;
 
 /// Multiply a color's RGB toward black/white; `f` < 1 darkens.
@@ -158,6 +159,7 @@ impl Batch {
     }
 
     /// Draw an uploaded image stretched into the rect (alpha-blended).
+    #[allow(dead_code)] // canvas images (phase 4)
     pub fn image(&mut self, id: ImageId, x: f32, y: f32, w: f32, h: f32, alpha: f32) {
         self.push(
             Instance {
@@ -268,6 +270,7 @@ impl Gpu {
     }
 }
 
+#[allow(dead_code)] // canvas images (phase 4)
 struct ImageTex {
     bind_group: wgpu::BindGroup,
     pub width: u32,
@@ -280,11 +283,14 @@ pub struct Renderer {
     config: wgpu::SurfaceConfiguration,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
+    #[allow(dead_code)]
     image_bgl: wgpu::BindGroupLayout,
+    #[allow(dead_code)]
     image_sampler: wgpu::Sampler,
     /// 1x1 white texture bound when a segment has no image.
     blank_image: wgpu::BindGroup,
     images: std::collections::HashMap<ImageId, ImageTex>,
+    #[allow(dead_code)]
     next_image: u32,
     globals_buf: wgpu::Buffer,
     atlas_tex: wgpu::Texture,
@@ -546,6 +552,7 @@ impl Renderer {
     }
 
     /// Upload an RGBA8 image and get a handle to draw it with `Batch::image`.
+    #[allow(dead_code)] // canvas images (phase 4)
     pub fn upload_image(&mut self, width: u32, height: u32, rgba: &[u8]) -> ImageId {
         let device = &self.gpu.device;
         let tex = device.create_texture(&wgpu::TextureDescriptor {
@@ -579,10 +586,12 @@ impl Renderer {
         id
     }
 
+    #[allow(dead_code)]
     pub fn remove_image(&mut self, id: ImageId) {
         self.images.remove(&id);
     }
 
+    #[allow(dead_code)]
     pub fn image_size(&self, id: ImageId) -> Option<(u32, u32)> {
         self.images.get(&id).map(|i| (i.width, i.height))
     }

@@ -5,7 +5,9 @@ at tag `v0.1-tabs` (the tabbed app) until the Canvas is good enough to merge;
 `git checkout v0.1-tabs` is the revert point.
 
 Decisions taken (2026-09-09):
-1. Tabs retire; canvases live in a sidebar.
+1. Tabs stay, and **every tab is a canvas**: a terminal tab is a canvas
+   with one maximized item (today's behaviour); a canvas tab is the same
+   thing in free layout. Tabs convert both ways. No sidebar needed.
 2. Canvas actions use `Ctrl+Shift` chords; the Deck's quick-run moves off
    `Ctrl+Shift+P` (which becomes Pin) to tap-`Ctrl+Shift` and `Ctrl+Shift+Space`.
 3. Font stays fontconfig's monospace (no bundled font).
@@ -29,10 +31,10 @@ anything on the canvas.
 
 | Today (tabs) | Canvas |
 |---|---|
-| Tab bar with one terminal visible | Sidebar of canvases; each canvas shows many terminals at real coordinates |
-| New tab | New terminal placed at the viewport centre (or where you right-click) |
-| Drag tab to reorder / tear off / merge windows | Drag a terminal by its title bar; drag between canvases via the sidebar; a canvas can be moved to another window |
-| Rename tab | Rename terminal (`Ctrl+Shift+R`); title mode shows what the shell reports |
+| Tab bar with one terminal visible | Same tab bar; a tab is either a maximized terminal or a free canvas with many terminals at real coordinates |
+| New tab | Same (`Ctrl+Shift+T`); inside a canvas, `Ctrl+Shift+Enter` or right-click adds a terminal to it |
+| Drag tab to reorder / tear off / merge windows | Unchanged, and works for canvas tabs too (the whole canvas moves) |
+| Rename tab | Unchanged; double-click a terminal's title bar renames it inside a canvas |
 | Close app = shells die | Close app = shells keep running in their hosts; reopen and continue |
 | Deck, effects, themes, clipboard, cheat sheet | Unchanged; the Deck gains a Canvases section and per-terminal theme |
 
@@ -203,17 +205,19 @@ rest of the app.
 1. **Renderer groundwork**: scissor rects, textured quads, zoom-quantised
    glyph sizes, multiple `Term`s per window. Visible result: nothing new,
    but the existing app runs on the new plumbing.
-2. **Canvas core**: canvases with a sidebar, terminals at world coordinates,
+2. **Canvas core**: every tab is a canvas (Single = classic full-window
+   terminal, Free = free layout), terminals at world coordinates,
    pan/zoom/select/move/resize, wheel routing, Focus Mode, snapping, layout
-   persistence. Tabs retire; a migration turns each open tab into a
-   terminal on a default canvas. Shells still run in-process.
+   persistence in `state.json`. Tabs stay; a tab converts to a free canvas
+   the moment a second terminal is added, and a one-item canvas can be
+   maximized back. Shells still run in-process.
 3. **PTY hosts**: host process, protocol, replay and snapshot, adoption,
    `--sessions`. Visible result: quit and relaunch, everything is still
    running.
 4. **Spatial features**: groups, pins, mirrors, inactivity monitor, images,
    rename and title mode, LOD rendering.
-5. **Keyboard and text**: kitty protocol, scrollback keys, links, bundled
-   JetBrains Mono, live config reload.
+5. **Keyboard and text**: kitty protocol, scrollback keys, links, live
+   config reload (fontconfig monospace stays; no bundled font).
 6. **MCP server**: control socket, stdio bridge, About toggle, tool set.
 
 Rough relative sizes: 1 small · 2 large · 3 large · 4 large · 5 medium ·
@@ -236,7 +240,7 @@ Rough relative sizes: 1 small · 2 large · 3 large · 4 large · 5 medium ·
 ## Progress
 
 - [x] Phase 1: renderer groundwork (scissor segments, image textures, zoomed glyphs, reusable terminal drawing, per-terminal view state)
-- [ ] Phase 2: canvas core
+- [x] Phase 2: canvas core (tabs-are-canvases, move/resize/snap, pan/zoom, focus mode, fit, menus, rename, tear-off of canvas tabs, `state.json` restore; Ctrl+Shift+Enter/K/F/A/=/−/0, Deck quick-run moved to Ctrl+Shift+Space)
 - [ ] Phase 3: PTY hosts
 - [ ] Phase 4: spatial features
 - [ ] Phase 5: keyboard and text

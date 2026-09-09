@@ -26,6 +26,7 @@ use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 use winit::window::{CursorIcon, Window, WindowId};
 
+use crate::canvas::{Canvas, CanvasId, CanvasMode, Item, ItemId, ItemKind, ItemPart, LaunchSpec, SavedState, SavedWindow, WRect, ITEM_PAD, TITLE_H};
 use crate::config::{ColorConfig, CommandStore, Config, DeckState, SavedCommand};
 use crate::deck::{ClipField, Deck, DeckAction, DeckEnv, LaunchTarget, PageId, hotkey_matches};
 use crate::effects::{EffectChange, Effects, EffectsConfig, GridSnapshot};
@@ -36,7 +37,7 @@ use alacritty_terminal::vte::ansi::CursorStyle;
 use arboard::{GetExtLinux, LinuxClipboardKind, SetExtLinux};
 use crate::keys;
 use crate::menu::{Menu, MenuAction};
-use crate::palette::{Action, Item, ItemId, Mode, Palette};
+use crate::palette::{Action, Item as PItem, ItemId as PItemId, Mode, Palette};
 use crate::deck::{ui_text, ui_text_tracked_pub, ui_text_width};
 use crate::renderer::{Batch, Gpu, Renderer, Rgba, rgb, scale_rgb, with_alpha};
 use crate::terminal::{GridSize, Launch, TabId, Terminal, UserEvent};
@@ -52,7 +53,7 @@ macro_rules! deck_env {
             theme: &$self.theme,
             font_families: &$self.font_families,
             font_family: &$fam,
-            tab_count: $self.wins[$self.cur].tabs.len(),
+            tab_count: $self.wins[$self.cur].terms.len(),
             gpu: &$self.gpu_name,
             scale: $self.wins[$self.cur].scale as f32,
             effects: &$self.effects,
@@ -60,6 +61,7 @@ macro_rules! deck_env {
     };
 }
 
+mod canvas_ui;
 mod debug;
 mod draw;
 mod input;
@@ -104,7 +106,9 @@ struct Layout {
     cell_h: f32,
     tab_bar_h: f32,
     pad: f32,
-    /// Top-left pixel of the grid.
+    /// Screen rect below the tab bar (the canvas / terminal area).
+    area: WRect,
+    /// Top-left pixel of the grid (single-terminal tabs).
     grid_x: f32,
     grid_y: f32,
     cols: usize,
@@ -126,11 +130,24 @@ struct TabDrag {
     outside: bool,
 }
 
+/// An in-progress pointer interaction on a free canvas.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum CDrag {
+    None,
+    /// Panning: last pointer position.
+    Pan { last: (f32, f32) },
+    /// Moving an item: pointer offset from its world origin.
+    Move { item: ItemId, grab: (f32, f32), moved: bool },
+    /// Resizing an item from the given edges.
+    Resize { item: ItemId, edge: crate::canvas::Edge, start: WRect, press: (f32, f32) },
+}
+
 /// A tab released outside its window: waiting to see whether another
 /// kindlyterm window receives the pointer (merge) or not (new window).
 struct PendingDrop {
     from: WindowId,
-    tab: TabId,
+    /// Canvas (tab) id being dragged.
+    tab: CanvasId,
     at: Instant,
 }
 
@@ -201,8 +218,23 @@ struct Win {
     layout: Option<Layout>,
     scale: f64,
 
-    tabs: Vec<Terminal>,
+    /// All terminals in this window (the store); tabs reference them.
+    terms: Vec<Terminal>,
+    /// Tabs, in tab-bar order. Every tab is a canvas: a single maximized
+    /// terminal, or a free layout of many.
+    canvases: Vec<Canvas>,
+    /// Index of the active tab (canvas).
     active: usize,
+    cdrag: CDrag,
+    /// Item and part under the pointer on a free canvas.
+    hover_part: Option<(ItemId, ItemPart)>,
+    space_held: bool,
+    /// Double-Ctrl pan: tap Ctrl, then hold it and move.
+    pan_mode: bool,
+    last_ctrl_release: Option<Instant>,
+    last_title_click: Option<(Instant, ItemId)>,
+    /// Layout changed since the last state save.
+    dirty: bool,
 
     palette: Option<Palette>,
     menu: Option<Menu>,
@@ -230,17 +262,73 @@ struct Win {
 }
 
 impl Win {
+    fn canvas(&self) -> Option<&Canvas> {
+        self.canvases.get(self.active)
+    }
+    fn canvas_mut(&mut self) -> Option<&mut Canvas> {
+        let i = self.active;
+        self.canvases.get_mut(i)
+    }
+    fn term_index(&self, tab: TabId) -> Option<usize> {
+        self.terms.iter().position(|t| t.id == tab)
+    }
+    fn term(&self, tab: TabId) -> Option<&Terminal> {
+        self.terms.iter().find(|t| t.id == tab)
+    }
+    fn term_mut(&mut self, tab: TabId) -> Option<&mut Terminal> {
+        self.terms.iter_mut().find(|t| t.id == tab)
+    }
+    /// Terminal id of the focused item on the active tab.
+    fn focused_tab(&self) -> Option<TabId> {
+        let c = self.canvas()?;
+        let id = c.focus?;
+        match c.item(id)?.kind {
+            ItemKind::Terminal(t) => Some(t),
+            ItemKind::Pending => None,
+        }
+    }
+    /// The terminal that receives keyboard input.
+    fn active_term(&self) -> Option<&Terminal> {
+        self.term(self.focused_tab()?)
+    }
+    fn active_term_mut(&mut self) -> Option<&mut Terminal> {
+        let t = self.focused_tab()?;
+        self.term_mut(t)
+    }
+    /// Index of the active terminal in the store (palette / menus).
+    fn active_term_index(&self) -> Option<usize> {
+        self.term_index(self.focused_tab()?)
+    }
     /// Presentation state of the active terminal, if any.
     fn view_mut(&mut self) -> Option<&mut TermView> {
-        let i = self.active;
-        self.tabs.get_mut(i).map(|t| &mut t.view)
-    }
-    fn view(&self) -> Option<&TermView> {
-        self.tabs.get(self.active).map(|t| &t.view)
+        self.active_term_mut().map(|t| &mut t.view)
     }
     /// Any terminal in this window still animating?
     fn any_view_transient(&self) -> bool {
-        self.tabs.iter().any(|t| t.view.cursor_anim.transient() || t.view.fx.active())
+        self.terms.iter().any(|t| t.view.cursor_anim.transient() || t.view.fx.active())
+    }
+    /// Title shown on tab `i`.
+    fn tab_title(&self, i: usize) -> String {
+        let Some(c) = self.canvases.get(i) else { return String::new() };
+        if c.is_single() {
+            c.tabs().next().and_then(|t| self.term(t)).map(|t| t.display_title().to_string()).unwrap_or_else(|| "terminal".into())
+        } else if c.name.is_empty() {
+            format!("canvas ({})", c.items.len())
+        } else {
+            c.name.clone()
+        }
+    }
+    /// Grid size for an item rect at zoom 1.
+    fn grid_for_rect(&self, r: WRect) -> GridSize {
+        let m = self.fonts.metrics;
+        let cols = (((r.w - 2.0 * ITEM_PAD) / m.width).floor() as usize).max(2);
+        let rows = (((r.h - TITLE_H - 2.0 * ITEM_PAD) / m.height).floor() as usize).max(1);
+        GridSize { cols, rows, cell_width: m.width as u16, cell_height: m.height as u16 }
+    }
+    /// World size of an item that shows `cols` × `rows` cells.
+    fn rect_for_grid(&self, cols: usize, rows: usize) -> (f32, f32) {
+        let m = self.fonts.metrics;
+        ((cols as f32 * m.width + 2.0 * ITEM_PAD).round(), (rows as f32 * m.height + TITLE_H + 2.0 * ITEM_PAD).round())
     }
 }
 
@@ -260,6 +348,9 @@ pub struct App {
     debug: DebugOptions,
     pending_drop: Option<PendingDrop>,
     gpu: Option<Arc<Gpu>>,
+    next_canvas_id: CanvasId,
+    next_item_id: ItemId,
+    last_save: Instant,
     /// Next time an animation frame is due (cursor breath/travel/pulse).
     next_frame: Option<Instant>,
     effects: EffectsConfig,
@@ -345,6 +436,9 @@ impl App {
             debug: DebugOptions::from_env(),
             pending_drop: None,
             gpu: None,
+            next_canvas_id: 1,
+            next_item_id: 1,
+            last_save: Instant::now(),
             next_frame: None,
             effects: EffectsConfig::load(),
             deck_state: DeckState::load(),
@@ -375,6 +469,7 @@ impl App {
             cell_h: m.height,
             tab_bar_h,
             pad,
+            area: WRect::new(0.0, tab_bar_h, width.max(1.0), (height - tab_bar_h).max(1.0)),
             grid_x: pad,
             grid_y: tab_bar_h + pad,
             cols,
@@ -397,8 +492,18 @@ impl App {
         let w = &mut self.wins[wi];
         w.layout = Some(l);
         let size = Self::grid_size_of(w);
-        for tab in &mut w.tabs {
-            tab.resize(size);
+        let mut sizes: Vec<(TabId, GridSize)> = Vec::new();
+        for c in &w.canvases {
+            for it in &c.items {
+                if let ItemKind::Terminal(t) = it.kind {
+                    sizes.push((t, if c.is_single() { size } else { w.grid_for_rect(it.rect) }));
+                }
+            }
+        }
+        for (t, g) in sizes {
+            if let Some(term) = w.term_mut(t) {
+                term.resize(g);
+            }
         }
         w.window.request_redraw();
     }
@@ -458,7 +563,7 @@ impl App {
             .file_name()
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_else(|| shell.clone());
-        Launch { program: shell, args: self.config.terminal.shell_args.clone(), cwd: None, title }
+        Launch { program: shell, args: self.config.terminal.shell_args.clone(), cwd: None, title, shortcut: None }
     }
 
     fn command_launch(&self, cmd: &SavedCommand) -> Launch {
@@ -473,6 +578,7 @@ impl App {
             args: vec!["-lc".into(), line],
             cwd: cmd.cwd.clone().map(|c| shellexpand_home(&c)),
             title: cmd.name.clone(),
+            shortcut: Some(cmd.name.clone()),
         }
     }
 
@@ -490,41 +596,158 @@ impl App {
         }
     }
 
+    /// Open a new tab holding one maximized terminal (the classic tab).
     fn open_tab(&mut self, launch: Launch) {
+        self.open_tab_spec(launch, None);
+    }
+
+    fn open_tab_spec(&mut self, launch: Launch, spec: Option<LaunchSpec>) -> Option<TabId> {
         if self.wins.get(self.cur).map(|w| w.layout.is_none()).unwrap_or(true) {
-            return;
+            return None;
         }
         let id = self.next_id;
         self.next_id += 1;
         match Terminal::spawn(id, self.proxy.clone(), &launch, self.grid_size(), self.term_config()) {
             Ok(term) => {
+                let item_id = self.next_item_id;
+                self.next_item_id += 1;
+                let cid = self.next_canvas_id;
+                self.next_canvas_id += 1;
+                let l = self.win().layout.expect("layout");
                 let w = self.win_mut();
-                w.tabs.push(term);
-                w.active = w.tabs.len() - 1;
+                w.terms.push(term);
+                let item = Item { id: item_id, kind: ItemKind::Terminal(id), rect: WRect::new(0.0, 0.0, l.area.w, l.area.h), name: None, launch: spec };
+                w.canvases.push(Canvas::single(cid, item));
+                w.active = w.canvases.len() - 1;
+                w.dirty = true;
                 self.update_window_title();
                 self.request_redraw();
+                Some(id)
             }
             Err(e) => {
                 log::error!("failed to open tab: {e:#}");
                 self.set_status(format!("failed: {e}"));
+                None
             }
         }
     }
 
-    fn close_tab(&mut self, index: usize, event_loop: &ActiveEventLoop) {
-        if index >= self.wins[self.cur].tabs.len() {
+    /// Add a terminal to the active canvas (converting a single tab to a
+    /// free canvas if needed). `at` is a world rect, else near the centre.
+    fn new_terminal_in_canvas(&mut self, launch: Launch, at: Option<WRect>, spec: Option<LaunchSpec>) -> Option<TabId> {
+        let l = self.win().layout?;
+        if self.win().canvas()?.is_single() {
+            self.convert_to_canvas();
+        }
+        let rect = match at {
+            Some(r) => r,
+            None => {
+                let (w, h) = self.win().rect_for_grid(80, 24);
+                self.win_mut().canvas_mut()?.spawn_rect(l.area, w, h)
+            }
+        };
+        let grid = self.win().grid_for_rect(rect);
+        let id = self.next_id;
+        self.next_id += 1;
+        match Terminal::spawn(id, self.proxy.clone(), &launch, grid, self.term_config()) {
+            Ok(term) => {
+                let item_id = self.next_item_id;
+                self.next_item_id += 1;
+                let w = self.win_mut();
+                w.terms.push(term);
+                let c = w.canvas_mut()?;
+                c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: spec });
+                c.focus = Some(item_id);
+                // Bring the new terminal into view if it landed off-screen.
+                let vis = c.view.visible(l.area);
+                let inside = rect.x >= vis.x && rect.y >= vis.y && rect.right() <= vis.right() && rect.bottom() <= vis.bottom();
+                w.dirty = true;
+                if !inside {
+                    self.fit_all();
+                }
+                self.update_window_title();
+                self.request_redraw();
+                Some(id)
+            }
+            Err(e) => {
+                log::error!("failed to open terminal: {e:#}");
+                self.set_status(format!("failed: {e}"));
+                None
+            }
+        }
+    }
+
+    /// Open a fresh, empty free canvas tab.
+    fn open_canvas_tab(&mut self) {
+        let cid = self.next_canvas_id;
+        self.next_canvas_id += 1;
+        let n = self.win().canvases.iter().filter(|c| !c.is_single()).count() + 1;
+        let w = self.win_mut();
+        w.canvases.push(Canvas::new(cid, format!("Canvas {n}")));
+        w.active = w.canvases.len() - 1;
+        w.dirty = true;
+        self.update_window_title();
+        self.request_redraw();
+    }
+
+    /// Turn the active single-terminal tab into a free canvas, keeping the
+    /// terminal at its current size.
+    fn convert_to_canvas(&mut self) {
+        let l = self.win().layout.expect("layout");
+        let (iw, ih) = self.win().rect_for_grid(100, 30);
+        let w = self.win_mut();
+        let Some(c) = w.canvas_mut() else { return };
+        if !c.is_single() {
             return;
         }
-        let term = self.wins[self.cur].tabs.remove(index);
-        term.shutdown();
-        drop(term);
-        if self.wins[self.cur].tabs.is_empty() {
+        c.mode = CanvasMode::Free;
+        if c.name.is_empty() {
+            c.name = String::new();
+        }
+        if let Some(it) = c.items.first_mut() {
+            it.rect = WRect::new(0.0, 0.0, iw, ih);
+        }
+        // Centre the item in the view.
+        c.view = crate::canvas::Viewport { x: -((l.area.w - iw) / 2.0).round(), y: -((l.area.h - ih) / 2.0).round(), zoom: 1.0 };
+        c.spawn_n = 1;
+        w.dirty = true;
+        self.relayout();
+    }
+
+    /// Turn a one-item free canvas back into a maximized terminal tab.
+    fn maximize_canvas(&mut self) {
+        let w = self.win_mut();
+        let Some(c) = w.canvas_mut() else { return };
+        if c.is_single() || c.items.len() != 1 {
+            return;
+        }
+        c.mode = CanvasMode::Single;
+        c.focus = c.items.first().map(|i| i.id);
+        w.dirty = true;
+        self.relayout();
+    }
+
+    /// Close tab `index` (a canvas) and every terminal on it.
+    fn close_tab(&mut self, index: usize, event_loop: &ActiveEventLoop) {
+        if index >= self.wins[self.cur].canvases.len() {
+            return;
+        }
+        let w = self.win_mut();
+        let c = w.canvases.remove(index);
+        for t in c.tabs() {
+            if let Some(i) = w.term_index(t) {
+                let term = w.terms.remove(i);
+                term.shutdown();
+            }
+        }
+        w.dirty = true;
+        if w.canvases.is_empty() {
             self.close_window(self.cur, event_loop);
             return;
         }
         let w = self.win_mut();
-        if w.active >= w.tabs.len() {
-            w.active = w.tabs.len() - 1;
+        if w.active >= w.canvases.len() {
+            w.active = w.canvases.len() - 1;
         } else if index < w.active {
             w.active -= 1;
         }
@@ -532,29 +755,52 @@ impl App {
         self.request_redraw();
     }
 
-    fn close_others(&mut self, keep: usize, event_loop: &ActiveEventLoop) {
-        if keep >= self.wins[self.cur].tabs.len() {
+    /// Close one terminal wherever it lives. A single tab closes with it;
+    /// a free canvas just loses the item.
+    fn close_terminal(&mut self, tab: TabId, event_loop: &ActiveEventLoop) {
+        let w = self.win_mut();
+        let Some(ci) = w.canvases.iter().position(|c| c.item_for_tab(tab).is_some()) else { return };
+        if w.canvases[ci].is_single() {
+            self.close_tab(ci, event_loop);
             return;
         }
-        let w = self.win_mut();
-        let kept = w.tabs.remove(keep);
-        for t in w.tabs.drain(..) {
-            t.shutdown();
+        if let Some(i) = w.term_index(tab) {
+            let term = w.terms.remove(i);
+            term.shutdown();
         }
-        w.tabs.push(kept);
-        w.active = 0;
+        let c = &mut w.canvases[ci];
+        if let Some(pos) = c.items.iter().position(|i| matches!(i.kind, ItemKind::Terminal(t) if t == tab)) {
+            let removed = c.items.remove(pos);
+            if c.focus == Some(removed.id) {
+                c.focus = c.items.last().map(|i| i.id);
+            }
+        }
+        w.dirty = true;
         self.update_window_title();
         self.request_redraw();
-        let _ = event_loop;
+    }
+
+    fn close_others(&mut self, keep: usize, event_loop: &ActiveEventLoop) {
+        if keep >= self.wins[self.cur].canvases.len() {
+            return;
+        }
+        let others: Vec<usize> = (0..self.win().canvases.len()).filter(|&i| i != keep).rev().collect();
+        for i in others {
+            self.close_tab(i, event_loop);
+        }
+        self.win_mut().active = 0;
+        self.update_window_title();
+        self.request_redraw();
     }
 
     fn move_tab(&mut self, from: usize, to: usize) {
-        if from >= self.wins[self.cur].tabs.len() || to >= self.wins[self.cur].tabs.len() || from == to {
+        if from >= self.wins[self.cur].canvases.len() || to >= self.wins[self.cur].canvases.len() || from == to {
             return;
         }
         let w = self.win_mut();
-        let t = w.tabs.remove(from);
-        w.tabs.insert(to, t);
+        let t = w.canvases.remove(from);
+        w.canvases.insert(to, t);
+        w.dirty = true;
         if w.active == from {
             w.active = to;
         } else if from < w.active && to >= w.active {
@@ -566,16 +812,49 @@ impl App {
     }
 
     fn switch_tab(&mut self, index: usize) {
-        if index < self.wins[self.cur].tabs.len() && index != self.wins[self.cur].active {
-            self.wins[self.cur].active = index;
-            self.wins[self.cur].selecting = false;
+        if index < self.wins[self.cur].canvases.len() && index != self.wins[self.cur].active {
+            let w = &mut self.wins[self.cur];
+            w.active = index;
+            w.selecting = false;
+            w.cdrag = CDrag::None;
+            w.dirty = true;
             self.update_window_title();
             self.request_redraw();
         }
     }
 
+    /// Focus a terminal by id: switch to its tab and focus its item.
+    fn focus_terminal(&mut self, tab: TabId) {
+        let w = self.win_mut();
+        if let Some(ci) = w.canvases.iter().position(|c| c.item_for_tab(tab).is_some()) {
+            w.active = ci;
+            if let Some(id) = w.canvases[ci].item_for_tab(tab).map(|i| i.id) {
+                w.canvases[ci].focus = Some(id);
+                w.canvases[ci].raise(id);
+            }
+            w.selecting = false;
+            self.update_window_title();
+            self.request_redraw();
+        }
+    }
+
+    /// Focus an item on the active canvas (raising it).
+    fn focus_item(&mut self, id: ItemId) {
+        let w = self.win_mut();
+        if let Some(c) = w.canvas_mut() {
+            c.focus = Some(id);
+            c.raise(id);
+        }
+        w.selecting = false;
+        self.update_window_title();
+        self.request_redraw();
+    }
+
     fn start_rename(&mut self, index: usize) {
-        let Some(current) = self.win().tabs.get(index).map(|t| t.display_title().to_string()) else { return };
+        if index >= self.win().canvases.len() {
+            return;
+        }
+        let current = self.win().tab_title(index);
         let w = self.win_mut();
         w.drag = None;
         w.rename = Some((index, current, true));
@@ -587,9 +866,31 @@ impl App {
         let Some((index, text, _)) = self.win_mut().rename.take() else { return };
         if commit {
             let text = text.trim().to_string();
-            if let Some(t) = self.win_mut().tabs.get_mut(index) {
-                t.custom_title = if text.is_empty() { None } else { Some(text) };
+            let w = self.win_mut();
+            if index >= canvas_ui::ITEM_RENAME_BASE {
+                // A terminal item on a free canvas.
+                if let Some(term) = w.terms.get_mut(index - canvas_ui::ITEM_RENAME_BASE) {
+                    term.custom_title = if text.is_empty() { None } else { Some(text) };
+                }
+                w.dirty = true;
+                self.update_window_title();
+                self.request_redraw();
+                return;
             }
+            let single_tab = w.canvases.get(index).filter(|c| c.is_single()).and_then(|c| c.tabs().next());
+            match single_tab {
+                Some(t) => {
+                    if let Some(term) = w.term_mut(t) {
+                        term.custom_title = if text.is_empty() { None } else { Some(text) };
+                    }
+                }
+                None => {
+                    if let Some(c) = w.canvases.get_mut(index) {
+                        c.name = text;
+                    }
+                }
+            }
+            w.dirty = true;
             self.update_window_title();
         }
         self.request_redraw();
@@ -674,14 +975,14 @@ impl App {
     }
 
     fn active_tab(&self) -> Option<&Terminal> {
-        self.wins[self.cur].tabs.get(self.wins[self.cur].active)
+        self.wins[self.cur].active_term()
     }
 
     fn update_window_title(&self) {
-        if let Some(w) = self.wins.get(self.cur)
-            && let Some(t) = w.tabs.get(w.active) {
-                w.window.set_title(&format!("{} — kindlyterm", t.display_title()));
-            }
+        if let Some(w) = self.wins.get(self.cur) {
+            let title: String = w.tab_title(w.active).chars().filter(|c| !c.is_control()).take(200).collect();
+            w.window.set_title(&format!("{title} — kindlyTerm"));
+        }
     }
 
     fn set_status(&mut self, msg: String) {
@@ -713,19 +1014,22 @@ impl App {
                 .store
                 .commands
                 .iter()
-                .map(|c| Item { id: ItemId::Command(c.name.clone()), label: c.name.clone(), detail: c.command.clone() })
+                .map(|c| PItem { id: PItemId::Command(c.name.clone()), label: c.name.clone(), detail: c.command.clone() })
                 .collect(),
-            Mode::Tabs => self
-                .win()
-                .tabs
-                .iter()
-                .enumerate()
-                .map(|(i, t)| Item {
-                    id: ItemId::Tab(t.id),
-                    label: format!("{}: {}", i + 1, t.display_title()),
-                    detail: t.base_title.clone(),
-                })
-                .collect(),
+            Mode::Tabs => {
+                // Every terminal in the window, labelled with its tab.
+                let w = self.win();
+                let mut items = Vec::new();
+                for (ci, c) in w.canvases.iter().enumerate() {
+                    for t in c.tabs() {
+                        if let Some(term) = w.term(t) {
+                            let label = if c.is_single() { format!("{}: {}", ci + 1, term.display_title()) } else { format!("{}: {} · {}", ci + 1, w.tab_title(ci), term.display_title()) };
+                            items.push(PItem { id: PItemId::Tab(t), label, detail: term.base_title.clone() });
+                        }
+                    }
+                }
+                items
+            }
             Mode::SaveCommand { .. } => Vec::new(),
         };
         let mut p = Palette::new(mode, items);
@@ -819,9 +1123,7 @@ impl App {
             }
             Action::SwitchTab(id) => {
                 self.wins[self.cur].palette = None;
-                if let Some(i) = self.wins[self.cur].tabs.iter().position(|t| t.id == id) {
-                    self.switch_tab(i);
-                }
+                self.focus_terminal(id);
             }
             Action::SaveCommand(cmd) => {
                 self.wins[self.cur].palette = None;
@@ -891,7 +1193,7 @@ impl App {
     fn apply_term_options(&self) {
         let cfg = self.term_config();
         for w in &self.wins {
-            for t in &w.tabs {
+            for t in &w.terms {
                 t.set_options(cfg.clone());
             }
         }
@@ -909,7 +1211,7 @@ impl App {
         };
         self.deck_state.record_run(&cmd.name);
         if here {
-            if let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) {
+            if let Some(tab) = self.win().active_term() {
                 tab.scroll(Scroll::Bottom);
                 tab.write(format!("{}\r", cmd.command).into_bytes());
             }
@@ -1074,14 +1376,15 @@ impl App {
             .iter()
             .filter(|w| w.window.id() != me)
             .map(|w| {
-                let title = w.tabs.get(w.active).map(|t| t.display_title().to_string()).unwrap_or_default();
-                let title = if w.tabs.len() > 1 { format!("{title} (+{})", w.tabs.len() - 1) } else { title };
+                let title = w.tab_title(w.active);
+                let title = if w.canvases.len() > 1 { format!("{title} (+{})", w.canvases.len() - 1) } else { title };
                 (w.window.id(), title)
             })
             .collect();
-        let n = self.win().tabs.len();
+        let n = self.win().canvases.len();
         let has_saved = !self.store.commands.is_empty();
-        self.win_mut().menu = Some(Menu::for_tab_bar(x, y, tab, n, has_saved, &others));
+        let mode = tab.and_then(|i| self.win().canvases.get(i)).map(|c| (c.is_single(), c.items.len()));
+        self.win_mut().menu = Some(Menu::for_tab_bar(x, y, tab, n, has_saved, &others, mode));
         self.request_redraw();
     }
 
@@ -1122,14 +1425,14 @@ impl App {
             }
             MenuAction::Paste => self.paste(),
             MenuAction::ClearScrollback => {
-                if let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) {
+                if let Some(tab) = self.win().active_term() {
                     let mut term = tab.term.lock();
                     term.grid_mut().clear_history();
                     term.scroll_display(Scroll::Bottom);
                 }
             }
             MenuAction::NewWindow => {
-                self.create_window(event_loop, Vec::new());
+                self.create_window(event_loop, None);
             }
             MenuAction::CheatSheet => {
                 self.win_mut().cheat = true;
@@ -1137,28 +1440,41 @@ impl App {
             MenuAction::PasteConfirmed(text) => {
                 // Bypass the confirmation this time; still arm the paste rain.
                 self.arm_paste_rain(&text);
-                let w = self.win();
-                let tab = &w.tabs[w.active];
-                let raw = text.replace("\r\n", "\r").replace('\n', "\r");
-                tab.write(raw.into_bytes());
-                tab.scroll(Scroll::Bottom);
+                if let Some(tab) = self.win().active_term() {
+                    let raw = text.replace("\r\n", "\r").replace('\n', "\r");
+                    tab.write(raw.into_bytes());
+                    tab.scroll(Scroll::Bottom);
+                }
             }
             MenuAction::RenameTab(i) => {
                 self.switch_tab(i);
                 self.start_rename(i);
             }
             MenuAction::TearOff(i) => {
-                if let Some(tab) = self.win().tabs.get(i).map(|t| t.id) {
-                    let from = self.cur;
-                    self.tear_off(from, tab, event_loop);
-                }
+                let from = self.cur;
+                self.tear_off(from, i, event_loop);
             }
             MenuAction::MoveToWindow(i, id) => {
-                if let (Some(tab), Some(to)) = (self.win().tabs.get(i).map(|t| t.id), self.window_index(id)) {
+                if let Some(to) = self.window_index(id) {
                     let from = self.cur;
-                    self.move_tab_to_window(from, tab, to, event_loop);
+                    self.move_tab_to_window(from, i, to, event_loop);
                 }
             }
+            MenuAction::ConvertToCanvas => self.convert_to_canvas(),
+            MenuAction::Maximize => self.maximize_canvas(),
+            MenuAction::NewCanvasTab => self.open_canvas_tab(),
+            MenuAction::NewTerminalAt(wx, wy) => {
+                let launch = self.shell_launch();
+                let g = Self::grid_size_of(self.win());
+                let (w, h) = self.win().rect_for_grid(g.cols, g.rows);
+                self.new_terminal_in_canvas(launch, Some(WRect::new(wx.round(), wy.round(), w, h)), None);
+            }
+            MenuAction::FocusMode => self.toggle_focus_mode(),
+            MenuAction::FitAll => self.fit_all(),
+            MenuAction::ResetZoom => self.reset_zoom(),
+            MenuAction::MoveToCanvas(tab, ci) => self.move_item_to_canvas(tab, ci),
+            MenuAction::CloseTerminal(tab) => self.close_terminal(tab, event_loop),
+            MenuAction::RenameItem(id) => self.start_item_rename(id),
             MenuAction::Separator | MenuAction::Cancel => {}
         }
         self.request_redraw();
@@ -1190,16 +1506,16 @@ impl App {
     // -----------------------------------------------------------------------
 
     fn on_term_event(&mut self, tab_id: TabId, event: Event, event_loop: &ActiveEventLoop) {
-        let Some(index) = self.wins[self.cur].tabs.iter().position(|t| t.id == tab_id) else { return };
+        let Some(index) = self.wins[self.cur].terms.iter().position(|t| t.id == tab_id) else { return };
         match event {
             Event::Wakeup => self.request_redraw(),
             Event::Title(title) => {
-                self.wins[self.cur].tabs[index].title = Some(title);
+                self.wins[self.cur].terms[index].title = Some(title);
                 self.update_window_title();
                 self.request_redraw();
             }
             Event::ResetTitle => {
-                self.wins[self.cur].tabs[index].title = None;
+                self.wins[self.cur].terms[index].title = None;
                 self.update_window_title();
                 self.request_redraw();
             }
@@ -1221,20 +1537,20 @@ impl App {
                 if !allowed {
                     log::info!("blocked an OSC 52 clipboard read (set terminal.osc52 = \"both\" to allow)");
                 }
-                self.wins[self.cur].tabs[index].write(format(&text).into_bytes());
+                self.wins[self.cur].terms[index].write(format(&text).into_bytes());
             }
             Event::ColorRequest(idx, format) => {
                 let color = self.color_for_index(idx);
-                self.wins[self.cur].tabs[index].write(format(rgba_to_rgb(color)).into_bytes());
+                self.wins[self.cur].terms[index].write(format(rgba_to_rgb(color)).into_bytes());
             }
-            Event::PtyWrite(text) => self.wins[self.cur].tabs[index].write(text.into_bytes()),
+            Event::PtyWrite(text) => self.wins[self.cur].terms[index].write(text.into_bytes()),
             Event::TextAreaSizeRequest(format) => {
-                let size: WindowSize = self.wins[self.cur].tabs[index].size.into();
-                self.wins[self.cur].tabs[index].write(format(size).into_bytes());
+                let size: WindowSize = self.wins[self.cur].terms[index].size.into();
+                self.wins[self.cur].terms[index].write(format(size).into_bytes());
             }
-            Event::Exit => self.close_tab(index, event_loop),
+            Event::Exit => self.close_terminal(tab_id, event_loop),
             Event::ChildExit(_) => {
-                self.wins[self.cur].tabs[index].exited = true;
+                self.wins[self.cur].terms[index].exited = true;
             }
             Event::Bell | Event::CursorBlinkingChange | Event::MouseCursorDirty => {}
         }
@@ -1315,9 +1631,39 @@ impl ApplicationHandler<UserEvent> for App {
         if !self.wins.is_empty() {
             return;
         }
-        if self.create_window(event_loop, Vec::new()).is_none() {
-            event_loop.exit();
-            return;
+        // Restore the previous session's tabs and canvases, if any.
+        let saved = SavedState::load().filter(|s| !s.windows.is_empty());
+        match saved {
+            Some(st) => {
+                let mut wins = st.windows.into_iter();
+                let first = wins.next().expect("non-empty");
+                let Some(wi) = self.create_window(event_loop, None) else {
+                    event_loop.exit();
+                    return;
+                };
+                // create_window opened a default shell tab; replace it.
+                self.win_mut().canvases.clear();
+                for t in self.win_mut().terms.drain(..) {
+                    t.shutdown();
+                }
+                self.restore_window(wi, first);
+                for sw in wins {
+                    if let Some(wi) = self.create_window(event_loop, None) {
+                        self.win_mut().canvases.clear();
+                        for t in self.win_mut().terms.drain(..) {
+                            t.shutdown();
+                        }
+                        self.restore_window(wi, sw);
+                    }
+                }
+                self.cur = 0;
+            }
+            None => {
+                if self.create_window(event_loop, None).is_none() {
+                    event_loop.exit();
+                    return;
+                }
+            }
         }
 
         if std::env::args().any(|a| a == "--deck") {
@@ -1325,7 +1671,7 @@ impl ApplicationHandler<UserEvent> for App {
         }
 
         if let Some(input) = self.debug.input.clone()
-            && let Some(tab) = self.win().tabs.first() {
+            && let Some(tab) = self.win().terms.first() {
                 tab.write(input.into_bytes());
             }
         if let Some(ms) = self.debug.exit_after {
@@ -1348,6 +1694,9 @@ impl ApplicationHandler<UserEvent> for App {
         // Fired when a WaitUntil deadline passes (and after every batch of
         // events): expire status messages and tick animations.
         let now = Instant::now();
+        if self.wins.iter().any(|w| w.dirty) && self.last_save.elapsed().as_millis() > 1500 {
+            self.save_state();
+        }
         for w in &mut self.wins {
             if w.status.as_ref().map(|(_, at)| at.elapsed().as_secs() >= 4).unwrap_or(false) {
                 w.status = None;
@@ -1417,7 +1766,9 @@ impl ApplicationHandler<UserEvent> for App {
             WindowEvent::CursorEntered { .. } => {}
             WindowEvent::ModifiersChanged(m) => {
                 let new = m.state();
+                let was_ctrl = self.mods.control_key();
                 self.mods = new;
+                self.track_ctrl_tap(was_ctrl, new.control_key());
                 let both = new.control_key() && new.shift_key() && !new.alt_key() && !new.super_key();
                 if both {
                     if self.chord_armed.is_none() {
@@ -1446,12 +1797,11 @@ impl ApplicationHandler<UserEvent> for App {
             WindowEvent::MouseWheel { delta, .. } => self.on_wheel(delta),
             WindowEvent::Focused(f) => {
                 self.wins[self.cur].focused = f;
-                if f {
-                    if let Some(v) = self.wins[self.cur].view_mut() {
+                if f
+                    && let Some(v) = self.wins[self.cur].view_mut() {
                         v.cursor_anim.pulse_start = Some(Instant::now());
                     }
-                }
-                if let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active)
+                if let Some(tab) = self.win().active_term()
                     && tab.term.lock().mode().contains(TermMode::FOCUS_IN_OUT) {
                         tab.write(if f { b"\x1b[I".to_vec() } else { b"\x1b[O".to_vec() });
                     }

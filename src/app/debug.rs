@@ -106,15 +106,15 @@ impl App {
                         for step in 1..=n {
                             let mut g = base;
                             g.cols = base.cols.saturating_sub(step).max(2);
-                            for tab in &mut self.wins[self.cur].tabs {
+                            for tab in &mut self.wins[self.cur].terms {
                                 tab.resize(g);
                             }
                         }
-                        for tab in &mut self.wins[self.cur].tabs {
+                        for tab in &mut self.wins[self.cur].terms {
                             tab.resize(base);
                         }
                         let dt = t0.elapsed().as_secs_f64() * 1e3;
-                        log::info!("reflow: {} column changes x {} tabs in {:.1}ms ({:.2}ms each)", n + 1, self.wins[self.cur].tabs.len(), dt, dt / (n + 1) as f64);
+                        log::info!("reflow: {} column changes x {} tabs in {:.1}ms ({:.2}ms each)", n + 1, self.wins[self.cur].terms.len(), dt, dt / (n + 1) as f64);
                     }
                     Some(("mouse", rest)) => {
                         // mouse:down:X:Y | mouse:move:X:Y | mouse:up:X:Y | mouse:right:X:Y
@@ -188,7 +188,7 @@ impl App {
                                 v.fx.typed(&cfg, ch, x + i as f32 * cw, y);
                             }
                         }
-                        if let Some(tab) = self.win().tabs.get(self.win().active) {
+                        if let Some(tab) = self.win().active_term() {
                             tab.write(text.to_string().into_bytes());
                         }
                     }
@@ -203,7 +203,7 @@ impl App {
                     }
                     Some(("input", text)) => {
                         let text = text.replace("\\r", "\r");
-                        if let Some(tab) = self.win().tabs.get(self.win().active) {
+                        if let Some(tab) = self.win().active_term() {
                             tab.write(text.into_bytes());
                         }
                     }
@@ -222,11 +222,39 @@ impl App {
                                 None => (now - std::time::Duration::from_millis(1500), now, true),
                             });
                         }
-                        if let Some(tab) = self.win().tabs.get(self.win().active) {
+                        if let Some(tab) = self.win().active_term() {
                             tab.write(vec![0x7f; n]);
                         }
                     }
                     Some(("termzoom", z)) => self.debug.term_zoom = z.parse().ok(),
+                    _ if a == "canvas" => self.convert_to_canvas(),
+                    _ if a == "newcanvas" => self.open_canvas_tab(),
+                    _ if a == "addterm" => {
+                        let l = self.shell_launch();
+                        self.new_terminal_in_canvas(l, None, None);
+                    }
+                    Some(("zoom", f)) => self.zoom_by(f.parse().unwrap_or(1.0), None),
+                    _ if a == "fit" => self.fit_all(),
+                    _ if a == "focusmode" => self.toggle_focus_mode(),
+                    _ if a == "maximize" => self.maximize_canvas(),
+                    _ if a == "closeterm" => {
+                        if let (Some(t), Some(el)) = (self.win().focused_tab(), event_loop) {
+                            self.close_terminal(t, el);
+                        }
+                    }
+                    Some(("tearoff", n)) => {
+                        if let (Ok(n), Some(el)) = (n.parse::<usize>(), event_loop) {
+                            self.tear_off(self.cur, n, el);
+                        }
+                    }
+                    _ if a == "nextitem" => {
+                        let ids: Vec<crate::canvas::ItemId> = self.win().canvas().map(|c| c.items.iter().map(|i| i.id).collect()).unwrap_or_default();
+                        if let (Some(c), false) = (self.win().canvas(), ids.is_empty()) {
+                            let cur = c.focus.and_then(|f| ids.iter().position(|&i| i == f)).unwrap_or(0);
+                            self.focus_item(ids[(cur + 1) % ids.len()]);
+                        }
+                    }
+                    _ if a == "save" => self.save_state(),
                     Some(("tab", n)) => {
                         let n: usize = n.parse().unwrap_or(0);
                         self.switch_tab(n);

@@ -103,13 +103,18 @@ stay in sync.
 |---|---|
 | `Ctrl+/` | Keyboard cheat sheet overlay: kindlyTerm keys and shell line-editing keys. Any key or click closes it. |
 | `Ctrl+Shift` tap, or `Ctrl+Shift+,` | Toggle the **Control Deck** (launcher + settings). A tap means pressing both and releasing with no other key; chords like `Ctrl+Shift+T` are unaffected. Turn off with `input.ctrl_shift_tap_opens_deck = false`. |
-| `Ctrl+Shift+P` | Open the Deck ready to type: quick-run a shortcut. |
+| `Ctrl+Shift+Space` (or `Ctrl+Shift+P`) | Open the Deck ready to type: quick-run a shortcut. |
 | `Ctrl+Shift+S` | New shortcut in the Deck editor (prefilled with the selection, if any). |
 | Your own hotkeys | Any `Alt+…`/`Ctrl+…` combo bound in the shortcut editor launches that shortcut. |
 | `Ctrl+Shift+O` | Tab switcher palette. |
 | `Ctrl+Shift+T` | New shell tab. |
 | `Ctrl+Shift+N` | New window. |
-| `Ctrl+Shift+W` | Close current tab (the app exits when the last tab closes). |
+| `Ctrl+Shift+W` | Close current tab, or on a canvas just the focused terminal (the app exits when the last tab closes). |
+| `Ctrl+Shift+Enter` | Add a terminal beside this one. A plain tab turns into a **canvas** (see below). |
+| `Ctrl+Shift+K` | New empty canvas tab. |
+| `Ctrl+Shift+F` | Canvas focus mode: zoom the focused terminal to fill the window; again to go back. |
+| `Ctrl+Shift+A` | Canvas: fit every terminal into view. |
+| `Ctrl+Shift+=` / `Ctrl+Shift+-` / `Ctrl+Shift+0` | Canvas: zoom in / out / reset. On a plain tab these change the font size. |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab. `Ctrl+PageDown` / `Ctrl+PageUp` also work. |
 | `Alt+1` … `Alt+8`, `Alt+9` | Jump to tab N, `Alt+9` = last tab. |
 | `Shift+PageUp` / `Shift+PageDown` | Scroll history by a page. |
@@ -118,7 +123,7 @@ stay in sync.
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy selection / paste. `Ctrl+Insert` / `Shift+Insert` do the same. |
 | `Ctrl+C` with text selected | Copies the selection (and clears it). With nothing selected it interrupts as usual. |
 | `Ctrl+V` at a shell prompt | Pastes. Inside full-screen apps (vim, htop, tmux) `Ctrl+V` is passed through untouched. |
-| `Ctrl+=` / `Ctrl+-` / `Ctrl+Shift+0` | Font size bigger / smaller / reset. |
+| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Font size bigger / smaller / reset. |
 | `Ctrl+Shift+Q` | Quit. |
 
 Inside a palette: `Up`/`Down` or `Ctrl+J`/`Ctrl+K` move, `Ctrl+U` clears the
@@ -146,6 +151,35 @@ Terminal area:
 - **Right click** for a context menu: copy, paste, new tab, saved commands, save a command, clear scrollback, close tab.
 
 Menus can be driven from the keyboard too: `Up`/`Down` (or `Ctrl+J`/`Ctrl+K`), `Enter`, `Esc`.
+
+## The Canvas
+
+Every tab is a canvas. A fresh tab shows one terminal filling the window, as
+you would expect. Press `Ctrl+Shift+Enter` (or right-click and choose *Turn
+into canvas*) and the tab becomes a free layout: an infinite, zoomable surface
+where each terminal is a movable, resizable item with its own title bar. Tabs
+holding a free canvas show a `▦` marker in the tab bar.
+
+- **Add** terminals with `Ctrl+Shift+Enter`, the right-click *New terminal
+  here* entry, or by launching a saved command from the Deck.
+- **Move** by dragging a title bar; **resize** by dragging any edge or corner.
+  Items snap to each other's edges, and resizing steps in whole cells so the
+  shell reflows cleanly.
+- **Pan** with the wheel (Shift swaps axes), a middle-button drag, or a
+  left-drag on empty space. Hold `Space` or double-tap `Ctrl` to pan while over
+  a terminal. `Ctrl`+wheel **zooms** about the pointer; text stays crisp at
+  every zoom because glyphs are rasterised per zoom level.
+- **Focus** a terminal by clicking it or with `Ctrl+Tab`; keyboard input goes
+  to the focused item. `Ctrl+Shift+F` zooms it to fill the window and back.
+- **Focus mode**, **fit all** (`Ctrl+Shift+A`), **reset zoom**, rename, move a
+  terminal to another canvas tab, or *Maximize terminal* to turn a one-item
+  canvas back into a plain tab: all in the right-click menus.
+- Canvas tabs tear off, merge, and reorder like any other tab.
+
+The layout (windows, tabs, item positions, zoom, and what each item was
+launched with) is saved to `~/.config/kindlyterm/state.json` and restored on
+the next start. Shells start fresh; the coming PTY host phase will keep them
+running across restarts.
 
 ## Cursor
 
@@ -293,7 +327,9 @@ src/app/mod.rs      windows, tabs, palette, Deck actions, winit handler
 src/app/input.rs    keyboard and mouse
 src/app/draw.rs     tab bar, terminal grid, overlays
 src/app/windows.rs  window lifecycle, tab tear-off / merge, wake-ups
+src/app/canvas_ui.rs canvas interaction, drawing, and state save/restore
 src/app/debug.rs    developer hooks (KINDLYTERM_DEBUG=1)
+src/canvas.rs       canvas model: viewport maths, items, hit testing, state.json
 src/terminal.rs     one PTY + alacritty Term + I/O thread
 src/renderer.rs  wgpu pipeline: instanced quads (rects + glyphs)
 src/shader.wgsl  the one shader
@@ -314,7 +350,8 @@ src/config.rs    config.toml and commands.toml
 
 - Mouse reporting to applications (vim/htop mouse mode)
 - Bell, hyperlink (OSC 8) clicking
-- Split panes, search in scrollback, config hot reload
+- Search in scrollback, config hot reload
+- Canvas: persistent PTY hosts, groups, pins, mirrors, images, MCP server (see `docs/PLAN-canvas.md`)
 - Deck: shortcut folders, aliases, per-row font previews, ligatures, undo after launch
 
 ## License

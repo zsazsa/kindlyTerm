@@ -26,6 +26,7 @@ toml = "1"
 wgpu = "30"
 winit = "0.30"
 png = "0.18"
+serde_json = "1"
 
 [profile.release]
 opt-level = 3

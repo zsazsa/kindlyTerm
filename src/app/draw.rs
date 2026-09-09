@@ -65,6 +65,8 @@ impl App {
         let opacity = self.config.colors.opacity.clamp(0.3, 1.0);
         let n_shortcuts = self.store.commands.len();
         let w = &mut self.wins[self.cur];
+        let titles: Vec<(String, bool)> = (0..w.canvases.len()).map(|i| (w.tab_title(i), !w.canvases[i].is_single())).collect();
+        let scroll_off = w.active_term().map(|t| t.term.lock().grid().display_offset()).unwrap_or(0);
         let fonts = &mut w.fonts;
         let batch = &mut w.batch;
         let s = w.scale as f32;
@@ -89,7 +91,7 @@ impl App {
         let plus_w = 32.0 * s;
         let gear_w = 50.0 * s;
         let avail = width - l.pad - plus_w - gear_w - 8.0 * s;
-        let n = w.tabs.len().max(1) as f32;
+        let n = w.canvases.len().max(1) as f32;
         let per_tab_chars = ((avail / n - 2.0 * pad_x - close_w - 2.0 * gap) / adv).floor() as usize;
         let max_title = per_tab_chars.saturating_sub(2).clamp(4, 32);
 
@@ -103,14 +105,18 @@ impl App {
             w: f32,
         }
         let rename = w.rename.clone();
-        let mut tabs: Vec<T> = Vec::with_capacity(w.tabs.len());
+        let mut tabs: Vec<T> = Vec::with_capacity(titles.len());
         let mut x = l.pad.min(8.0 * s);
-        for (i, tab) in w.tabs.iter().enumerate() {
+        for (i, (base_title, is_canvas)) in titles.iter().enumerate() {
             let renaming = rename.as_ref().map(|(ri, _, _)| *ri == i).unwrap_or(false);
+            let is_canvas = *is_canvas;
             let mut title = match &rename {
                 Some((ri, text, _)) if *ri == i => text.clone(),
-                _ => tab.display_title().to_string(),
+                _ => base_title.clone(),
             };
+            if is_canvas && !renaming {
+                title = format!("▦ {title}");
+            }
             let text_chars = title.chars().count();
             if renaming {
                 // Keep some room so the tab does not collapse while typing.
@@ -229,14 +235,9 @@ impl App {
                 && at.elapsed().as_secs() < 4 {
                     right = msg.clone();
                 }
-        if right.is_empty()
-            && let Some(tab) = w.tabs.get(w.active) {
-                let term = tab.term.lock();
-                let off = term.grid().display_offset();
-                if off > 0 {
-                    right = format!("↑ {off} lines  (Shift+End to return)");
-                }
-            }
+        if right.is_empty() && scroll_off > 0 {
+            right = format!("↑ {scroll_off} lines  (Shift+End to return)");
+        }
         if right.is_empty() {
             right = if n_shortcuts == 0 { "Ctrl+Shift+S saves a shortcut".into() } else { format!("{n_shortcuts} shortcuts · tap Ctrl+Shift") };
         }
@@ -265,10 +266,13 @@ impl App {
         let theme = &self.theme;
         let anim_mode = self.config.terminal.cursor_animation.clone();
         let effects_cfg = self.effects.clone();
+        if self.on_free_canvas() {
+            self.draw_canvas(l);
+            return;
+        }
         let w = &mut self.wins[self.cur];
         let focused = w.focused;
-        let active = w.active;
-        let Some(tab) = w.tabs.get_mut(active) else { return };
+        let Some(ti) = w.active_term_index() else { return };
         let place = match self.debug.term_zoom {
             // Debug: draw zoomed and clipped to a box in the top-left quarter.
             Some(z) => TermPlace { x: l.grid_x + 40.0, y: l.grid_y + 40.0, zoom: z, focused, clip: Some((l.grid_x + 20.0, l.grid_y + 20.0, 520.0, 320.0)) },
@@ -277,13 +281,14 @@ impl App {
         if self.debug.term_zoom.is_some() {
             w.batch.outline(l.grid_x + 20.0, l.grid_y + 20.0, 520.0, 320.0, 6.0, 1.0, theme.accent);
         }
+        let tab = &mut w.terms[ti];
         draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
     }
 }
 
 /// Where and how large to draw a terminal.
 #[derive(Clone, Copy, Debug)]
-pub(super) struct TermPlace {
+pub(crate) struct TermPlace {
     /// Pixel origin of the grid's top-left corner.
     pub x: f32,
     pub y: f32,
@@ -296,7 +301,7 @@ pub(super) struct TermPlace {
 
 /// Draw one terminal's grid, effects and cursor. Works for any origin and
 /// zoom so the same code serves the tabbed view and the canvas.
-pub(super) fn draw_term_view(
+pub(crate) fn draw_term_view(
     fonts: &mut FontSystem,
     batch: &mut Batch,
     theme: &Theme,
@@ -356,7 +361,7 @@ pub(super) fn draw_term_view(
             }
         }
         let travel_t = anim.travel_t();
-        let ease = 1.0 - (1.0 - travel_t).powi(3) as f32;
+        let ease = 1.0 - (1.0 - travel_t).powi(3);
         anim.pos = (anim.from.0 + (anim.to.0 - anim.from.0) * ease, anim.from.1 + (anim.to.1 - anim.from.1) * ease);
         let travelling = animate && travel_t < 1.0;
         let idle_s = anim.last_input.elapsed().as_secs_f32();
@@ -675,7 +680,7 @@ impl App {
         let left: &[Sec] = &[
             ("CONTROL DECK", &[
                 ("Ctrl+Shift (tap)  ·  Ctrl+Shift+,", "toggle the Deck"),
-                ("Ctrl+Shift+P", "quick-run a shortcut"),
+                ("Ctrl+Shift+Space", "quick-run a shortcut"),
                 ("Ctrl+Shift+S", "save selection / new shortcut"),
                 ("Alt+…  (your hotkeys)", "launch a shortcut"),
             ]),
@@ -693,7 +698,7 @@ impl App {
                 ("Ctrl+Shift+C / V  ·  Shift+Insert", "copy / paste"),
                 ("Ctrl+C with selection", "copy"),
                 ("Ctrl+V at a prompt", "paste"),
-                ("Ctrl+=  /  Ctrl+−  /  Ctrl+Shift+0", "font size"),
+                ("Ctrl+=  /  Ctrl+−  /  Ctrl+0", "font size"),
                 ("Ctrl+/", "this cheat sheet"),
             ]),
         ];
@@ -705,11 +710,17 @@ impl App {
                 ("Ctrl+U  /  Ctrl+K", "delete to start / to end"),
                 ("Ctrl+Y", "paste what you deleted"),
                 ("Ctrl+_  (Ctrl+Shift+-)", "undo (a paste undoes at once)"),
-                ("Alt+R", "revert the whole line"),
                 ("Ctrl+R", "search history"),
                 ("Alt+.", "last arg of previous command"),
                 ("Ctrl+L", "clear screen"),
                 ("Ctrl+Z  /  fg", "suspend program / resume"),
+            ]),
+            ("CANVAS", &[
+                ("Ctrl+Shift+Enter  /  K", "add a terminal · new canvas tab"),
+                ("drag title  ·  drag edge", "move · resize"),
+                ("wheel  ·  Ctrl+wheel  ·  Space+drag", "pan · zoom · pan"),
+                ("Ctrl+Shift+F  ·  Ctrl+Shift+A", "focus mode · fit all"),
+                ("Ctrl+Shift+=  /  −  /  0", "zoom in / out / reset"),
             ]),
             ("PREFER VIM KEYS?", &[
                 ("~/.inputrc", "set editing-mode vi"),
@@ -774,7 +785,7 @@ impl App {
             theme: &self.theme,
             font_families: &self.font_families,
             font_family: &family,
-            tab_count: win.tabs.len(),
+            tab_count: win.terms.len(),
             gpu: &self.gpu_name,
             scale: win.scale as f32,
             effects: &self.effects,

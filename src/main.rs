@@ -2,6 +2,7 @@
 #![allow(clippy::too_many_arguments)]
 
 mod app;
+mod canvas;
 mod config;
 mod deck;
 mod effects;

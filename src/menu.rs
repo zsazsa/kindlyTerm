@@ -1,6 +1,6 @@
 //! A small context menu (right-click), usable with the mouse or the keyboard.
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MenuAction {
     NewTab,
     RunSaved,
@@ -21,6 +21,19 @@ pub enum MenuAction {
     RenameTab(usize),
     TearOff(usize),
     MoveToWindow(usize, winit::window::WindowId),
+    // --- canvas ---
+    ConvertToCanvas,
+    Maximize,
+    NewCanvasTab,
+    /// World coordinates for a new terminal's top-left.
+    NewTerminalAt(f32, f32),
+    FocusMode,
+    FitAll,
+    ResetZoom,
+    /// Move terminal `TabId` to tab index.
+    MoveToCanvas(crate::terminal::TabId, usize),
+    CloseTerminal(crate::terminal::TabId),
+    RenameItem(crate::canvas::ItemId),
     /// Non-interactive divider line.
     Separator,
 }
@@ -71,15 +84,23 @@ impl Menu {
         count: usize,
         has_saved: bool,
         other_windows: &[(winit::window::WindowId, String)],
+        // (is single-terminal tab, item count) of the clicked tab.
+        mode: Option<(bool, usize)>,
     ) -> Self {
         let mut items = vec![
             MenuItem::new("New tab", "Ctrl+Shift+T", MenuAction::NewTab),
+            MenuItem::new("New canvas tab", "Ctrl+Shift+K", MenuAction::NewCanvasTab),
             MenuItem::new("New window", "Ctrl+Shift+N", MenuAction::NewWindow),
-            MenuItem::new("Run a shortcut…", "Ctrl+Shift+P", MenuAction::RunSaved).enabled(has_saved),
+            MenuItem::new("Run a shortcut…", "Ctrl+Shift+Space", MenuAction::RunSaved).enabled(has_saved),
             MenuItem::new("Control Deck", "Ctrl+Shift+,", MenuAction::OpenDeck),
         ];
         if let Some(i) = tab {
             items.push(MenuItem::sep());
+            match mode {
+                Some((true, _)) => items.push(MenuItem::new("Turn into canvas", "Ctrl+Shift+Enter", MenuAction::ConvertToCanvas)),
+                Some((false, n)) => items.push(MenuItem::new("Maximize terminal", "", MenuAction::Maximize).enabled(n == 1)),
+                None => {}
+            }
             items.push(MenuItem::new("Rename tab…", "double-click", MenuAction::RenameTab(i)));
             items.push(MenuItem::new("Move left", "", MenuAction::MoveLeft(i)).enabled(i > 0));
             items.push(MenuItem::new("Move right", "", MenuAction::MoveRight(i)).enabled(i + 1 < count));
@@ -91,6 +112,48 @@ impl Menu {
             items.push(MenuItem::new("Close tab", "Ctrl+Shift+W", MenuAction::CloseTab(i)));
             items.push(MenuItem::new("Close other tabs", "", MenuAction::CloseOthers(i)).enabled(count > 1));
         }
+        Self::new(x, y, items)
+    }
+
+    /// Menu for a right-click on empty free canvas.
+    pub fn for_canvas(x: f32, y: f32, wx: f32, wy: f32, has_saved: bool, one_item: bool) -> Self {
+        let items = vec![
+            MenuItem::new("New terminal here", "Ctrl+Shift+Enter", MenuAction::NewTerminalAt(wx, wy)),
+            MenuItem::new("Run a shortcut…", "Ctrl+Shift+Space", MenuAction::RunSaved).enabled(has_saved),
+            MenuItem::sep(),
+            MenuItem::new("Fit everything", "Ctrl+Shift+A", MenuAction::FitAll),
+            MenuItem::new("Reset zoom", "Ctrl+Shift+0", MenuAction::ResetZoom),
+            MenuItem::new("Maximize terminal", "", MenuAction::Maximize).enabled(one_item),
+            MenuItem::sep(),
+            MenuItem::new("New canvas tab", "Ctrl+Shift+K", MenuAction::NewCanvasTab),
+            MenuItem::new("Control Deck", "Ctrl+Shift+,", MenuAction::OpenDeck),
+            MenuItem::new("Keyboard cheat sheet", "Ctrl+/", MenuAction::CheatSheet),
+        ];
+        Self::new(x, y, items)
+    }
+
+    /// Menu for a right-click on a terminal item of a free canvas.
+    #[allow(clippy::too_many_arguments)]
+    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)]) -> Self {
+        let mut items = vec![
+            MenuItem::new("Copy", "Ctrl+Shift+C", MenuAction::Copy).enabled(has_selection),
+            MenuItem::new("Paste", "Ctrl+Shift+V", MenuAction::Paste),
+            MenuItem::sep(),
+            MenuItem::new("Focus mode", "Ctrl+Shift+F", MenuAction::FocusMode),
+            MenuItem::new("Rename…", "double-click title", MenuAction::RenameItem(item)),
+        ];
+        for (ci, title) in other_tabs.iter().take(6) {
+            items.push(MenuItem::new(&format!("Move to tab {}: {title}", ci + 1), "", MenuAction::MoveToCanvas(tab, *ci)));
+        }
+        items.extend([
+            MenuItem::sep(),
+            MenuItem::new("New terminal here", "Ctrl+Shift+Enter", MenuAction::NewTerminalAt(wx, wy)),
+            MenuItem::new("Run a shortcut…", "Ctrl+Shift+Space", MenuAction::RunSaved).enabled(has_saved),
+            MenuItem::new("Save as shortcut…", "Ctrl+Shift+S", MenuAction::SaveCommand),
+            MenuItem::sep(),
+            MenuItem::new("Clear scrollback", "", MenuAction::ClearScrollback),
+            MenuItem::new("Close terminal", "Ctrl+Shift+W", MenuAction::CloseTerminal(tab)),
+        ]);
         Self::new(x, y, items)
     }
 
@@ -130,8 +193,9 @@ impl Menu {
             MenuItem::new("Paste", "Ctrl+Shift+V", MenuAction::Paste),
             MenuItem::sep(),
             MenuItem::new("New tab", "Ctrl+Shift+T", MenuAction::NewTab),
-            MenuItem::new("Run a shortcut…", "Ctrl+Shift+P", MenuAction::RunSaved).enabled(has_saved),
+            MenuItem::new("Run a shortcut…", "Ctrl+Shift+Space", MenuAction::RunSaved).enabled(has_saved),
             MenuItem::new("Save as shortcut…", "Ctrl+Shift+S", MenuAction::SaveCommand),
+            MenuItem::new("Turn into canvas", "Ctrl+Shift+Enter", MenuAction::ConvertToCanvas),
             MenuItem::new("Control Deck", "Ctrl+Shift+,", MenuAction::OpenDeck),
             MenuItem::new("Keyboard cheat sheet", "Ctrl+/", MenuAction::CheatSheet),
             MenuItem::sep(),

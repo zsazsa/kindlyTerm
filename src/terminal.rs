@@ -79,6 +79,8 @@ pub struct Launch {
     pub cwd: Option<String>,
     /// Initial tab title.
     pub title: String,
+    /// Saved-command name this was launched from, if any.
+    pub shortcut: Option<String>,
 }
 
 pub struct Terminal {
@@ -96,6 +98,8 @@ pub struct Terminal {
     pub size: GridSize,
     /// Cursor animation and effects state (owned by the UI layer).
     pub view: crate::app::TermView,
+    /// Saved-command name this was launched from, if any (for persistence).
+    pub shortcut: Option<String>,
 }
 
 impl Terminal {
@@ -141,6 +145,7 @@ impl Terminal {
             exited: false,
             size,
             view: Default::default(),
+            shortcut: launch.shortcut.clone(),
         })
     }
 
