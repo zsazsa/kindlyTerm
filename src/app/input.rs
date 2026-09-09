@@ -389,28 +389,7 @@ impl App {
         if text.is_empty() {
             return;
         }
-        // Paste rain: capture the screen before the shell echoes the paste,
-        // so the cells it changes can be dropped in from the top.
-        if self.effects.paste_rain.enabled && text.chars().count() >= self.effects.paste_rain.min_chars {
-            let snap = {
-                let w = self.win();
-                let tab = &w.tabs[w.active];
-                let mut term = tab.term.lock();
-                term.scroll_display(Scroll::Bottom);
-                let grid = term.grid();
-                let (cols, rows) = (grid.columns(), grid.screen_lines());
-                let mut cells = vec![' '; cols * rows];
-                for c in grid.display_iter() {
-                    if let Some(vp) = point_to_viewport(grid.display_offset(), c.point)
-                        && vp.line < rows && vp.column.0 < cols {
-                            cells[vp.line * cols + vp.column.0] = c.c;
-                        }
-                }
-                GridSnapshot { cells, cols, rows, history: grid.history_size() }
-            };
-            let cfg = self.effects.paste_rain.clone();
-            self.win_mut().fx.begin_paste(&cfg, &text, snap);
-        }
+        self.arm_paste_rain(&text);
         let w = self.win();
         let tab = &w.tabs[w.active];
         let bracketed = tab.term.lock().mode().contains(TermMode::BRACKETED_PASTE);
@@ -425,6 +404,35 @@ impl App {
         }
         tab.scroll(Scroll::Bottom);
         self.request_redraw();
+    }
+
+    /// Paste rain: capture the screen before the shell echoes the paste, so
+    /// the cells it changes can be dropped in from the top.
+    pub(super) fn arm_paste_rain(&mut self, text: &str) {
+        if !self.effects.paste_rain.enabled || text.chars().count() < self.effects.paste_rain.min_chars {
+            return;
+        }
+        if self.win().tabs.get(self.win().active).is_none() {
+            return;
+        }
+        let snap = {
+            let w = self.win();
+            let tab = &w.tabs[w.active];
+            let mut term = tab.term.lock();
+            term.scroll_display(Scroll::Bottom);
+            let grid = term.grid();
+            let (cols, rows) = (grid.columns(), grid.screen_lines());
+            let mut cells = vec![' '; cols * rows];
+            for c in grid.display_iter() {
+                if let Some(vp) = point_to_viewport(grid.display_offset(), c.point)
+                    && vp.line < rows && vp.column.0 < cols {
+                        cells[vp.line * cols + vp.column.0] = c.c;
+                    }
+            }
+            GridSnapshot { cells, cols, rows, history: grid.history_size() }
+        };
+        let cfg = self.effects.paste_rain.clone();
+        self.win_mut().fx.begin_paste(&cfg, text, snap);
     }
 
     /// Remove anything from pasted text that could act as a command to the

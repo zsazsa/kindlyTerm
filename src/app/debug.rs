@@ -53,6 +53,12 @@ impl App {
                             "keyboard" => PageId::Keyboard,
                             "cursor" => PageId::Cursor,
                             "about" => PageId::About,
+                            "effects" => PageId::Effects,
+                            "opacity" => PageId::Opacity,
+                            "padding" => PageId::Padding,
+                            "shell" => PageId::Shell,
+                            "scrollback" => PageId::Scrollback,
+                            "tabs" => PageId::Tabs,
                             "editor" => {
                                 self.open_shortcut_editor();
                                 continue;
@@ -152,6 +158,24 @@ impl App {
                         self.debug.shot_done = false;
                         self.take_debug_screenshot();
                     }
+                    Some(("frames", spec)) => {
+                        // frames:N:MS -> N numbered screenshots MS apart (for GIFs).
+                        let (n, ms) = spec.split_once(':').map(|(n, m)| (n.parse().unwrap_or(10), m.parse().unwrap_or(40))).unwrap_or((10u32, 40u64));
+                        let base = self.debug.screenshot.clone();
+                        for _ in 0..n {
+                            if let Some(base) = base.as_ref() {
+                                let stem = base.with_extension("");
+                                let i = self.debug.frame_seq;
+                                self.debug.frame_seq += 1;
+                                self.debug.screenshot = Some(std::path::PathBuf::from(format!("{}_{i:03}.png", stem.display())));
+                                self.debug.shot_done = false;
+                                self.take_debug_screenshot();
+                            }
+                            std::thread::sleep(std::time::Duration::from_millis(ms));
+                        }
+                        self.debug.screenshot = base;
+                        self.debug.shot_done = true;
+                    }
                     Some(("typefast", text)) => {
                         // Simulate fast typing: trail glyphs + pty input.
                         let (x, y) = self.win().cursor_anim.to;
@@ -163,6 +187,11 @@ impl App {
                         }
                         if let Some(tab) = w.tabs.get(w.active) {
                             tab.write(text.to_string().into_bytes());
+                        }
+                    }
+                    Some(("pastefile", path)) => {
+                        if let Ok(t) = std::fs::read_to_string(path) {
+                            self.paste_text(t);
                         }
                     }
                     Some(("paste", text)) => {
@@ -178,6 +207,23 @@ impl App {
                     Some(("wheel", dy)) => {
                         let dy: f32 = dy.parse().unwrap_or(0.0);
                         self.on_wheel(MouseScrollDelta::PixelDelta(PhysicalPosition::new(0.0, dy as f64)));
+                    }
+                    Some(("del", n)) => {
+                        // N backspaces, keeping the Pac-Man hold alive.
+                        let n: usize = n.parse().unwrap_or(1);
+                        let now = Instant::now();
+                        let anim = &mut self.win_mut().cursor_anim;
+                        anim.chomp = Some(match anim.chomp {
+                            Some((start, _, l)) => (start, now, l),
+                            None => (now - std::time::Duration::from_millis(1500), now, true),
+                        });
+                        if let Some(tab) = self.win().tabs.get(self.win().active) {
+                            tab.write(vec![0x7f; n]);
+                        }
+                    }
+                    Some(("tab", n)) => {
+                        let n: usize = n.parse().unwrap_or(0);
+                        self.switch_tab(n);
                     }
                     Some(("focuswin", n)) => {
                         // Debug: route subsequent actions to window n.

@@ -1,7 +1,45 @@
 # kindlyTerm
 
 A GPU-accelerated, keyboard-driven terminal for Linux with tabs and a
-palette of saved commands. Written in Rust from scratch on top of
+palette of saved commands.
+
+![kindlyTerm](docs/hero.png)
+
+## In motion
+
+**Paste rain.** Paste a block of text and every character drops from the top
+into the exact cell where the shell put it, then the passage assembles:
+
+![paste rain](docs/rain.gif)
+
+The same paste with the `matrix` preset (green katakana):
+
+![matrix paste rain](docs/matrix.gif)
+
+**Typing trail** and the **Pac-Man cursor** (hold Backspace):
+
+![typing trail](docs/trail.gif)
+
+![pac-man cursor](docs/pacman.gif)
+
+**The Control Deck** sliding in, then quick-running a shortcut by typing:
+
+![control deck](docs/deck.gif)
+
+## Screens
+
+| Deck Home | Themes |
+|---|---|
+| ![deck home](docs/deck_home.png) | ![themes](docs/deck_theme.png) |
+
+| Shortcut editor | Effects |
+|---|---|
+| ![editor](docs/deck_editor.png) | ![effects](docs/deck_effects.png) |
+
+| Quick-run | Keyboard cheat sheet (Ctrl+/) |
+|---|---|
+| ![quick run](docs/quickrun.png) | ![cheat sheet](docs/cheat.png) |
+ Written in Rust from scratch on top of
 `alacritty_terminal` (VT parsing, grid, scrollback), `wgpu` (Vulkan rendering),
 `winit` (Wayland/X11 windowing), and `swash` (glyph rasterization).
 

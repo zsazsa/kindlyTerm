@@ -269,6 +269,8 @@ struct DebugOptions {
     /// instead of at a frame number.
     actions_after: Option<u64>,
     shot_done: bool,
+    /// Running index for `frames:` captures, so bursts do not overwrite.
+    frame_seq: u32,
 }
 
 impl DebugOptions {
@@ -289,6 +291,7 @@ impl DebugOptions {
             exit_after: get("KINDLYTERM_EXIT_AFTER").and_then(|v| v.parse().ok()),
             actions_after: get("KINDLYTERM_ACTIONS_AFTER").and_then(|v| v.parse().ok()),
             shot_done: false,
+            frame_seq: 0,
         }
     }
 }
@@ -1100,7 +1103,8 @@ impl App {
                 self.win_mut().cheat = true;
             }
             MenuAction::PasteConfirmed(text) => {
-                // Bypass the confirmation this time by writing directly.
+                // Bypass the confirmation this time; still arm the paste rain.
+                self.arm_paste_rain(&text);
                 let w = self.win();
                 let tab = &w.tabs[w.active];
                 let raw = text.replace("\r\n", "\r").replace('\n', "\r");
