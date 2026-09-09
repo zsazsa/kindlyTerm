@@ -29,6 +29,8 @@ pub type TabId = u64;
 pub const SYS_DROP_TIMEOUT: TabId = u64::MAX - 1;
 /// Reserved `UserEvent.tab` value: a config file changed on disk.
 pub const SYS_CONFIG_CHANGED: TabId = u64::MAX - 2;
+/// Reserved `UserEvent.tab` value: control-socket requests are queued.
+pub const SYS_CONTROL: TabId = u64::MAX - 3;
 
 /// Event sent from the PTY thread to the winit event loop.
 #[derive(Debug)]

@@ -36,6 +36,17 @@ pub struct Config {
     pub colors: ColorConfig,
     pub clipboard: ClipboardConfig,
     pub input: InputConfig,
+    pub mcp: McpConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(default)]
+pub struct McpConfig {
+    /// Serve the control API on a private socket so `kindlyterm --mcp`
+    /// (Claude Code and other MCP clients) can read screens and type into
+    /// terminals. Off by default: anything running as your user could use
+    /// it while it is on.
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

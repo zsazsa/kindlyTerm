@@ -755,6 +755,22 @@ impl Deck {
             info_row("Config", &crate::config::config_dir().display().to_string()),
         ]));
         b.widgets.push(W::Note("alacritty_terminal · wgpu · winit · swash — from scratch in Rust".into()));
+
+        // Tool access is a security boundary, so it lives here, plainly.
+        let on = env.config.mcp.enabled;
+        let idx = b.simple(Act::App(DeckAction::SetMcp(!on)));
+        b.widgets.push(W::Group(vec![Row {
+            badge: Some(Badge { glyph: '⌬', color: if on { 3 } else { 8 } }),
+            title: "Let tools drive kindlyTerm (MCP)".into(),
+            hi: vec![],
+            subtitle: if on { "on: Claude Code can read screens and type via `kindlyterm --mcp`".into() } else { "off: no program can read or type into your terminals".into() },
+            value: String::new(),
+            kind: RowKind::Toggle(on),
+            enabled: true,
+            danger: false,
+            focus: Some(idx),
+        }]));
+        b.widgets.push(W::Note("register once: claude mcp add kindlyterm -- kindlyterm --mcp · every tool action shows in the tab bar".into()));
     }
 
     pub(super) fn build_editor(&self, _env: &DeckEnv, b: &mut Built) {

@@ -64,6 +64,7 @@ pub enum DeckAction {
     SetCursor(String),
     SetScrollback(usize),
     SetPersistentSessions(bool),
+    SetMcp(bool),
     SetShell(Option<String>),
     SetClipboard(ClipField, bool),
     SaveShortcut { cmd: SavedCommand, previous: Option<String> },

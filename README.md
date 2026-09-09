@@ -238,6 +238,32 @@ cursor, and whatever full-screen program was up (vim, htop, less).
 Hosts listen on Unix sockets in `$XDG_RUNTIME_DIR/kindlyterm/` (mode 0700,
 sockets 0600). Nothing touches the network.
 
+## Claude Code and other tools (MCP)
+
+kindlyTerm can be driven by an AI coding agent through the
+[Model Context Protocol](https://modelcontextprotocol.io). It is **off by
+default**. Turn it on in the Deck under *About → Let tools drive kindlyTerm*,
+then register the server once:
+
+```sh
+claude mcp add kindlyterm -- kindlyterm --mcp
+```
+
+Claude Code then gets tools to list canvases and terminals, read a
+terminal's screen or scrollback, type text and keys, open and close
+terminals (with a command and working directory), move, resize, rename,
+group, pin and mirror items, watch a terminal for silence, place images,
+set the view, and take a screenshot. Every action that types, closes, or
+moves something is announced in the tab bar.
+
+How it works: with the toggle on, the running app serves a small JSON API on
+a private Unix socket (`$XDG_RUNTIME_DIR/kindlyterm/control.sock`, mode
+0600). `kindlyterm --mcp` is a stdio bridge that Claude Code spawns; it
+forwards each tool call to that socket. Nothing listens on the network, and
+turning the toggle off removes the socket immediately. While it is on, any
+program running as your user can read your terminals and type into them,
+which is the whole point and the whole risk.
+
 ## Cursor
 
 The cursor is animated: it glides between cells with a short trail instead of
@@ -366,6 +392,9 @@ opacity = 1.0          # 0.3..1.0 window translucency (Deck → Appearance → O
   answers terminal size and device-attribute queries itself while no window
   is attached, so a program cannot hang, but colour and clipboard requests
   wait for a window.
+- **Control API (MCP)** is off by default. When on, it is a user-private
+  Unix socket; the Deck's About page says so plainly and every tool action
+  is shown in the tab bar.
 - **Developer hooks** below are inert unless `KINDLYTERM_DEBUG=1` is set.
 - **Distributing binaries**: release builds are stripped. To also keep your
   home directory out of panic messages, add to `~/.cargo/config.toml`:
@@ -399,6 +428,14 @@ src/app/debug.rs    developer hooks (KINDLYTERM_DEBUG=1)
 src/canvas.rs       canvas model: viewport maths, items, hit testing, state.json
 src/session.rs      UI <-> host wire protocol and the session socket directory
 src/host.rs         the detached PTY host: output ring, headless Term, snapshots
+src/control.rs      control socket: JSON lines between the UI and tool bridges
+src/mcp.rs          `--mcp` stdio Model Context Protocol server (Claude Code)
+src/app/control_api.rs what each tool does inside the app
+src/app/groups.rs   multi-selection and group frames
+src/app/pins.rs     pinned items and mirrors
+src/app/images.rs   images on the canvas
+src/app/links.rs    URL / OSC 8 link detection
+src/app/watch.rs    live config reload
 src/terminal.rs     one terminal: alacritty Term + local PTY thread or a session-host client
 src/renderer.rs  wgpu pipeline: instanced quads (rects + glyphs)
 src/shader.wgsl  the one shader
@@ -420,7 +457,6 @@ src/config.rs    config.toml and commands.toml
 - Mouse reporting to applications (vim/htop mouse mode)
 - Bell
 - Search in scrollback
-- Canvas: groups, pins, mirrors, images, MCP server (see `docs/PLAN-canvas.md`)
 - Deck: shortcut folders, aliases, per-row font previews, ligatures, undo after launch
 
 ## License

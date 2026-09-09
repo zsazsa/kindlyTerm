@@ -62,6 +62,7 @@ macro_rules! deck_env {
 }
 
 mod canvas_ui;
+mod control_api;
 mod debug;
 mod groups;
 mod images;
@@ -357,6 +358,8 @@ pub struct App {
     proxy: EventLoopProxy<UserEvent>,
     /// Keeps the config-directory watcher alive.
     _watcher: Option<notify::RecommendedWatcher>,
+    /// Control socket server while the API is enabled.
+    control: Option<crate::control::Server>,
 
     /// All open windows; `cur` is the one the event being handled belongs to.
     wins: Vec<Win>,
@@ -452,6 +455,7 @@ impl App {
             store,
             proxy,
             _watcher: watcher,
+            control: None,
             wins: Vec::new(),
             cur: 0,
             font_pt,
@@ -1440,6 +1444,12 @@ impl App {
                 self.apply_term_options();
                 self.save_config();
             }
+            DeckAction::SetMcp(on) => {
+                self.config.mcp.enabled = on;
+                self.save_config();
+                self.sync_control_server();
+                self.win_mut().deck.set_toast(if on { "control API on: kindlyterm --mcp can drive this window".into() } else { "control API off".into() });
+            }
             DeckAction::SetPersistentSessions(on) => {
                 self.config.terminal.persistent_sessions = on;
                 self.save_config();
@@ -1803,6 +1813,7 @@ impl ApplicationHandler<UserEvent> for App {
         // Shells still running from a previous life that no saved item
         // claimed (a crash, or state.json lost): give them a home.
         self.adopt_orphans();
+        self.sync_control_server();
 
         if std::env::args().any(|a| a == "--deck") {
             self.win_mut().deck.open(PageId::Home);
@@ -1871,6 +1882,13 @@ impl ApplicationHandler<UserEvent> for App {
         if event.tab == crate::terminal::SYS_CONFIG_CHANGED {
             if !self.wins.is_empty() {
                 self.reload_config_files();
+                self.sync_control_server();
+            }
+            return;
+        }
+        if event.tab == crate::terminal::SYS_CONTROL {
+            if !self.wins.is_empty() {
+                self.drain_control_requests(event_loop);
             }
             return;
         }

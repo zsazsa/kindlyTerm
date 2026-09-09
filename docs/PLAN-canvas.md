@@ -244,4 +244,4 @@ Rough relative sizes: 1 small · 2 large · 3 large · 4 large · 5 medium ·
 - [x] Phase 3: PTY hosts (`--host` process per shell, framed Unix-socket protocol, 8 MiB replay ring, headless Term snapshot incl. alt screen + modes + kitty flags, size-aware replay/snapshot choice, kill on close vs detach on quit, orphan adoption onto a Recovered canvas, `--sessions [--prune]`, Deck toggle, in-process fallback)
 - [x] Phase 4: spatial features (Shift-select + rubber band, groups with containment membership, pins in screen space, mirrors, inactivity monitor, images incl. animated GIF via drop/paste, minimap level of detail below 6px cells)
 - [x] Phase 5: keyboard and text (kitty keyboard protocol with unit tests, prompt-time PageUp/PageDown, OSC 8 + URL links with Ctrl+hover/click and menu, live reload of the three config files via inotify; fitted box-drawing glyphs deferred)
-- [ ] Phase 6: MCP server
+- [x] Phase 6: MCP server (control socket behind a Deck toggle, `--mcp` stdio bridge, 27 tools; every mutating call announced in the tab bar)

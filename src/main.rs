@@ -4,11 +4,13 @@
 mod app;
 mod canvas;
 mod config;
+mod control;
 mod deck;
 mod effects;
 mod font;
 mod host;
 mod keys;
+mod mcp;
 mod menu;
 mod palette;
 mod renderer;
@@ -33,8 +35,9 @@ fn main() -> Result<()> {
     match argv.next().as_deref() {
         Some("--host") => return host::run(host::HostArgs::parse(argv)?),
         Some("--sessions") => return host::sessions_cli(argv.any(|a| a == "--prune")),
+        Some("--mcp") => return mcp::run(),
         Some("--help") | Some("-h") => {
-            println!("kindlyterm [--sessions [--prune]]\n\n  --sessions   list detached shell sessions (add --prune to drop dead ones)");
+            println!("kindlyterm [--sessions [--prune]] [--mcp]\n\n  --sessions   list detached shell sessions (add --prune to drop dead ones)\n  --mcp        stdio MCP server for Claude Code and friends (needs the control API on in the Deck)");
             return Ok(());
         }
         _ => {}
