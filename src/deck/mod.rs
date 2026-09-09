@@ -63,6 +63,7 @@ pub enum DeckAction {
     Effect(EffectChange),
     SetCursor(String),
     SetScrollback(usize),
+    SetPersistentSessions(bool),
     SetShell(Option<String>),
     SetClipboard(ClipField, bool),
     SaveShortcut { cmd: SavedCommand, previous: Option<String> },

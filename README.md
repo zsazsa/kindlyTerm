@@ -178,8 +178,33 @@ holding a free canvas show a `▦` marker in the tab bar.
 
 The layout (windows, tabs, item positions, zoom, and what each item was
 launched with) is saved to `~/.config/kindlyterm/state.json` and restored on
-the next start. Shells start fresh; the coming PTY host phase will keep them
-running across restarts.
+the next start, together with the shells themselves (next section).
+
+## Shells that survive a restart
+
+Every shell runs in its own small host process, detached from the window.
+Quit kindlyTerm, log back in later, or crash it: the shells keep running,
+and the next start attaches to them again with their scrollback, colours,
+cursor, and whatever full-screen program was up (vim, htop, less).
+
+- **Closing** a tab, a terminal on a canvas, or one window of several ends
+  its shell, exactly as before. Only quitting (or closing the last window)
+  leaves shells running.
+- **Reattaching** is exact when the window is the same size: the host keeps
+  the last 8 MiB of raw output and replays it. Otherwise, or when more has
+  scrolled by, the host re-creates the screen and history from its own copy
+  of the terminal (the way tmux attaches).
+- **Recovery**: a running shell that no saved layout claims (for example
+  after `state.json` was deleted) comes back on a canvas tab called
+  *Recovered*.
+- `kindlyterm --sessions` lists the hosts (`--prune` removes leftovers of
+  dead ones). Inside a hosted shell, `$KINDLYTERM_SESSION` is its id.
+- Turn it off in the Deck under *Terminal → Scrollback → Keep shells
+  running*, or with `terminal.persistent_sessions = false`; shells then run
+  in-process and end with the window.
+
+Hosts listen on Unix sockets in `$XDG_RUNTIME_DIR/kindlyterm/` (mode 0700,
+sockets 0600). Nothing touches the network.
 
 ## Cursor
 
@@ -280,6 +305,7 @@ shell_args = []        # e.g. ["-l"] for a login shell
 padding = 6.0
 cursor = "block"       # block | beam | underline
 cursor_animation = "breathe"   # breathe | blink | none
+persistent_sessions = true     # shells run in detached hosts and survive a restart
 
 [colors]
 foreground = "#d8dee9"
@@ -301,6 +327,11 @@ opacity = 1.0          # 0.3..1.0 window translucency (Deck → Appearance → O
   support bracketed paste, so every newline would run a command, a confirm
   dialog asks first (`clipboard.confirm_multiline_paste`).
 - **Shortcut hotkeys** cannot take Ctrl+C, Ctrl+D, or Ctrl+Z from the shell.
+- **Session hosts** are ordinary user processes talking over private Unix
+  sockets in your runtime directory; there is no network listener. A host
+  answers terminal size and device-attribute queries itself while no window
+  is attached, so a program cannot hang, but colour and clipboard requests
+  wait for a window.
 - **Developer hooks** below are inert unless `KINDLYTERM_DEBUG=1` is set.
 - **Distributing binaries**: release builds are stripped. To also keep your
   home directory out of panic messages, add to `~/.cargo/config.toml`:
@@ -317,6 +348,8 @@ Set `KINDLYTERM_DEBUG=1` to enable these environment variables while developing:
   applies actions just before the screenshot frame, or after `KINDLYTERM_ACTIONS_AFTER=ms`.
   If the screenshot has not been taken when `KINDLYTERM_EXIT_AFTER` fires, it is taken at exit.
 - `KINDLYTERM_EXIT_AFTER=3000` quits after N milliseconds.
+- `KINDLYTERM_SESSION_DIR=/run/user/1000/kt-test` keeps a test run's session
+  hosts apart from your real ones (must be a short path: it holds sockets).
 - `RUST_LOG=kindlyterm=debug` for verbose logs.
 
 ## Layout
@@ -330,7 +363,9 @@ src/app/windows.rs  window lifecycle, tab tear-off / merge, wake-ups
 src/app/canvas_ui.rs canvas interaction, drawing, and state save/restore
 src/app/debug.rs    developer hooks (KINDLYTERM_DEBUG=1)
 src/canvas.rs       canvas model: viewport maths, items, hit testing, state.json
-src/terminal.rs     one PTY + alacritty Term + I/O thread
+src/session.rs      UI <-> host wire protocol and the session socket directory
+src/host.rs         the detached PTY host: output ring, headless Term, snapshots
+src/terminal.rs     one terminal: alacritty Term + local PTY thread or a session-host client
 src/renderer.rs  wgpu pipeline: instanced quads (rects + glyphs)
 src/shader.wgsl  the one shader
 src/font.rs      fontdb/swash loading, glyph atlas, fallback fonts
@@ -351,7 +386,7 @@ src/config.rs    config.toml and commands.toml
 - Mouse reporting to applications (vim/htop mouse mode)
 - Bell, hyperlink (OSC 8) clicking
 - Search in scrollback, config hot reload
-- Canvas: persistent PTY hosts, groups, pins, mirrors, images, MCP server (see `docs/PLAN-canvas.md`)
+- Canvas: groups, pins, mirrors, images, MCP server (see `docs/PLAN-canvas.md`)
 - Deck: shortcut folders, aliases, per-row font previews, ligatures, undo after launch
 
 ## License

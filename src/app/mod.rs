@@ -585,6 +585,18 @@ impl App {
     }
 
     /// alacritty options derived from the config.
+    /// Start a terminal for `launch`: a detached, persistent session when
+    /// enabled (the default), else an in-process shell.
+    fn launch_terminal(&self, id: TabId, launch: &Launch, grid: GridSize) -> anyhow::Result<Terminal> {
+        if self.config.terminal.persistent_sessions {
+            match Terminal::spawn_hosted(id, self.proxy.clone(), launch, grid, self.term_config()) {
+                Ok(t) => return Ok(t),
+                Err(e) => log::warn!("session host unavailable, running the shell in-process: {e:#}"),
+            }
+        }
+        Terminal::spawn(id, self.proxy.clone(), launch, grid, self.term_config())
+    }
+
     fn term_config(&self) -> TermConfig {
         let shape = match self.config.terminal.cursor.to_lowercase().as_str() {
             "beam" => CursorShape::Beam,
@@ -609,7 +621,7 @@ impl App {
         }
         let id = self.next_id;
         self.next_id += 1;
-        match Terminal::spawn(id, self.proxy.clone(), &launch, self.grid_size(), self.term_config()) {
+        match self.launch_terminal(id, &launch, self.grid_size()) {
             Ok(term) => {
                 let item_id = self.next_item_id;
                 self.next_item_id += 1;
@@ -651,7 +663,7 @@ impl App {
         let grid = self.win().grid_for_rect(rect);
         let id = self.next_id;
         self.next_id += 1;
-        match Terminal::spawn(id, self.proxy.clone(), &launch, grid, self.term_config()) {
+        match self.launch_terminal(id, &launch, grid) {
             Ok(term) => {
                 let item_id = self.next_item_id;
                 self.next_item_id += 1;
@@ -739,7 +751,7 @@ impl App {
         for t in c.tabs() {
             if let Some(i) = w.term_index(t) {
                 let term = w.terms.remove(i);
-                term.shutdown();
+                term.kill();
             }
         }
         w.dirty = true;
@@ -768,7 +780,7 @@ impl App {
         }
         if let Some(i) = w.term_index(tab) {
             let term = w.terms.remove(i);
-            term.shutdown();
+            term.kill();
         }
         let c = &mut w.canvases[ci];
         if let Some(pos) = c.items.iter().position(|i| matches!(i.kind, ItemKind::Terminal(t) if t == tab)) {
@@ -1328,6 +1340,10 @@ impl App {
                 self.apply_term_options();
                 self.save_config();
             }
+            DeckAction::SetPersistentSessions(on) => {
+                self.config.terminal.persistent_sessions = on;
+                self.save_config();
+            }
             DeckAction::SetShell(shell) => {
                 self.config.terminal.shell = shell;
                 self.save_config();
@@ -1434,7 +1450,7 @@ impl App {
                 }
             }
             MenuAction::NewWindow => {
-                self.create_window(event_loop, None);
+                self.create_window(event_loop, windows::NewWindow::Shell);
             }
             MenuAction::CheatSheet => {
                 self.win_mut().cheat = true;
@@ -1639,34 +1655,28 @@ impl ApplicationHandler<UserEvent> for App {
             Some(st) => {
                 let mut wins = st.windows.into_iter();
                 let first = wins.next().expect("non-empty");
-                let Some(wi) = self.create_window(event_loop, None) else {
+                let Some(wi) = self.create_window(event_loop, windows::NewWindow::Empty) else {
                     event_loop.exit();
                     return;
                 };
-                // create_window opened a default shell tab; replace it.
-                self.win_mut().canvases.clear();
-                for t in self.win_mut().terms.drain(..) {
-                    t.shutdown();
-                }
                 self.restore_window(wi, first);
                 for sw in wins {
-                    if let Some(wi) = self.create_window(event_loop, None) {
-                        self.win_mut().canvases.clear();
-                        for t in self.win_mut().terms.drain(..) {
-                            t.shutdown();
-                        }
+                    if let Some(wi) = self.create_window(event_loop, windows::NewWindow::Empty) {
                         self.restore_window(wi, sw);
                     }
                 }
                 self.cur = 0;
             }
             None => {
-                if self.create_window(event_loop, None).is_none() {
+                if self.create_window(event_loop, windows::NewWindow::Shell).is_none() {
                     event_loop.exit();
                     return;
                 }
             }
         }
+        // Shells still running from a previous life that no saved item
+        // claimed (a crash, or state.json lost): give them a home.
+        self.adopt_orphans();
 
         if std::env::args().any(|a| a == "--deck") {
             self.win_mut().deck.open(PageId::Home);
@@ -1689,6 +1699,15 @@ impl ApplicationHandler<UserEvent> for App {
                 std::thread::sleep(std::time::Duration::from_millis(ms));
                 let _ = proxy.send_event(UserEvent { tab: 0, event: Event::Wakeup });
             });
+        }
+    }
+
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        // Whatever path led here (Ctrl+Shift+Q, last window closed, debug
+        // timer), leave the layout on disk so detached shells find their
+        // places again.
+        if !self.wins.is_empty() {
+            self.save_state();
         }
     }
 

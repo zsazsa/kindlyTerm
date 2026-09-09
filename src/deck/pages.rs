@@ -561,6 +561,23 @@ impl Deck {
             focus: Some(idx),
         }]));
         b.widgets.push(W::Note("←→ steps · applies to open tabs too".into()));
+
+        // Detached sessions live here too: they decide what "history" means
+        // across a restart.
+        let on = env.config.terminal.persistent_sessions;
+        let idx = b.simple(Act::App(DeckAction::SetPersistentSessions(!on)));
+        b.widgets.push(W::Group(vec![Row {
+            badge: Some(Badge { glyph: '∞', color: 2 }),
+            title: "Keep shells running".into(),
+            hi: vec![],
+            subtitle: "shells outlive the window and come back on the next start".into(),
+            value: String::new(),
+            kind: RowKind::Toggle(on),
+            enabled: true,
+            danger: false,
+            focus: Some(idx),
+        }]));
+        b.widgets.push(W::Note("new shells only · closing a tab still ends its shell · kindlyterm --sessions lists them".into()));
     }
 
     pub(super) fn build_tabs(&self, env: &DeckEnv, b: &mut Built) {

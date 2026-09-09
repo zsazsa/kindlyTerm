@@ -3,10 +3,20 @@
 
 use super::*;
 
+/// What a new window starts with.
+pub(super) enum NewWindow {
+    /// One tab with a fresh shell.
+    Shell,
+    /// Nothing; the caller fills it (state restore).
+    Empty,
+    /// A canvas and its terminals moved from another window.
+    Bundle(Canvas, Vec<Terminal>),
+}
+
 impl App {
     /// Create a new top-level window holding `tabs` (may be empty, in which
     /// case a shell tab is opened). Returns its index in `wins`.
-    pub(super) fn create_window(&mut self, event_loop: &ActiveEventLoop, bundle: Option<(Canvas, Vec<Terminal>)>) -> Option<usize> {
+    pub(super) fn create_window(&mut self, event_loop: &ActiveEventLoop, content: NewWindow) -> Option<usize> {
         // The app id / WM_CLASS must match the .desktop file name so GNOME
         // pairs the window with its launcher entry and icon.
         #[allow(unused_mut)]
@@ -102,8 +112,8 @@ impl App {
         let wi = self.wins.len() - 1;
         self.cur = wi;
         self.relayout_win(wi);
-        match bundle {
-            Some((canvas, terms)) => {
+        match content {
+            NewWindow::Bundle(canvas, terms) => {
                 let w = &mut self.wins[wi];
                 w.terms = terms;
                 w.canvases.push(canvas);
@@ -112,10 +122,11 @@ impl App {
                 self.relayout_win(wi);
                 self.update_window_title();
             }
-            None => {
+            NewWindow::Shell => {
                 let launch = self.shell_launch();
                 self.open_tab(launch);
             }
+            NewWindow::Empty => {}
         }
         Some(wi)
     }
@@ -129,9 +140,18 @@ impl App {
         if self.wins.len() == 1 {
             self.save_state();
         }
+        let last = self.wins.len() == 1;
         let w = self.wins.remove(wi);
         for t in &w.terms {
-            t.shutdown();
+            if last {
+                // Quitting: detached sessions keep running and come back
+                // with the saved layout next time.
+                t.shutdown();
+            } else {
+                // Closing one window of several: its tabs are gone from the
+                // layout, so end their shells like closing the tabs would.
+                t.kill();
+            }
         }
         drop(w);
         if !self.wins.is_empty() {
@@ -214,7 +234,7 @@ impl App {
         }
         let title = self.wins[from].tab_title(index);
         let Some(bundle) = self.detach_canvas(from, index, event_loop) else { return };
-        match self.create_window(event_loop, Some(bundle)) {
+        match self.create_window(event_loop, NewWindow::Bundle(bundle.0, bundle.1)) {
             Some(wi) => {
                 log::info!("tear-off: '{title}' -> new window ({} windows)", self.wins.len());
                 self.wins[wi].status = Some((format!("{title} → new window"), Instant::now()));

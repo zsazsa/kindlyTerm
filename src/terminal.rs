@@ -1,8 +1,17 @@
-//! One terminal session: a PTY, the alacritty grid/parser, and its I/O thread.
+//! One terminal session: the alacritty grid/parser plus either an
+//! in-process PTY (local backend) or a connection to a detached PTY host
+//! (remote backend, see `host.rs` / `session.rs`).
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::io::Write;
+use std::os::unix::net::UnixStream;
 use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::Duration;
+
+use alacritty_terminal::vte::ansi::Processor;
 
 use alacritty_terminal::event::{Event, EventListener, Notify, OnResize, WindowSize};
 use alacritty_terminal::event_loop::{EventLoop as PtyEventLoop, EventLoopSender, Msg, Notifier};
@@ -31,10 +40,23 @@ pub struct UserEvent {
 pub struct EventProxy {
     tab: TabId,
     proxy: EventLoopProxy<UserEvent>,
+    /// Remote terminals: the host answers device queries, the UI must not.
+    remote: bool,
+    /// Set while catching up (replay or snapshot): the output is old, so
+    /// no query answers, clipboard writes, or bells.
+    quiet: Arc<AtomicBool>,
 }
 
 impl EventListener for EventProxy {
     fn send_event(&self, event: Event) {
+        if self.remote && matches!(event, Event::PtyWrite(_) | Event::TextAreaSizeRequest(_)) {
+            return;
+        }
+        if self.quiet.load(Ordering::Relaxed)
+            && matches!(event, Event::ColorRequest(..) | Event::ClipboardStore(..) | Event::ClipboardLoad(..) | Event::Bell | Event::Wakeup)
+        {
+            return;
+        }
         let _ = self.proxy.send_event(UserEvent { tab: self.tab, event });
     }
 }
@@ -83,11 +105,29 @@ pub struct Launch {
     pub shortcut: Option<String>,
 }
 
+enum Backend {
+    /// PTY and I/O thread inside this process.
+    Local { notifier: Notifier, sender: EventLoopSender },
+    /// Detached host reached over a Unix socket.
+    Remote { tx: Arc<Mutex<UnixStream>> },
+}
+
+/// Facts a host reports about itself when the UI attaches.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct HostInfo {
+    pub title: Option<String>,
+    pub program: String,
+    pub cwd: Option<String>,
+    pub pid: u32,
+}
+
 pub struct Terminal {
     pub id: TabId,
     pub term: Arc<FairMutex<Term<EventProxy>>>,
-    notifier: Notifier,
-    sender: EventLoopSender,
+    backend: Backend,
+    /// Detached session id when hosted; None for an in-process shell.
+    pub session: Option<String>,
     /// Title set by the running program via OSC, if any.
     pub title: Option<String>,
     /// Title given at launch (saved-command name or shell name).
@@ -110,7 +150,7 @@ impl Terminal {
         size: GridSize,
         config: TermConfig,
     ) -> Result<Self> {
-        let event_proxy = EventProxy { tab: id, proxy };
+        let event_proxy = EventProxy { tab: id, proxy, remote: false, quiet: Arc::new(AtomicBool::new(false)) };
 
         let term = Term::new(config, &size, event_proxy.clone());
         let term = Arc::new(FairMutex::new(term));
@@ -137,8 +177,8 @@ impl Terminal {
         Ok(Self {
             id,
             term,
-            notifier,
-            sender,
+            backend: Backend::Local { notifier, sender },
+            session: None,
             title: None,
             custom_title: None,
             base_title: launch.title.clone(),
@@ -149,13 +189,156 @@ impl Terminal {
         })
     }
 
+    /// Start a detached host for `launch` and attach to it. The shell keeps
+    /// running when this process exits; `session` names it for later.
+    pub fn spawn_hosted(
+        id: TabId,
+        proxy: EventLoopProxy<UserEvent>,
+        launch: &Launch,
+        size: GridSize,
+        config: TermConfig,
+    ) -> Result<Self> {
+        let session = crate::session::new_id();
+        crate::session::ensure_dir().context("session dir")?;
+        let exe = std::env::current_exe().context("current exe")?;
+        let log = std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(crate::session::log_path(&session)).ok();
+        let mut cmd = std::process::Command::new(exe);
+        cmd.arg("--host")
+            .arg(&session)
+            .arg("--size")
+            .arg(format!("{}x{}x{}x{}", size.cols, size.rows, size.cell_width, size.cell_height))
+            .arg("--history")
+            .arg(config.scrolling_history.to_string());
+        if let Some(cwd) = &launch.cwd {
+            cmd.arg("--cwd").arg(cwd);
+        }
+        cmd.arg("--").arg(&launch.program).args(&launch.args);
+        cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null());
+        match log {
+            Some(f) => {
+                cmd.stderr(f);
+            }
+            None => {
+                cmd.stderr(std::process::Stdio::null());
+            }
+        }
+        // The host binds its socket, forks, and the parent returns at once.
+        let status = cmd.status().context("starting session host")?;
+        if !status.success() {
+            let why = std::fs::read_to_string(crate::session::log_path(&session)).unwrap_or_default();
+            anyhow::bail!("session host failed to start: {}", why.lines().last().unwrap_or("no details"));
+        }
+        let mut t = Self::attach(id, proxy, &session, size, config, launch.title.clone())?;
+        t.shortcut = launch.shortcut.clone();
+        Ok(t)
+    }
+
+    /// Attach to an existing host. A fresh grid is caught up by replay or
+    /// snapshot before the first frame is shown.
+    pub fn attach(
+        id: TabId,
+        proxy: EventLoopProxy<UserEvent>,
+        session: &str,
+        size: GridSize,
+        config: TermConfig,
+        fallback_title: String,
+    ) -> Result<Self> {
+        let path = crate::session::socket_path(session);
+        let mut stream = UnixStream::connect(&path).with_context(|| format!("connecting to session {session}"))?;
+        stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
+        let hello = crate::session::ToHost::Hello {
+            last_seq: crate::session::SEQ_NONE,
+            cols: size.cols as u16,
+            rows: size.rows as u16,
+            cell_w: size.cell_width,
+            cell_h: size.cell_height,
+        };
+        stream.write_all(&hello.encode()).context("hello")?;
+        let info = match crate::session::read_from_host(&mut stream) {
+            Ok(Some(crate::session::FromHost::Attached { title, program, cwd, pid, .. })) => HostInfo { title, program, cwd, pid },
+            Ok(other) => anyhow::bail!("unexpected answer from session host: {other:?}"),
+            Err(e) => return Err(e).context("reading from session host"),
+        };
+        stream.set_read_timeout(None).ok();
+
+        let quiet = Arc::new(AtomicBool::new(true));
+        let event_proxy = EventProxy { tab: id, proxy: proxy.clone(), remote: true, quiet: quiet.clone() };
+        let term = Arc::new(FairMutex::new(Term::new(config, &size, event_proxy)));
+        let rx = stream.try_clone().context("dup socket")?;
+        let tx = Arc::new(Mutex::new(stream));
+        let base_title = std::path::Path::new(&info.program).file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or(fallback_title);
+
+        {
+            let term = term.clone();
+            let quiet = quiet.clone();
+            let seq = Arc::new(AtomicU64::new(0));
+            std::thread::Builder::new().name(format!("session-{session}")).spawn(move || {
+                let mut rx = rx;
+                let mut parser: Processor = Processor::default();
+                loop {
+                    match crate::session::read_from_host(&mut rx) {
+                        Ok(Some(crate::session::FromHost::Output { seq: s, bytes })) => {
+                            {
+                                let mut t = term.lock();
+                                parser.advance(&mut *t, &bytes);
+                            }
+                            seq.store(s + bytes.len() as u64, Ordering::Relaxed);
+                            if !quiet.load(Ordering::Relaxed) {
+                                let _ = proxy.send_event(UserEvent { tab: id, event: Event::Wakeup });
+                            }
+                        }
+                        Ok(Some(crate::session::FromHost::Live { seq: s })) => {
+                            seq.store(s, Ordering::Relaxed);
+                            quiet.store(false, Ordering::Relaxed);
+                            let _ = proxy.send_event(UserEvent { tab: id, event: Event::Wakeup });
+                        }
+                        Ok(Some(crate::session::FromHost::Exited { .. })) => {
+                            let _ = proxy.send_event(UserEvent { tab: id, event: Event::Exit });
+                            break;
+                        }
+                        Ok(Some(_)) => {}
+                        Ok(None) | Err(_) => {
+                            // Host gone (or we detached). A dead host takes
+                            // its shell with it, so treat it as an exit.
+                            let _ = proxy.send_event(UserEvent { tab: id, event: Event::Exit });
+                            break;
+                        }
+                    }
+                }
+            })?;
+        }
+
+        Ok(Self {
+            id,
+            term,
+            backend: Backend::Remote { tx },
+            session: Some(session.to_string()),
+            title: info.title.clone(),
+            custom_title: None,
+            base_title,
+            exited: false,
+            size,
+            view: Default::default(),
+            shortcut: None,
+        })
+    }
+
     pub fn display_title(&self) -> &str {
         self.custom_title.as_deref().or(self.title.as_deref()).unwrap_or(&self.base_title)
     }
 
     /// Write bytes to the child process.
     pub fn write<B: Into<Cow<'static, [u8]>>>(&self, bytes: B) {
-        self.notifier.notify(bytes);
+        match &self.backend {
+            Backend::Local { notifier, .. } => notifier.notify(bytes),
+            Backend::Remote { tx } => {
+                let b: Cow<'static, [u8]> = bytes.into();
+                let frame = crate::session::ToHost::Input(b.into_owned()).encode();
+                if let Ok(mut s) = tx.lock() {
+                    let _ = s.write_all(&frame);
+                }
+            }
+        }
     }
 
     pub fn resize(&mut self, size: GridSize) {
@@ -164,7 +347,29 @@ impl Terminal {
         }
         self.size = size;
         self.term.lock().resize(size);
-        self.notifier.on_resize(size.into());
+        match &mut self.backend {
+            Backend::Local { notifier, .. } => notifier.on_resize(size.into()),
+            Backend::Remote { tx } => {
+                let frame = crate::session::ToHost::Resize { cols: size.cols as u16, rows: size.rows as u16, cell_w: size.cell_width, cell_h: size.cell_height }.encode();
+                if let Ok(mut s) = tx.lock() {
+                    let _ = s.write_all(&frame);
+                }
+            }
+        }
+    }
+
+    /// End the shell for good: hang it up (hosted sessions die with it).
+    pub fn kill(&self) {
+        match &self.backend {
+            Backend::Local { sender, .. } => {
+                let _ = sender.send(Msg::Shutdown);
+            }
+            Backend::Remote { tx } => {
+                if let Ok(mut s) = tx.lock() {
+                    let _ = s.write_all(&crate::session::ToHost::Kill.encode());
+                }
+            }
+        }
     }
 
     /// Apply new terminal options (cursor style, scrollback) live.
@@ -176,8 +381,19 @@ impl Terminal {
         self.term.lock().scroll_display(scroll);
     }
 
+    /// Let go of the terminal. In-process shells end; hosted sessions keep
+    /// running detached.
     pub fn shutdown(&self) {
-        let _ = self.sender.send(Msg::Shutdown);
+        match &self.backend {
+            Backend::Local { sender, .. } => {
+                let _ = sender.send(Msg::Shutdown);
+            }
+            Backend::Remote { tx } => {
+                if let Ok(s) = tx.lock() {
+                    let _ = s.shutdown(std::net::Shutdown::Both);
+                }
+            }
+        }
     }
 }
 

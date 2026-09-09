@@ -1071,6 +1071,7 @@ dependencies = [
  "dirs",
  "env_logger",
  "fontdb",
+ "libc",
  "log",
  "nucleo-matcher",
  "png",

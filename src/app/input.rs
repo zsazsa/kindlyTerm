@@ -158,7 +158,7 @@ impl App {
                         return true;
                     }
                     "n" => {
-                        self.create_window(event_loop, None);
+                        self.create_window(event_loop, super::windows::NewWindow::Shell);
                         return true;
                     }
                     "p" => {

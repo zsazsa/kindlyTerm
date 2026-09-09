@@ -116,6 +116,9 @@ pub struct TerminalConfig {
     /// Reading lets any program, including a remote ssh host, exfiltrate
     /// whatever you last copied, so "both" is opt-in.
     pub osc52: String,
+    /// Run each shell in a detached host process so it survives closing
+    /// and reopening kindlyTerm. Closing a tab or terminal still ends it.
+    pub persistent_sessions: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,7 +153,7 @@ impl Default for FontConfig {
 
 impl Default for TerminalConfig {
     fn default() -> Self {
-        Self { scrollback: 10_000, shell: None, shell_args: vec![], padding: 6.0, cursor: "block".into(), cursor_animation: "breathe".into(), osc52: "copy".into() }
+        Self { scrollback: 10_000, shell: None, shell_args: vec![], padding: 6.0, cursor: "block".into(), cursor_animation: "breathe".into(), osc52: "copy".into(), persistent_sessions: true }
     }
 }
 

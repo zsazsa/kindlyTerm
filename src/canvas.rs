@@ -137,6 +137,9 @@ pub struct LaunchSpec {
     /// Saved-command name, or None for a plain shell.
     pub shortcut: Option<String>,
     pub cwd: Option<String>,
+    /// Detached session id, when the shell lives in a PTY host.
+    #[serde(default)]
+    pub session: Option<String>,
 }
 
 /// How a canvas tab presents itself.

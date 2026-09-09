@@ -236,6 +236,16 @@ impl App {
                     _ if a == "fit" => self.fit_all(),
                     _ if a == "focusmode" => self.toggle_focus_mode(),
                     _ if a == "maximize" => self.maximize_canvas(),
+                    _ if a == "newwindow" => {
+                        if let Some(el) = event_loop {
+                            self.create_window(el, super::windows::NewWindow::Shell);
+                        }
+                    }
+                    _ if a == "closewindow" => {
+                        if let Some(el) = event_loop {
+                            self.close_window(self.cur, el);
+                        }
+                    }
                     _ if a == "closeterm" => {
                         if let (Some(t), Some(el)) = (self.win().focused_tab(), event_loop) {
                             self.close_terminal(t, el);

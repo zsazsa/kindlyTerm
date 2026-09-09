@@ -702,9 +702,8 @@ impl App {
                         // The terminal itself is not persisted (yet): keep its
                         // launch spec and custom title so it can be recreated.
                         if let Some(x) = w.term(t) {
-                            if it.launch.is_none() {
-                                it.launch = Some(LaunchSpec { shortcut: x.shortcut.clone(), cwd: None });
-                            }
+                            let spec = it.launch.get_or_insert_with(|| LaunchSpec { shortcut: x.shortcut.clone(), cwd: None, session: None });
+                            spec.session = x.session.clone();
                             if x.custom_title.is_some() {
                                 it.name = x.custom_title.clone();
                             }
@@ -723,6 +722,67 @@ impl App {
             w.dirty = false;
         }
         self.last_save = Instant::now();
+    }
+
+    /// Attach every live session host nothing claimed and put them on a
+    /// "Recovered" canvas tab in the current window.
+    pub(super) fn adopt_orphans(&mut self) {
+        if self.wins.is_empty() {
+            return;
+        }
+        let claimed: std::collections::HashSet<String> =
+            self.wins.iter().flat_map(|w| w.terms.iter().filter_map(|t| t.session.clone())).collect();
+        let orphans: Vec<String> = crate::session::list_ids().into_iter().filter(|id| !claimed.contains(id)).collect();
+        if orphans.is_empty() {
+            return;
+        }
+        let Some(l) = self.win().layout else { return };
+        let (iw, ih) = self.win().rect_for_grid(80, 24);
+        let mut canvas: Option<Canvas> = None;
+        for sid in orphans {
+            let grid = self.win().grid_for_rect(WRect::new(0.0, 0.0, iw, ih));
+            let id = self.next_id;
+            self.next_id += 1;
+            let term = match Terminal::attach(id, self.proxy.clone(), &sid, grid, self.term_config(), "shell".into()) {
+                Ok(t) => t,
+                Err(e) => {
+                    log::info!("dropping stale session {sid}: {e:#}");
+                    crate::session::remove_files(&sid);
+                    continue;
+                }
+            };
+            let c = canvas.get_or_insert_with(|| {
+                let cid = self.next_canvas_id;
+                self.next_canvas_id += 1;
+                Canvas::new(cid, "Recovered")
+            });
+            let rect = c.spawn_rect(l.area, iw, ih);
+            let item_id = self.next_item_id;
+            self.next_item_id += 1;
+            c.items.push(Item { id: item_id, kind: ItemKind::Terminal(id), rect, name: None, launch: Some(LaunchSpec { shortcut: None, cwd: None, session: Some(sid.clone()) }) });
+            c.focus = Some(item_id);
+            self.win_mut().terms.push(term);
+            log::info!("recovered session {sid}");
+        }
+        if let Some(mut c) = canvas {
+            let n = c.items.len();
+            if let Some(b) = c.bounds() {
+                c.view.fit(l.area, b, 40.0);
+                if c.view.zoom > 1.0 {
+                    c.view.zoom = 1.0;
+                    let (cx, cy) = b.center();
+                    c.view.x = cx - l.area.w / 2.0;
+                    c.view.y = cy - l.area.h / 2.0;
+                }
+            }
+            let w = self.win_mut();
+            w.canvases.push(c);
+            w.active = w.canvases.len() - 1;
+            w.dirty = true;
+            self.set_status(format!("recovered {n} running shell{}", if n == 1 { "" } else { "s" }));
+            self.update_window_title();
+            self.request_redraw();
+        }
     }
 
     /// Recreate a saved window's tabs and terminals into window `wi`.
@@ -765,7 +825,28 @@ impl App {
                 let grid = if single { Self::grid_size_of(self.win()) } else { self.win().grid_for_rect(rect) };
                 let id = self.next_id;
                 self.next_id += 1;
-                match Terminal::spawn(id, self.proxy.clone(), &launch, grid, self.term_config()) {
+                // A still-running detached session comes back as it was;
+                // otherwise start the shell afresh.
+                let attached = spec
+                    .as_ref()
+                    .and_then(|s| s.session.as_deref())
+                    .filter(|sid| crate::session::socket_path(sid).exists())
+                    .and_then(|sid| match Terminal::attach(id, self.proxy.clone(), sid, grid, self.term_config(), launch.title.clone()) {
+                        Ok(mut t) => {
+                            t.shortcut = spec.as_ref().and_then(|s| s.shortcut.clone());
+                            Some(t)
+                        }
+                        Err(e) => {
+                            log::warn!("session {sid} not reachable ({e:#}); starting a new shell");
+                            crate::session::remove_files(sid);
+                            None
+                        }
+                    });
+                let spawned = match attached {
+                    Some(t) => Ok(t),
+                    None => self.launch_terminal(id, &launch, grid),
+                };
+                match spawned {
                     Ok(mut term) => {
                         term.custom_title = name;
                         let w = self.win_mut();

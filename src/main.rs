@@ -7,10 +7,12 @@ mod config;
 mod deck;
 mod effects;
 mod font;
+mod host;
 mod keys;
 mod menu;
 mod palette;
 mod renderer;
+mod session;
 mod terminal;
 mod theme;
 
@@ -24,6 +26,19 @@ use crate::terminal::UserEvent;
 fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("kindlyterm=info,wgpu_core=warn,wgpu_hal=warn"))
         .init();
+
+    // Subcommands that never open a window.
+    let mut argv = std::env::args();
+    let _exe = argv.next();
+    match argv.next().as_deref() {
+        Some("--host") => return host::run(host::HostArgs::parse(argv)?),
+        Some("--sessions") => return host::sessions_cli(argv.any(|a| a == "--prune")),
+        Some("--help") | Some("-h") => {
+            println!("kindlyterm [--sessions [--prune]]\n\n  --sessions   list detached shell sessions (add --prune to drop dead ones)");
+            return Ok(());
+        }
+        _ => {}
+    }
 
     let config = Config::load();
     let store = CommandStore::load();
