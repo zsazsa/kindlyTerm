@@ -660,6 +660,8 @@ impl App {
             && let Some(tab) = self.tab_of_item(id) {
                 let lines = (dy / self.win().fonts.metrics.height * 1.0).round() as i32;
                 let lines = if lines == 0 && dy != 0.0 { dy.signum() as i32 } else { lines };
+                // Alt+wheel: one line per notch, for fine positioning.
+                let lines = if self.mods.alt_key() { dy.signum() as i32 } else { lines };
                 if lines != 0 {
                     self.scroll_tab(tab, lines);
                 }

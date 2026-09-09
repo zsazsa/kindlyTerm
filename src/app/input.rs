@@ -975,6 +975,16 @@ impl App {
             MouseScrollDelta::LineDelta(_, y) => (y * 3.0) as i32,
             MouseScrollDelta::PixelDelta(p) => (p.y as f32 / l.cell_h) as i32,
         };
+        // Alt+wheel: one line per notch, for fine positioning.
+        let lines = if self.mods.alt_key() {
+            let dy = match delta {
+                MouseScrollDelta::LineDelta(_, y) => y,
+                MouseScrollDelta::PixelDelta(p) => p.y as f32,
+            };
+            dy.signum() as i32
+        } else {
+            lines
+        };
         if lines == 0 {
             return;
         }
