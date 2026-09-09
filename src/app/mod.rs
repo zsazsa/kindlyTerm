@@ -64,6 +64,7 @@ macro_rules! deck_env {
 mod canvas_ui;
 mod debug;
 mod groups;
+mod images;
 mod pins;
 mod draw;
 mod input;
@@ -248,6 +249,8 @@ struct Win {
     dirty: bool,
 
     palette: Option<Palette>,
+    /// Decoded canvas images by item id (runtime only).
+    images: std::collections::HashMap<ItemId, images::LoadedImage>,
     menu: Option<Menu>,
     /// Pixel extents of each tab drawn last frame, for mouse hit-testing.
     tab_hits: Vec<TabHit>,
@@ -295,7 +298,7 @@ impl Win {
         let id = c.focus?;
         match c.item(id)?.kind {
             ItemKind::Terminal(t) => Some(t),
-            ItemKind::Pending => None,
+            _ => None,
         }
     }
     /// The terminal that receives keyboard input.
@@ -1893,6 +1896,7 @@ impl ApplicationHandler<UserEvent> for App {
                 self.relayout();
             }
             WindowEvent::CursorEntered { .. } => {}
+            WindowEvent::DroppedFile(path) => self.on_file_drop(path),
             WindowEvent::ModifiersChanged(m) => {
                 let new = m.state();
                 let was_ctrl = self.mods.control_key();

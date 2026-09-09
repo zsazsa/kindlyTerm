@@ -437,7 +437,15 @@ impl App {
 
     /// Right-click on a terminal item.
     pub(super) fn open_item_menu(&mut self, id: ItemId, x: f32, y: f32) {
-        let Some(tab) = self.tab_of_item(id) else { return };
+        let Some(tab) = self.tab_of_item(id) else {
+            // An image: a short menu of its own.
+            if self.win().canvas().and_then(|c| c.item(id)).map(|i| matches!(i.kind, ItemKind::Image { .. })).unwrap_or(false) {
+                let pinned = self.is_pinned(id);
+                self.win_mut().menu = Some(Menu::for_image(x, y, id, pinned));
+                self.request_redraw();
+            }
+            return;
+        };
         let w = self.win();
         let Some(l) = w.layout else { return };
         let Some(c) = w.canvas() else { return };
@@ -453,7 +461,7 @@ impl App {
     fn tab_of_item(&self, id: ItemId) -> Option<TabId> {
         match self.win().canvas()?.item(id)?.kind {
             ItemKind::Terminal(t) => Some(t),
-            ItemKind::Pending => None,
+            _ => None,
         }
     }
 
@@ -538,11 +546,24 @@ impl App {
                     r.y = start.bottom() - new_h;
                     r.h = new_h;
                 }
-                // Quantise to whole cells so the grid always fills the frame.
-                let cols = ((r.w - 2.0 * ITEM_PAD) / m.width).floor().max(MIN_COLS as f32);
-                let rows = ((r.h - TITLE_H - 2.0 * ITEM_PAD) / m.height).floor().max(MIN_ROWS as f32);
-                let qw = (cols * m.width + 2.0 * ITEM_PAD).round();
-                let qh = (rows * m.height + TITLE_H + 2.0 * ITEM_PAD).round();
+                let is_image = self.win().canvas().and_then(|c| c.item(item)).map(|i| matches!(i.kind, ItemKind::Image { .. })).unwrap_or(false);
+                let (qw, qh) = if is_image {
+                    // Keep the picture's aspect: width leads unless only a
+                    // vertical edge is being dragged.
+                    let aspect = ((start.w) / (start.h - TITLE_H).max(1.0)).max(0.05);
+                    if (edge.top || edge.bottom) && !(edge.left || edge.right) {
+                        let h = (r.h - TITLE_H).max(32.0);
+                        ((h * aspect).round(), (h + TITLE_H).round())
+                    } else {
+                        let w = r.w.max(48.0);
+                        (w.round(), (w / aspect + TITLE_H).round())
+                    }
+                } else {
+                    // Quantise to whole cells so the grid always fills the frame.
+                    let cols = ((r.w - 2.0 * ITEM_PAD) / m.width).floor().max(MIN_COLS as f32);
+                    let rows = ((r.h - TITLE_H - 2.0 * ITEM_PAD) / m.height).floor().max(MIN_ROWS as f32);
+                    ((cols * m.width + 2.0 * ITEM_PAD).round(), (rows * m.height + TITLE_H + 2.0 * ITEM_PAD).round())
+                };
                 if edge.left {
                     r.x = start.right() - qw;
                 }
@@ -665,7 +686,7 @@ impl App {
         let w = self.win_mut();
         let Some((tab, rect)) = w.canvas().and_then(|c| c.item(id)).and_then(|i| match i.kind {
             ItemKind::Terminal(t) => Some((t, i.rect)),
-            ItemKind::Pending => None,
+            _ => None,
         }) else { return };
         let g = w.grid_for_rect(rect);
         if let Some(t) = w.term_mut(tab) {
@@ -770,8 +791,11 @@ impl App {
             }
             let quiet = match kind {
                 ItemKind::Terminal(t) => w.terms.iter().any(|x| x.id == t && x.quiet_alert),
-                ItemKind::Pending => false,
+                _ => false,
             };
+            if let ItemKind::Image { path } = &kind {
+                Self::ensure_image_loaded(w, id, path);
+            }
             let border = if focused || selected { theme.accent } else if hovered { theme.muted } else { theme.highlight };
             w.batch.outline(sr.x, sr.y, sr.w, sr.h, radius, if focused { 1.5 } else { 1.0 }, border);
             if quiet {
@@ -790,8 +814,9 @@ impl App {
             // Title text and close button (skipped when too small to read).
             let tab_ref = match kind {
                 ItemKind::Terminal(t) => w.terms.iter().position(|x| x.id == t),
-                ItemKind::Pending => None,
+                _ => None,
             };
+            let image_name = w.canvases[ci].item(id).and_then(|i| i.name.clone());
             if title_h >= 12.0 {
                 let fs = (12.0 * zoom).clamp(7.0, 18.0);
                 let lh = w.fonts.line_height_for(fs * 1.12);
@@ -804,6 +829,7 @@ impl App {
                 let mut title = match (&rename, tab_ref) {
                     (Some((_, text, _)), Some(_)) if renaming => text.clone(),
                     (_, Some(ti)) => w.terms[ti].display_title().to_string(),
+                    _ if matches!(kind, ItemKind::Image { .. }) => image_name.clone().unwrap_or_else(|| "image".into()),
                     _ => "starting…".into(),
                 };
                 if !renaming {
@@ -847,6 +873,29 @@ impl App {
                 }
                 let xw = ui_text_width(&w.fonts, "×", fs);
                 ui_text(&mut w.fonts, &mut w.batch, cx + (close_w - xw) / 2.0, ty, "×", fs, if close_hover { theme.fg } else { theme.muted }, false);
+            }
+
+            // Image content: letterboxed inside the frame, animated if it is.
+            if matches!(kind, ItemKind::Image { .. }) {
+                let cx = sr.x + 1.0;
+                let cy = sr.y + title_h;
+                let (cw, ch) = (sr.w - 2.0, sr.h - title_h - 1.0);
+                w.batch.push_clip(cx, cy, cw, ch);
+                let now_ms = Instant::now().duration_since(epoch).as_millis();
+                let shown = w.images.get(&id).map(|img| (img.frame_at(now_ms), img.w, img.h, img.error.clone()));
+                match shown {
+                    Some((Some(tex), iw, ih, _)) if iw > 0 && ih > 0 => {
+                        let f = (cw / iw as f32).min(ch / ih as f32);
+                        let (dw, dh) = (iw as f32 * f, ih as f32 * f);
+                        w.batch.image(tex, cx + (cw - dw) / 2.0, cy + (ch - dh) / 2.0, dw, dh, 1.0);
+                    }
+                    Some((_, _, _, Some(err))) => {
+                        let msg = format!("couldn't load image: {err}");
+                        ui_text(&mut w.fonts, &mut w.batch, cx + 8.0, cy + 8.0, &msg, 11.0, theme.muted, false);
+                    }
+                    _ => {}
+                }
+                w.batch.pop_clip();
             }
 
             // Content.

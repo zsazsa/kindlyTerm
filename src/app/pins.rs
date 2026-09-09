@@ -145,6 +145,19 @@ impl App {
     pub(super) fn close_item(&mut self, id: ItemId, event_loop: &ActiveEventLoop) {
         let info = self.win().canvas().and_then(|c| c.item(id)).map(|i| (i.mirror, i.kind.clone()));
         match info {
+            Some((_, ItemKind::Image { .. })) => {
+                let w = self.win_mut();
+                Self::drop_image(w, id);
+                if let Some(c) = w.canvas_mut() {
+                    c.items.retain(|i| i.id != id);
+                    if c.focus == Some(id) {
+                        c.focus = c.items.last().map(|i| i.id);
+                    }
+                    c.selected.retain(|s| *s != id);
+                }
+                w.dirty = true;
+                self.request_redraw();
+            }
             Some((true, _)) => {
                 let w = self.win_mut();
                 if let Some(c) = w.canvas_mut() {

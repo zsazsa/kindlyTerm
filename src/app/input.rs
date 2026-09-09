@@ -438,8 +438,16 @@ impl App {
     }
 
     pub(super) fn paste(&mut self) {
-        let Some(text) = self.clipboard.as_mut().and_then(|c| c.get_text().ok()) else { return };
-        self.paste_text(text);
+        let text = self.clipboard.as_mut().and_then(|c| c.get_text().ok()).filter(|t| !t.is_empty());
+        match text {
+            Some(text) => self.paste_text(text),
+            None => {
+                // No text: a copied picture lands on the canvas.
+                if !self.paste_image() {
+                    self.set_status("clipboard is empty".into());
+                }
+            }
+        }
     }
 
     pub(super) fn paste_text(&mut self, text: String) {

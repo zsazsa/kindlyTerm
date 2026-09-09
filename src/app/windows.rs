@@ -93,6 +93,7 @@ impl App {
             last_title_click: None,
             dirty: false,
             palette: None,
+            images: std::collections::HashMap::new(),
             menu: None,
             tab_hits: Vec::new(),
             plus_hit: None,
@@ -300,7 +301,7 @@ impl App {
         if w.any_view_transient() {
             return true;
         }
-        if w.terms.iter().any(|t| t.quiet_alert) {
+        if w.terms.iter().any(|t| t.quiet_alert) || Self::any_animated_image(w) {
             return true;
         }
         // Resting breath/blink only while focused and the app shows a cursor.

@@ -196,6 +196,12 @@ holding a free canvas show a `▦` marker in the tab bar.
 - **Mirror** a terminal (its menu → *Mirror here*) to get a second live view
   of the same shell. Both render the same screen and either can type;
   resizing one resizes both. Closing a mirror only removes that view.
+- **Images**: drop a PNG, JPEG, WebP, BMP or GIF file onto the window, or
+  paste a copied picture with `Ctrl+Shift+V` when the clipboard holds no
+  text. Animated GIFs play. Images move, resize (aspect locked), group and
+  pin like terminals; pasted pictures are kept under
+  `~/.config/kindlyterm/images/`. Dropping any other file types its quoted
+  path into the focused terminal.
 - Canvas tabs tear off, merge, and reorder like any other tab.
 
 The layout (windows, tabs, item positions, zoom, and what each item was

@@ -120,6 +120,8 @@ pub enum ItemKind {
     Terminal(TabId),
     /// Placeholder for a terminal that has not been (re)created yet.
     Pending,
+    /// A picture (PNG, JPEG, WebP, GIF) loaded from `path`.
+    Image { path: String },
 }
 
 /// Screen corner a pinned item keeps its distance from when the window

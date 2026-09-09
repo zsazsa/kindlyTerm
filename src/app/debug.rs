@@ -246,6 +246,7 @@ impl App {
                             self.set_monitor(f, secs.parse().ok());
                         }
                     }
+                    Some(("image", path)) => self.place_image_file(std::path::PathBuf::from(path), None),
                     _ if a == "pin" => {
                         if let Some(f) = self.win().canvas().and_then(|c| c.focus) {
                             self.toggle_pin(f);

@@ -143,6 +143,18 @@ impl Menu {
         Self::new(x, y, items)
     }
 
+    /// Menu for a right-click on an image item.
+    pub fn for_image(x: f32, y: f32, item: crate::canvas::ItemId, pinned: bool) -> Self {
+        let items = vec![
+            MenuItem::new("Focus mode", "Ctrl+Shift+F", MenuAction::FocusMode),
+            MenuItem::new(if pinned { "Unpin from screen" } else { "Pin to screen" }, "Ctrl+Shift+P", MenuAction::TogglePin(item)),
+            MenuItem::new("Rename…", "double-click title", MenuAction::RenameItem(item)),
+            MenuItem::sep(),
+            MenuItem::new("Remove image", "Ctrl+Shift+W", MenuAction::CloseItem(item)),
+        ];
+        Self::new(x, y, items)
+    }
+
     /// Menu for a right-click on a group's label.
     pub fn for_group(x: f32, y: f32, g: crate::canvas::GroupId, name: &str) -> Self {
         let items = vec![

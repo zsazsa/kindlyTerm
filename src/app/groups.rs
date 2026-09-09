@@ -101,7 +101,7 @@ impl App {
     pub(super) fn tab_of_item_pub(&self, id: ItemId) -> Option<TabId> {
         match self.win().canvas()?.item(id)?.kind {
             ItemKind::Terminal(t) => Some(t),
-            ItemKind::Pending => None,
+            _ => None,
         }
     }
 
