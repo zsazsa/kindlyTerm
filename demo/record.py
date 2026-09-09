@@ -45,8 +45,11 @@ def main():
     before = m.call("set_window")
     if a.window:
         w, h = (int(x) for x in a.window.lower().split("x"))
+        # Un-maximizing restores the old size a moment later, so ask twice.
         m.call("set_window", width=w, height=h)
-        time.sleep(1.0)
+        time.sleep(0.8)
+        m.call("set_window", width=w, height=h)
+        time.sleep(0.8)
 
     period = 1 / a.fps
     stamps, i, t0 = [], 0, None
