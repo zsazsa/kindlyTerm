@@ -902,6 +902,9 @@ impl App {
         }
         self.update_link_hover();
         let icon = match hover {
+            // On a free canvas the card under the pointer decides: resize
+            // arrows on an edge, a hand on a title, text over the grid.
+            Hover::None if self.on_free_canvas() && self.win().canvas_cursor.is_some() => self.win().canvas_cursor.unwrap_or(CursorIcon::Default),
             Hover::None if self.win().hover_link.is_some() => CursorIcon::Pointer,
             Hover::None if self.wins[self.cur].palette.is_none() => CursorIcon::Text,
             Hover::None => CursorIcon::Default,

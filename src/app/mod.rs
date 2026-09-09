@@ -248,6 +248,10 @@ struct Win {
     cdrag: CDrag,
     /// Item and part under the pointer on a free canvas.
     hover_part: Option<(ItemId, ItemPart)>,
+    /// Pointer icon the canvas chose for the current hover (a resize arrow
+    /// on a card edge, a hand on a title), so the generic mouse-move path
+    /// does not overwrite it with the text cursor.
+    canvas_cursor: Option<CursorIcon>,
     space_held: bool,
     /// Double-Ctrl pan: tap Ctrl, then hold it and move.
     pan_mode: bool,

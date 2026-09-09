@@ -114,6 +114,7 @@ impl App {
             active: 0,
             cdrag: CDrag::None,
             hover_part: None,
+            canvas_cursor: None,
             space_held: false,
             pan_mode: false,
             last_ctrl_release: None,

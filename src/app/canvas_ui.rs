@@ -615,6 +615,7 @@ impl App {
                     self.win_mut().hover_part = over;
                     self.request_redraw();
                 }
+                self.win_mut().canvas_cursor = None;
                 if l.area.contains(mx, my) {
                     let icon = match over {
                         Some((_, ItemPart::Title)) => CursorIcon::Grab,
@@ -630,6 +631,7 @@ impl App {
                             }
                         },
                     };
+                    self.win_mut().canvas_cursor = Some(icon);
                     self.set_cursor(icon);
                 }
                 false
