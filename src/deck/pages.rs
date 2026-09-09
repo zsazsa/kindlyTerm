@@ -41,6 +41,12 @@ impl Deck {
             }
             s
         };
+        let chomp = match c.terminal.chomp.to_lowercase().as_str() {
+            "laser" => "Laser cutter",
+            "none" => "Plain",
+            _ => "Pac-Man",
+        }
+        .to_string();
         let scrollback = format!("{} lines", group_thousands(c.terminal.scrollback));
         let clip = if c.clipboard.copy_on_select { "Copy on select" } else { "Manual copy" };
         let manage = format!("{} shortcuts", env.shortcuts.len());
@@ -56,6 +62,7 @@ impl Deck {
                     ('◱', 6, "Opacity", format!("{}%", (c.colors.opacity * 100.0).round()), PageId::Opacity),
                     ('✦', 13, "Effects", env.effects.preset.clone(), PageId::Effects),
                     ('▊', 3, "Cursor", cursor, PageId::Cursor),
+                    ('⚡', 5, "Backspace", chomp, PageId::Cursor),
                 ],
             ),
             (
