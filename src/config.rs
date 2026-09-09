@@ -27,7 +27,7 @@ pub fn config_dir() -> PathBuf {
 // config.toml
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 #[derive(Default)]
 pub struct Config {
@@ -38,7 +38,7 @@ pub struct Config {
     pub input: InputConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct InputConfig {
     /// Tapping Ctrl+Shift together (press both, release without any other
@@ -56,7 +56,7 @@ impl Default for InputConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct ClipboardConfig {
     /// Copy to the system clipboard as soon as a mouse selection is made
@@ -88,7 +88,7 @@ impl Default for ClipboardConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct FontConfig {
     /// Font family name. "monospace" resolves to the system default.
@@ -99,7 +99,7 @@ pub struct FontConfig {
     pub line_padding: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct TerminalConfig {
     /// Lines of scrollback history kept per tab.
@@ -125,7 +125,7 @@ pub struct TerminalConfig {
     pub persistent_sessions: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct ColorConfig {
     /// Name of the built-in theme these colors came from ("Custom" if edited).

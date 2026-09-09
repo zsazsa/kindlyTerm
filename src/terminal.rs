@@ -27,6 +27,8 @@ pub type TabId = u64;
 
 /// Reserved `UserEvent.tab` value: a dragged-out tab's drop timer expired.
 pub const SYS_DROP_TIMEOUT: TabId = u64::MAX - 1;
+/// Reserved `UserEvent.tab` value: a config file changed on disk.
+pub const SYS_CONFIG_CHANGED: TabId = u64::MAX - 2;
 
 /// Event sent from the PTY thread to the winit event loop.
 #[derive(Debug)]

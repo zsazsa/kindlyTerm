@@ -67,6 +67,7 @@ mod groups;
 mod images;
 mod links;
 mod pins;
+mod watch;
 mod draw;
 mod input;
 mod windows;
@@ -354,6 +355,8 @@ pub struct App {
     theme: Theme,
     store: CommandStore,
     proxy: EventLoopProxy<UserEvent>,
+    /// Keeps the config-directory watcher alive.
+    _watcher: Option<notify::RecommendedWatcher>,
 
     /// All open windows; `cur` is the one the event being handled belongs to.
     wins: Vec<Win>,
@@ -442,11 +445,13 @@ impl App {
     pub fn new(config: Config, store: CommandStore, proxy: EventLoopProxy<UserEvent>) -> Self {
         let theme = Theme::from_config(&config.colors);
         let font_pt = config.font.size;
+        let watcher = watch::start_config_watcher(proxy.clone());
         Self {
             config,
             theme,
             store,
             proxy,
+            _watcher: watcher,
             wins: Vec::new(),
             cur: 0,
             font_pt,
@@ -1861,6 +1866,12 @@ impl ApplicationHandler<UserEvent> for App {
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: UserEvent) {
         if event.tab == crate::terminal::SYS_DROP_TIMEOUT {
             self.resolve_pending_drop(None, event_loop);
+            return;
+        }
+        if event.tab == crate::terminal::SYS_CONFIG_CHANGED {
+            if !self.wins.is_empty() {
+                self.reload_config_files();
+            }
             return;
         }
         if event.tab == 0 {

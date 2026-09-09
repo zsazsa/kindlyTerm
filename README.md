@@ -322,7 +322,9 @@ unless `keep_open = true`.
 
 ## Configuration
 
-`~/.config/kindlyterm/config.toml`:
+`~/.config/kindlyterm/config.toml`. The files in that directory are watched:
+save an edit to `config.toml`, `effects.toml`, or `commands.toml` and it
+applies at once, no restart (the tab bar says "reloaded …").
 
 ```toml
 [font]
@@ -417,7 +419,7 @@ src/config.rs    config.toml and commands.toml
 
 - Mouse reporting to applications (vim/htop mouse mode)
 - Bell
-- Search in scrollback, config hot reload
+- Search in scrollback
 - Canvas: groups, pins, mirrors, images, MCP server (see `docs/PLAN-canvas.md`)
 - Deck: shortcut folders, aliases, per-row font previews, ligatures, undo after launch
 
