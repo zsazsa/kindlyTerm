@@ -1,7 +1,12 @@
 # kindlyTerm
 
-A GPU-accelerated, keyboard-driven terminal for Linux with tabs and a
-palette of saved commands.
+A GPU-accelerated, keyboard-driven terminal for Linux with tabs, a
+palette of saved commands, and the Canvas: an infinite, zoomable board
+where every shell is a card you can move, group, pin and mirror. Shells
+run in detached hosts, so they survive a restart of the app. Claude Code
+and other MCP clients can drive all of it: open and read terminals, type
+into them, arrange and group cards, and watch a job for silence, with
+every action visible on screen as it happens.
 
 ![kindlyTerm](docs/hero.png)
 
@@ -259,8 +264,9 @@ claude mcp add kindlyterm -- kindlyterm --mcp
 Claude Code then gets tools to list canvases and terminals, read a
 terminal's screen or scrollback, type text and keys, open and close
 terminals (with a command and working directory), move, resize, rename,
-group, pin and mirror items, watch a terminal for silence, place images,
-set the view, and take a screenshot. Every action that types, closes, or
+group, pin and mirror items (a pin can take a screen position, so an
+agent can park its own log in a corner while it works), watch a terminal
+for silence, place images, set the view, and take a screenshot. Every action that types, closes, or
 moves something is announced in the tab bar, and typing lights the
 terminal up: its frame (and its tab, if it is not the one showing) glows
 in the accent colour for a moment, short text replays the typing trail
@@ -482,6 +488,8 @@ src/effects.rs      typing trail and paste rain, plus effects.toml
 src/palette.rs      tab switcher palette
 src/menu.rs         right-click context menus
 src/config.rs    config.toml and commands.toml
+demo/showtime.py    the scripted Canvas tour, driven over MCP
+.claude/skills/showtime  the /showtime skill for Claude Code (runs the tour)
 ```
 
 ## Not yet done
