@@ -151,7 +151,9 @@ impl App {
                     Some(("chomp", dir)) => {
                         let now = Instant::now();
                         let left = dir != "right";
-                        self.win_mut().cursor_anim.chomp = Some((now - std::time::Duration::from_millis(1600), now, left));
+                        if let Some(v) = self.win_mut().view_mut() {
+                            v.cursor_anim.chomp = Some((now - std::time::Duration::from_millis(1600), now, left));
+                        }
                     }
                     _ if a == "cheat" => self.win_mut().cheat = true,
                     _ if a == "shot" => {
@@ -178,14 +180,15 @@ impl App {
                     }
                     Some(("typefast", text)) => {
                         // Simulate fast typing: trail glyphs + pty input.
-                        let (x, y) = self.win().cursor_anim.to;
                         let cfg = self.effects.typing_trail.clone();
-                        let w = self.win_mut();
-                        let cw = w.fonts.metrics.width;
-                        for (i, ch) in text.chars().enumerate() {
-                            w.fx.typed(&cfg, ch, x + i as f32 * cw, y);
+                        let cw = self.win().fonts.metrics.width;
+                        if let Some(v) = self.win_mut().view_mut() {
+                            let (x, y) = v.cursor_anim.to;
+                            for (i, ch) in text.chars().enumerate() {
+                                v.fx.typed(&cfg, ch, x + i as f32 * cw, y);
+                            }
                         }
-                        if let Some(tab) = w.tabs.get(w.active) {
+                        if let Some(tab) = self.win().tabs.get(self.win().active) {
                             tab.write(text.to_string().into_bytes());
                         }
                     }
@@ -212,15 +215,18 @@ impl App {
                         // N backspaces, keeping the Pac-Man hold alive.
                         let n: usize = n.parse().unwrap_or(1);
                         let now = Instant::now();
-                        let anim = &mut self.win_mut().cursor_anim;
-                        anim.chomp = Some(match anim.chomp {
-                            Some((start, _, l)) => (start, now, l),
-                            None => (now - std::time::Duration::from_millis(1500), now, true),
-                        });
+                        if let Some(v) = self.win_mut().view_mut() {
+                            let anim = &mut v.cursor_anim;
+                            anim.chomp = Some(match anim.chomp {
+                                Some((start, _, l)) => (start, now, l),
+                                None => (now - std::time::Duration::from_millis(1500), now, true),
+                            });
+                        }
                         if let Some(tab) = self.win().tabs.get(self.win().active) {
                             tab.write(vec![0x7f; n]);
                         }
                     }
+                    Some(("termzoom", z)) => self.debug.term_zoom = z.parse().ok(),
                     Some(("tab", n)) => {
                         let n: usize = n.parse().unwrap_or(0);
                         self.switch_tab(n);

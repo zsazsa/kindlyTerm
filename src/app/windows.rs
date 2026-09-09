@@ -89,8 +89,6 @@ impl App {
             drag: None,
             rename: None,
             last_tab_click: None,
-            cursor_anim: CursorAnim::new(),
-            fx: Effects::new(),
             cheat: false,
         });
         let wi = self.wins.len() - 1;
@@ -244,7 +242,7 @@ impl App {
         if anim == "none" {
             return false;
         }
-        if w.cursor_anim.transient() || w.fx.active() {
+        if w.any_view_transient() {
             return true;
         }
         // Resting breath/blink only while focused and the app shows a cursor.
@@ -264,7 +262,7 @@ impl App {
                 consider(*at + std::time::Duration::from_secs(4), &mut next);
             }
             if Self::window_animating(w, &anim) {
-                let ms = if w.cursor_anim.transient() || w.fx.active() { 16 } else { 40 };
+                let ms = if w.any_view_transient() { 16 } else { 40 };
                 let t = now + std::time::Duration::from_millis(ms);
                 consider(t, &mut next);
                 self.next_frame = Some(self.next_frame.map(|n| n.min(t)).unwrap_or(t));

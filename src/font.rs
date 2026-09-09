@@ -54,6 +54,15 @@ impl GlyphKey {
     pub fn sized(c: char, size_px: f32, bold: bool) -> Self {
         Self { c, bold, italic: false, size10: (size_px * 10.0).round().max(10.0) as u16 }
     }
+    /// Cell glyph at an explicit pixel size (canvas zoom). `zoom == 1`
+    /// uses the atlas' base-size entries.
+    pub fn cell_zoomed(c: char, bold: bool, italic: bool, base_px: f32, zoom: f32) -> Self {
+        if (zoom - 1.0).abs() < 1e-3 {
+            Self::cell(c, bold, italic)
+        } else {
+            Self { c, bold, italic, size10: (base_px * zoom * 10.0).round().max(10.0) as u16 }
+        }
+    }
     fn px(&self, base: f32) -> f32 {
         if self.size10 == 0 { base } else { self.size10 as f32 / 10.0 }
     }

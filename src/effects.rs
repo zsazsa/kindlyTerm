@@ -406,8 +406,18 @@ impl Effects {
 
     /// Draw both effects. Call after the grid and before the cursor overlay.
     #[allow(clippy::too_many_arguments)]
-    pub fn draw(&mut self, cfg: &EffectsConfig, fonts: &mut FontSystem, batch: &mut Batch, theme: &Theme, grid_x: f32, grid_y: f32, now: Instant) {
-        let m = fonts.metrics;
+    pub fn draw(&mut self, cfg: &EffectsConfig, fonts: &mut FontSystem, batch: &mut Batch, theme: &Theme, grid_x: f32, grid_y: f32, zoom: f32, now: Instant) {
+        let base_px = fonts.size_px;
+        let m0 = fonts.metrics;
+        let m = crate::font::CellMetrics {
+            width: m0.width * zoom,
+            height: m0.height * zoom,
+            ascent: m0.ascent * zoom,
+            underline_pos: m0.underline_pos * zoom,
+            underline_thickness: m0.underline_thickness,
+            strikeout_pos: m0.strikeout_pos * zoom,
+        };
+        let key = |c: char, bold: bool| GlyphKey::cell_zoomed(c, bold, false, base_px, zoom);
 
         // ---- typing trail ------------------------------------------------
         let fade = cfg.typing_trail.fade_ms.max(50) as f32 / 1000.0;
@@ -430,7 +440,7 @@ impl Effects {
                 batch.rrect(g.x - spread, g.y - spread, m.width + 2.0 * spread, m.height + 2.0 * spread, 4.0 + spread, with_alpha(color, a * 0.22));
                 batch.rrect(g.x - 1.0, g.y - 1.0, m.width + 2.0, m.height + 2.0, 3.0, with_alpha(color, a * 0.35));
             }
-            if let Some(gl) = fonts.glyph(GlyphKey::cell(g.ch, true, false)) {
+            if let Some(gl) = fonts.glyph(key(g.ch, true)) {
                 batch.glyph(g.x, g.y + m.ascent, &gl, with_alpha(color, a));
             }
             // A thin scanline under the glyph, cyberpunk style.
@@ -485,7 +495,7 @@ impl Effects {
                     if k == 0 {
                         batch.rrect(x - 1.0, y - 1.0, m.width + 2.0, m.height + 2.0, 3.0, with_alpha(base, 0.35));
                     }
-                    if let Some(gl) = fonts.glyph(GlyphKey::cell(ch, k == 0, false)) {
+                    if let Some(gl) = fonts.glyph(key(ch, k == 0)) {
                         batch.glyph(x, y + m.ascent, &gl, with_alpha(color, a));
                     }
                 }

@@ -1,6 +1,8 @@
 //! Per-frame drawing: tab bar, terminal grid, overlays.
 
 use super::*;
+use crate::effects::EffectsConfig;
+use crate::terminal::Terminal;
 
 impl App {
     pub(super) fn draw(&mut self) -> Result<()> {
@@ -258,19 +260,72 @@ impl App {
             }
     }
 
+    /// Draw the active terminal at the window's grid origin (tabs mode).
     pub(super) fn draw_terminal(&mut self, l: Layout) {
         let theme = &self.theme;
         let anim_mode = self.config.terminal.cursor_animation.clone();
         let effects_cfg = self.effects.clone();
         let w = &mut self.wins[self.cur];
-        let fonts = &mut w.fonts;
-        let batch = &mut w.batch;
-        let anim = &mut w.cursor_anim;
-        let fx = &mut w.fx;
         let focused = w.focused;
-        let Some(tab) = w.tabs.get(w.active) else { return };
+        let active = w.active;
+        let Some(tab) = w.tabs.get_mut(active) else { return };
+        let place = match self.debug.term_zoom {
+            // Debug: draw zoomed and clipped to a box in the top-left quarter.
+            Some(z) => TermPlace { x: l.grid_x + 40.0, y: l.grid_y + 40.0, zoom: z, focused, clip: Some((l.grid_x + 20.0, l.grid_y + 20.0, 520.0, 320.0)) },
+            None => TermPlace { x: l.grid_x, y: l.grid_y, zoom: 1.0, focused, clip: None },
+        };
+        if self.debug.term_zoom.is_some() {
+            w.batch.outline(l.grid_x + 20.0, l.grid_y + 20.0, 520.0, 320.0, 6.0, 1.0, theme.accent);
+        }
+        draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
+    }
+}
+
+/// Where and how large to draw a terminal.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct TermPlace {
+    /// Pixel origin of the grid's top-left corner.
+    pub x: f32,
+    pub y: f32,
+    /// 1.0 = the window's base cell size. Text is rasterised at base × zoom.
+    pub zoom: f32,
+    pub focused: bool,
+    /// Optional scissor rect (x, y, w, h) the drawing is clipped to.
+    pub clip: Option<(f32, f32, f32, f32)>,
+}
+
+/// Draw one terminal's grid, effects and cursor. Works for any origin and
+/// zoom so the same code serves the tabbed view and the canvas.
+pub(super) fn draw_term_view(
+    fonts: &mut FontSystem,
+    batch: &mut Batch,
+    theme: &Theme,
+    anim_mode: &str,
+    effects_cfg: &EffectsConfig,
+    tab: &mut Terminal,
+    place: TermPlace,
+) {
+    {
         let tab_id = tab.id;
-        let m = fonts.metrics;
+        let focused = place.focused;
+        let zoom = place.zoom;
+        let base_px = fonts.size_px;
+        let rows = tab.size.rows;
+        let anim = &mut tab.view.cursor_anim;
+        let fx = &mut tab.view.fx;
+        // Cell metrics scaled by zoom (base metrics stay in the atlas' units).
+        let m0 = fonts.metrics;
+        let m = crate::font::CellMetrics {
+            width: m0.width * zoom,
+            height: m0.height * zoom,
+            ascent: m0.ascent * zoom,
+            underline_pos: m0.underline_pos * zoom,
+            underline_thickness: (m0.underline_thickness * zoom).max(1.0),
+            strikeout_pos: m0.strikeout_pos * zoom,
+        };
+        if let Some((cx, cy, cw, ch)) = place.clip {
+            batch.push_clip(cx, cy, cw, ch);
+        }
 
         let term = tab.term.lock();
         let history_now = term.grid().history_size();
@@ -279,13 +334,13 @@ impl App {
         let colors = content.colors;
         let selection = content.selection;
         let cursor = content.cursor;
-        let cursor_vp = point_to_viewport(display_offset, cursor.point).filter(|p| p.line < l.rows);
+        let cursor_vp = point_to_viewport(display_offset, cursor.point).filter(|p| p.line < rows);
 
         // --- cursor animation state -------------------------------------
         let now = Instant::now();
         let animate = anim_mode != "none";
         if let Some(vp) = cursor_vp {
-            let target = (l.grid_x + vp.column.0 as f32 * m.width, l.grid_y + vp.line as f32 * m.height);
+            let target = (place.x + vp.column.0 as f32 * m.width, place.y + vp.line as f32 * m.height);
             if anim.tab != tab_id || !animate {
                 // New tab: snap.
                 anim.tab = tab_id;
@@ -301,12 +356,12 @@ impl App {
             }
         }
         let travel_t = anim.travel_t();
-        let ease = 1.0 - (1.0 - travel_t).powi(3);
+        let ease = 1.0 - (1.0 - travel_t).powi(3) as f32;
         anim.pos = (anim.from.0 + (anim.to.0 - anim.from.0) * ease, anim.from.1 + (anim.to.1 - anim.from.1) * ease);
         let travelling = animate && travel_t < 1.0;
         let idle_s = anim.last_input.elapsed().as_secs_f32();
         // Resting behaviour: breathe (soft alpha wave) or blink, after a pause.
-        let (rest_alpha, rest_visible) = match anim_mode.as_str() {
+        let (rest_alpha, rest_visible) = match anim_mode {
             "breathe" if idle_s > 0.7 => {
                 let phase = ((idle_s - 0.7) / 2.4) * std::f32::consts::TAU;
                 (0.62 + 0.38 * (0.5 + 0.5 * phase.cos()), true)
@@ -357,12 +412,12 @@ impl App {
 
         for cell in content.display_iter {
             let Some(vp) = point_to_viewport(display_offset, cell.point) else { continue };
-            if vp.line >= l.rows {
+            if vp.line >= rows {
                 continue;
             }
             let flags = cell.flags;
-            let x = l.grid_x + vp.column.0 as f32 * m.width;
-            let y = l.grid_y + vp.line as f32 * m.height;
+            let x = place.x + vp.column.0 as f32 * m.width;
+            let y = place.y + vp.line as f32 * m.height;
             let bold = flags.intersects(Flags::BOLD);
             let italic = flags.contains(Flags::ITALIC);
 
@@ -402,12 +457,12 @@ impl App {
                 continue;
             }
             if c != ' ' && c != '\t'
-                && let Some(g) = fonts.glyph(GlyphKey::cell(c, bold, italic)) {
+                && let Some(g) = fonts.glyph(GlyphKey::cell_zoomed(c, bold, italic, base_px, zoom)) {
                     batch.glyph(x, y + m.ascent, &g, fg);
                 }
             if let Some(zw) = cell.zerowidth() {
                 for &z in zw {
-                    if let Some(g) = fonts.glyph(GlyphKey::cell(z, bold, italic)) {
+                    if let Some(g) = fonts.glyph(GlyphKey::cell_zoomed(z, bold, italic, base_px, zoom)) {
                         batch.glyph(x, y + m.ascent, &g, fg);
                     }
                 }
@@ -436,7 +491,7 @@ impl App {
         }
 
         // Visual effects (typing trail, paste rain) sit between grid and cursor.
-        fx.draw(&effects_cfg, fonts, batch, theme, l.grid_x, l.grid_y, now);
+        fx.draw(effects_cfg, fonts, batch, theme, place.x, place.y, zoom, now);
 
         // Cursor overlay: animated position, trail, pulse ring, other shapes.
         if let Some(vp) = cursor_vp {
@@ -499,7 +554,7 @@ impl App {
                 for k in 1..=3 {
                     let dx = if left { m.width * k as f32 } else { -m.width * k as f32 };
                     let phase = ((tt * 16.0 + k as f32) % 2.0) / 2.0;
-                    let crumb = (2.0 + 2.0 * phase).min(3.5);
+                    let crumb = (2.0_f32 + 2.0 * phase).min(3.5);
                     batch.rrect(x + m.width / 2.0 + dx - crumb / 2.0, y + m.height / 2.0 - crumb / 2.0, crumb, crumb, crumb / 2.0, with_alpha(yellow, 0.5 * (1.0 - phase)));
                 }
             } else {
@@ -527,8 +582,13 @@ impl App {
             }
         }
         drop(term);
+        if place.clip.is_some() {
+            batch.pop_clip();
+        }
     }
+}
 
+impl App {
     pub(super) fn draw_palette(&mut self, l: Layout) {
         let theme = &self.theme;
         let win = &mut self.wins[self.cur];

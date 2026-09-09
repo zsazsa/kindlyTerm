@@ -10,9 +10,9 @@ impl App {
     pub(super) fn on_key(&mut self, event: KeyEvent, event_loop: &ActiveEventLoop) {
         // Pac-Man mode: track how long Backspace/Delete has been held.
         let is_eater = matches!(event.logical_key, Key::Named(NamedKey::Backspace) | Key::Named(NamedKey::Delete));
-        if !self.wins.is_empty() {
+        if let Some(view) = self.wins.get_mut(self.cur).and_then(|w| w.view_mut()) {
             let now = Instant::now();
-            let anim = &mut self.win_mut().cursor_anim;
+            let anim = &mut view.cursor_anim;
             match (event.state, is_eater) {
                 (ElementState::Pressed, true) => {
                     let left = matches!(event.logical_key, Key::Named(NamedKey::Backspace));
@@ -91,7 +91,9 @@ impl App {
             self.request_redraw();
             return;
         }
-        self.win_mut().cursor_anim.last_input = Instant::now();
+        if let Some(v) = self.win_mut().view_mut() {
+            v.cursor_anim.last_input = Instant::now();
+        }
         let mode = match self.win().tabs.get(self.win().active) {
             Some(tab) => *tab.term.lock().mode(),
             None => return,
@@ -100,12 +102,13 @@ impl App {
             // Typing trail: remember the glyph at the cell it will land in.
             if !self.mods.control_key() && !self.mods.alt_key()
                 && let (Key::Character(_), Some(text)) = (&event.logical_key, event.text.as_deref()) {
-                    let (x, y) = self.win().cursor_anim.to;
                     let cfg = self.effects.typing_trail.clone();
-                    let w = self.win_mut();
-                    let cw = w.fonts.metrics.width;
-                    for (i, ch) in text.chars().enumerate() {
-                        w.fx.typed(&cfg, ch, x + i as f32 * cw, y);
+                    let cw = self.win().fonts.metrics.width;
+                    if let Some(v) = self.win_mut().view_mut() {
+                        let (x, y) = v.cursor_anim.to;
+                        for (i, ch) in text.chars().enumerate() {
+                            v.fx.typed(&cfg, ch, x + i as f32 * cw, y);
+                        }
                     }
                 }
             let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active) else { return };
@@ -432,7 +435,9 @@ impl App {
             GridSnapshot { cells, cols, rows, history: grid.history_size() }
         };
         let cfg = self.effects.paste_rain.clone();
-        self.win_mut().fx.begin_paste(&cfg, text, snap);
+        if let Some(v) = self.win_mut().view_mut() {
+            v.fx.begin_paste(&cfg, text, snap);
+        }
     }
 
     /// Remove anything from pasted text that could act as a command to the
@@ -634,7 +639,9 @@ impl App {
     pub(super) fn on_left_button(&mut self, state: ElementState) {
         match state {
             ElementState::Pressed => {
-                self.win_mut().cursor_anim.pulse_start = Some(Instant::now());
+                if let Some(v) = self.win_mut().view_mut() {
+                    v.cursor_anim.pulse_start = Some(Instant::now());
+                }
                 let Some((point, side)) = self.mouse_point() else { return };
                 // Click counting for word/line selection.
                 let now = Instant::now();

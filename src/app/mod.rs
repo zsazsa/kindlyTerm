@@ -134,10 +134,19 @@ struct PendingDrop {
     at: Instant,
 }
 
+/// Per-terminal presentation state that is not part of the grid: cursor
+/// animation and visual effects. Lives on the `Terminal` so a terminal
+/// keeps it when it moves between windows or canvases.
+#[derive(Default)]
+pub struct TermView {
+    pub cursor_anim: CursorAnim,
+    pub fx: Effects,
+}
+
 /// Animated cursor state: smooth travel between cells, a focus/click
 /// pulse, and a resting "breath".
 #[derive(Clone, Copy, Debug)]
-struct CursorAnim {
+pub struct CursorAnim {
     /// Where the cursor is currently drawn (pixels, top-left of the cell).
     pos: (f32, f32),
     from: (f32, f32),
@@ -149,6 +158,12 @@ struct CursorAnim {
     tab: TabId,
     /// Backspace/Delete held since (start, last repeat, eats-left?).
     chomp: Option<(Instant, Instant, bool)>,
+}
+
+impl Default for CursorAnim {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CursorAnim {
@@ -210,10 +225,23 @@ struct Win {
     /// selected so the next keystroke replaces it).
     rename: Option<(usize, String, bool)>,
     last_tab_click: Option<(Instant, usize)>,
-    cursor_anim: CursorAnim,
-    fx: Effects,
     /// Keyboard cheat sheet overlay (Ctrl+/).
     cheat: bool,
+}
+
+impl Win {
+    /// Presentation state of the active terminal, if any.
+    fn view_mut(&mut self) -> Option<&mut TermView> {
+        let i = self.active;
+        self.tabs.get_mut(i).map(|t| &mut t.view)
+    }
+    fn view(&self) -> Option<&TermView> {
+        self.tabs.get(self.active).map(|t| &t.view)
+    }
+    /// Any terminal in this window still animating?
+    fn any_view_transient(&self) -> bool {
+        self.tabs.iter().any(|t| t.view.cursor_anim.transient() || t.view.fx.active())
+    }
 }
 
 pub struct App {
@@ -271,6 +299,9 @@ struct DebugOptions {
     shot_done: bool,
     /// Running index for `frames:` captures, so bursts do not overwrite.
     frame_seq: u32,
+    /// `termzoom:Z` draws the active terminal at zoom Z inside a clipped
+    /// box, to exercise the canvas drawing path before the canvas exists.
+    term_zoom: Option<f32>,
 }
 
 impl DebugOptions {
@@ -292,6 +323,7 @@ impl DebugOptions {
             actions_after: get("KINDLYTERM_ACTIONS_AFTER").and_then(|v| v.parse().ok()),
             shot_done: false,
             frame_seq: 0,
+            term_zoom: None,
         }
     }
 }
@@ -1415,7 +1447,9 @@ impl ApplicationHandler<UserEvent> for App {
             WindowEvent::Focused(f) => {
                 self.wins[self.cur].focused = f;
                 if f {
-                    self.wins[self.cur].cursor_anim.pulse_start = Some(Instant::now());
+                    if let Some(v) = self.wins[self.cur].view_mut() {
+                        v.cursor_anim.pulse_start = Some(Instant::now());
+                    }
                 }
                 if let Some(tab) = self.wins[self.cur].tabs.get(self.wins[self.cur].active)
                     && tab.term.lock().mode().contains(TermMode::FOCUS_IN_OUT) {

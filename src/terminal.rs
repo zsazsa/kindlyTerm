@@ -94,6 +94,8 @@ pub struct Terminal {
     pub custom_title: Option<String>,
     pub exited: bool,
     pub size: GridSize,
+    /// Cursor animation and effects state (owned by the UI layer).
+    pub view: crate::app::TermView,
 }
 
 impl Terminal {
@@ -138,6 +140,7 @@ impl Terminal {
             base_title: launch.title.clone(),
             exited: false,
             size,
+            view: Default::default(),
         })
     }
 

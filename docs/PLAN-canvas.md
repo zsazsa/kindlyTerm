@@ -235,7 +235,7 @@ Rough relative sizes: 1 small · 2 large · 3 large · 4 large · 5 medium ·
 
 ## Progress
 
-- [ ] Phase 1: renderer groundwork
+- [x] Phase 1: renderer groundwork (scissor segments, image textures, zoomed glyphs, reusable terminal drawing, per-terminal view state)
 - [ ] Phase 2: canvas core
 - [ ] Phase 3: PTY hosts
 - [ ] Phase 4: spatial features

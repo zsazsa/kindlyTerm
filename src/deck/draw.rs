@@ -108,12 +108,15 @@ impl Deck {
         self.rects.clear();
         let mut y = content_top - scroll;
         let hover = self.hover;
+        // Scissor the scrolling content to its viewport.
+        batch.push_clip(px.max(0.0), content_top, pw, content_h);
         for (w, h) in content.iter().zip(heights.iter()) {
             if y + h >= content_top - 1.0 && y <= content_top + content_h + 1.0 {
                 self.draw_widget(w, fonts, batch, env, px + push_dx, y, pw, s, focus, hover);
             }
             y += h;
         }
+        batch.pop_clip();
         // Scrollbar.
         if max_scroll > 0.0 {
             let track_h = content_h;

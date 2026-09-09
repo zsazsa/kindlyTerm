@@ -9,6 +9,8 @@ struct Globals {
 @group(0) @binding(0) var<uniform> globals: Globals;
 @group(0) @binding(1) var atlas_tex: texture_2d<f32>;
 @group(0) @binding(2) var atlas_smp: sampler;
+@group(1) @binding(0) var image_tex: texture_2d<f32>;
+@group(1) @binding(1) var image_smp: sampler;
 
 struct Instance {
     @location(0) pos: vec2<f32>,
@@ -62,6 +64,12 @@ fn sd_round_box(p: vec2<f32>, b: vec2<f32>, r: f32) -> f32 {
 
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
+    if (in.kind == 5u) {
+        // Image: uv was normalised by the atlas size in vs; undo that.
+        let uv = in.uv * globals.atlas;
+        let t = textureSample(image_tex, image_smp, uv);
+        return vec4<f32>(t.rgb, t.a * in.color.a);
+    }
     if (in.kind == 4u) {
         // Pac-Man: a disc with a wedge cut out. thickness = mouth half-angle,
         // uv.x (unnormalised, see vs) carries the facing angle.

@@ -36,6 +36,8 @@ pub const KIND_MASK: u32 = 1;
 pub const KIND_COLOR: u32 = 2;
 pub const KIND_OUTLINE: u32 = 3;
 pub const KIND_PACMAN: u32 = 4;
+/// Samples the per-segment image texture (bind group 1) with uv in 0..1.
+pub const KIND_IMAGE: u32 = 5;
 
 /// Multiply a color's RGB toward black/white; `f` < 1 darkens.
 pub fn scale_rgb(c: Rgba, f: f32) -> Rgba {
@@ -57,11 +59,120 @@ pub fn with_alpha(mut c: Rgba, a: f32) -> Rgba {
 #[derive(Default)]
 pub struct Batch {
     pub instances: Vec<Instance>,
+    /// Draw segments: consecutive instances sharing a scissor rect and an
+    /// image binding. A new segment starts whenever either changes.
+    pub segments: Vec<Segment>,
+    clip_stack: Vec<Clip>,
+    current_image: Option<ImageId>,
+}
+
+/// Integer pixel rectangle used as a scissor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Clip {
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
+}
+
+impl Clip {
+    pub fn from_f32(x: f32, y: f32, w: f32, h: f32) -> Self {
+        let x0 = x.max(0.0).floor();
+        let y0 = y.max(0.0).floor();
+        let x1 = (x + w).max(x0).ceil();
+        let y1 = (y + h).max(y0).ceil();
+        Self { x: x0 as u32, y: y0 as u32, w: (x1 - x0) as u32, h: (y1 - y0) as u32 }
+    }
+    fn intersect(self, o: Clip) -> Clip {
+        let x0 = self.x.max(o.x);
+        let y0 = self.y.max(o.y);
+        let x1 = (self.x + self.w).min(o.x + o.w);
+        let y1 = (self.y + self.h).min(o.y + o.h);
+        Clip { x: x0, y: y0, w: x1.saturating_sub(x0), h: y1.saturating_sub(y0) }
+    }
+}
+
+/// Handle to an image uploaded with [`Renderer::upload_image`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct ImageId(pub u32);
+
+#[derive(Clone, Copy, Debug)]
+pub struct Segment {
+    pub start: u32,
+    pub end: u32,
+    pub clip: Option<Clip>,
+    pub image: Option<ImageId>,
 }
 
 impl Batch {
     pub fn clear(&mut self) {
         self.instances.clear();
+        self.segments.clear();
+        self.clip_stack.clear();
+        self.current_image = None;
+    }
+
+    fn current_clip(&self) -> Option<Clip> {
+        self.clip_stack.last().copied()
+    }
+
+    /// Ensure the last segment matches the current clip/image; start a new
+    /// one otherwise. Called before every instance push.
+    fn segment_for(&mut self, image: Option<ImageId>) {
+        let clip = self.current_clip();
+        let idx = self.instances.len() as u32;
+        match self.segments.last_mut() {
+            Some(seg) if seg.clip == clip && seg.image == image && seg.end == idx => {}
+            Some(seg) if seg.start == seg.end => {
+                // Empty trailing segment: retarget it.
+                seg.clip = clip;
+                seg.image = image;
+                seg.start = idx;
+                seg.end = idx;
+            }
+            _ => self.segments.push(Segment { start: idx, end: idx, clip, image }),
+        }
+    }
+
+    fn push(&mut self, inst: Instance, image: Option<ImageId>) {
+        self.segment_for(image);
+        self.instances.push(inst);
+        if let Some(seg) = self.segments.last_mut() {
+            seg.end = self.instances.len() as u32;
+        }
+    }
+
+    /// Everything pushed until the matching `pop_clip` is clipped to this
+    /// rectangle (intersected with any enclosing clip).
+    pub fn push_clip(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        let c = Clip::from_f32(x, y, w, h);
+        let c = match self.current_clip() {
+            Some(outer) => outer.intersect(c),
+            None => c,
+        };
+        self.clip_stack.push(c);
+    }
+
+    pub fn pop_clip(&mut self) {
+        self.clip_stack.pop();
+    }
+
+    /// Draw an uploaded image stretched into the rect (alpha-blended).
+    pub fn image(&mut self, id: ImageId, x: f32, y: f32, w: f32, h: f32, alpha: f32) {
+        self.push(
+            Instance {
+                pos: [x, y],
+                size: [w, h],
+                uv0: [0.0, 0.0],
+                uv1: [1.0, 1.0],
+                color: [1.0, 1.0, 1.0, alpha],
+                kind: KIND_IMAGE,
+                radius: 0.0,
+                thickness: 0.0,
+                _pad: 0,
+            },
+            Some(id),
+        );
     }
 
     pub fn rect(&mut self, x: f32, y: f32, w: f32, h: f32, color: Rgba) {
@@ -73,33 +184,19 @@ impl Batch {
         if w <= 0.0 || h <= 0.0 || color[3] <= 0.0 {
             return;
         }
-        self.instances.push(Instance {
-            pos: [x, y],
-            size: [w, h],
-            uv0: [0.0; 2],
-            uv1: [0.0; 2],
-            color,
-            kind: KIND_RECT,
-            radius,
-            thickness: 0.0,
-            _pad: 0,
-        });
+        self.push(
+            Instance { pos: [x, y], size: [w, h], uv0: [0.0; 2], uv1: [0.0; 2], color, kind: KIND_RECT, radius, thickness: 0.0, _pad: 0 },
+            None,
+        );
     }
 
     /// A Pac-Man disc filling the rect: `facing` in radians (0 = right,
     /// PI = left), `mouth` = half-angle of the open mouth in radians.
     pub fn pacman(&mut self, x: f32, y: f32, size: f32, facing: f32, mouth: f32, color: Rgba) {
-        self.instances.push(Instance {
-            pos: [x, y],
-            size: [size, size],
-            uv0: [facing, 0.0],
-            uv1: [facing, 0.0],
-            color,
-            kind: KIND_PACMAN,
-            radius: size * 0.5,
-            thickness: mouth,
-            _pad: 0,
-        });
+        self.push(
+            Instance { pos: [x, y], size: [size, size], uv0: [facing, 0.0], uv1: [facing, 0.0], color, kind: KIND_PACMAN, radius: size * 0.5, thickness: mouth, _pad: 0 },
+            None,
+        );
     }
 
     /// Rounded outline of `thickness` pixels, drawn inside the given rect.
@@ -107,34 +204,30 @@ impl Batch {
         if w <= 0.0 || h <= 0.0 || color[3] <= 0.0 {
             return;
         }
-        self.instances.push(Instance {
-            pos: [x, y],
-            size: [w, h],
-            uv0: [0.0; 2],
-            uv1: [0.0; 2],
-            color,
-            kind: KIND_OUTLINE,
-            radius,
-            thickness,
-            _pad: 0,
-        });
+        self.push(
+            Instance { pos: [x, y], size: [w, h], uv0: [0.0; 2], uv1: [0.0; 2], color, kind: KIND_OUTLINE, radius, thickness, _pad: 0 },
+            None,
+        );
     }
 
     /// Place a glyph with its origin (baseline-left) at (ox, oy).
     pub fn glyph(&mut self, ox: f32, oy: f32, g: &Glyph, color: Rgba) {
         let x = ox + g.left as f32;
         let y = oy - g.top as f32;
-        self.instances.push(Instance {
-            pos: [x, y],
-            size: [g.w as f32, g.h as f32],
-            uv0: [g.x as f32, g.y as f32],
-            uv1: [(g.x + g.w) as f32, (g.y + g.h) as f32],
-            color,
-            kind: if g.colored { KIND_COLOR } else { KIND_MASK },
-            radius: 0.0,
-            thickness: 0.0,
-            _pad: 0,
-        });
+        self.push(
+            Instance {
+                pos: [x, y],
+                size: [g.w as f32, g.h as f32],
+                uv0: [g.x as f32, g.y as f32],
+                uv1: [(g.x + g.w) as f32, (g.y + g.h) as f32],
+                color,
+                kind: if g.colored { KIND_COLOR } else { KIND_MASK },
+                radius: 0.0,
+                thickness: 0.0,
+                _pad: 0,
+            },
+            None,
+        );
     }
 }
 
@@ -175,12 +268,24 @@ impl Gpu {
     }
 }
 
+struct ImageTex {
+    bind_group: wgpu::BindGroup,
+    pub width: u32,
+    pub height: u32,
+}
+
 pub struct Renderer {
     gpu: Arc<Gpu>,
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
+    image_bgl: wgpu::BindGroupLayout,
+    image_sampler: wgpu::Sampler,
+    /// 1x1 white texture bound when a segment has no image.
+    blank_image: wgpu::BindGroup,
+    images: std::collections::HashMap<ImageId, ImageTex>,
+    next_image: u32,
     globals_buf: wgpu::Buffer,
     atlas_tex: wgpu::Texture,
     instance_buf: wgpu::Buffer,
@@ -315,9 +420,65 @@ impl Renderer {
             ],
         });
 
+        // Group 1: a per-segment image (for pictures on the canvas).
+        let image_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("image bgl"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+        let image_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("image sampler"),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            ..Default::default()
+        });
+        let blank_tex = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("blank image"),
+            size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        gpu.queue.write_texture(
+            wgpu::TexelCopyTextureInfo { texture: &blank_tex, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            &[255, 255, 255, 255],
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(4), rows_per_image: Some(1) },
+            wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+        );
+        let blank_view = blank_tex.create_view(&wgpu::TextureViewDescriptor::default());
+        let blank_image = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("blank image bg"),
+            layout: &image_bgl,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&blank_view) },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&image_sampler) },
+            ],
+        });
+
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("layout"),
-            bind_group_layouts: &[Some(&bgl)],
+            bind_group_layouts: &[Some(&bgl), Some(&image_bgl)],
             ..Default::default()
         });
 
@@ -369,6 +530,11 @@ impl Renderer {
             config,
             pipeline,
             bind_group,
+            image_bgl,
+            image_sampler,
+            blank_image,
+            images: std::collections::HashMap::new(),
+            next_image: 1,
             globals_buf,
             atlas_tex,
             instance_buf,
@@ -377,6 +543,48 @@ impl Renderer {
             height: size.height,
             needs_configure: false,
         })
+    }
+
+    /// Upload an RGBA8 image and get a handle to draw it with `Batch::image`.
+    pub fn upload_image(&mut self, width: u32, height: u32, rgba: &[u8]) -> ImageId {
+        let device = &self.gpu.device;
+        let tex = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("canvas image"),
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        self.gpu.queue.write_texture(
+            wgpu::TexelCopyTextureInfo { texture: &tex, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            rgba,
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(width * 4), rows_per_image: Some(height) },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+        let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("canvas image bg"),
+            layout: &self.image_bgl,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&view) },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.image_sampler) },
+            ],
+        });
+        let id = ImageId(self.next_image);
+        self.next_image += 1;
+        self.images.insert(id, ImageTex { bind_group, width, height });
+        id
+    }
+
+    pub fn remove_image(&mut self, id: ImageId) {
+        self.images.remove(&id);
+    }
+
+    pub fn image_size(&self, id: ImageId) -> Option<(u32, u32)> {
+        self.images.get(&id).map(|i| (i.width, i.height))
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -520,11 +728,48 @@ impl Renderer {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        if !batch.instances.is_empty() {
-            pass.set_pipeline(&self.pipeline);
-            pass.set_bind_group(0, &self.bind_group, &[]);
-            pass.set_vertex_buffer(0, self.instance_buf.slice(..));
-            pass.draw(0..6, 0..batch.instances.len() as u32);
+        if batch.instances.is_empty() {
+            return;
+        }
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.set_bind_group(1, &self.blank_image, &[]);
+        pass.set_vertex_buffer(0, self.instance_buf.slice(..));
+        let (fw, fh) = (self.config.width, self.config.height);
+        let mut last_clip: Option<Option<Clip>> = None;
+        let mut last_image: Option<Option<ImageId>> = None;
+        for seg in &batch.segments {
+            if seg.end <= seg.start {
+                continue;
+            }
+            if last_clip != Some(seg.clip) {
+                match seg.clip {
+                    Some(c) => {
+                        // Scissor must stay inside the framebuffer.
+                        let x = c.x.min(fw);
+                        let y = c.y.min(fh);
+                        let w = c.w.min(fw - x);
+                        let h = c.h.min(fh - y);
+                        if w == 0 || h == 0 {
+                            last_clip = Some(seg.clip);
+                            // Nothing visible: skip this segment entirely.
+                            last_image = None;
+                            continue;
+                        }
+                        pass.set_scissor_rect(x, y, w, h);
+                    }
+                    None => pass.set_scissor_rect(0, 0, fw, fh),
+                }
+                last_clip = Some(seg.clip);
+            }
+            if last_image != Some(seg.image) {
+                match seg.image.and_then(|id| self.images.get(&id)) {
+                    Some(img) => pass.set_bind_group(1, &img.bind_group, &[]),
+                    None => pass.set_bind_group(1, &self.blank_image, &[]),
+                }
+                last_image = Some(seg.image);
+            }
+            pass.draw(0..6, seg.start..seg.end);
         }
     }
 
