@@ -266,7 +266,8 @@ terminal's screen or scrollback, type text and keys, open and close
 terminals (with a command and working directory), move, resize, rename,
 group, pin and mirror items (a pin can take a screen position, so an
 agent can park its own log in a corner while it works), watch a terminal
-for silence, place images, set the view, and take a screenshot. Every action that types, closes, or
+for silence, place images, set the view, size the window, and take a
+screenshot. Every action that types, closes, or
 moves something is announced in the tab bar, and typing lights the
 terminal up: its frame (and its tab, if it is not the one showing) glows
 in the accent colour for a moment, short text replays the typing trail
@@ -297,9 +298,11 @@ groups build with git as "repo" and the docs server with its client as
 shortens the pauses, `--cleanup` closes the tab after. Every demo card
 runs bash with a staged `dev@kindlyTerm` prompt (`demo/rc.sh`), so a
 recording shows no real user or host name. To record one,
-`python3 demo/record.py out &` grabs frames over MCP while the Showtime
-tab is showing; play the demo, then `touch out/stop` and it writes
-`showtime.gif` and `showtime.mp4` (needs ffmpeg).
+`python3 demo/record.py out --window 1280x800 &` sizes the window and
+grabs frames over MCP while the Showtime tab is showing; play the demo,
+then `touch out/stop` and it restores the window and writes
+`showtime.gif` and `showtime.mp4` (needs ffmpeg). The GIF keeps the
+window's pixels 1:1, so text stays readable.
 
 How it works: with the toggle on, the running app serves a small JSON API on
 a private Unix socket (`$XDG_RUNTIME_DIR/kindlyterm/control.sock`, mode

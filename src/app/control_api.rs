@@ -799,6 +799,21 @@ impl App {
                 let list: Vec<Value> = crate::session::list_ids().into_iter().map(|id| json!({"session": id, "attached": attached.contains(&id)})).collect();
                 Ok(json!(list))
             }
+            "set_window" => {
+                // Size the active window in pixels, or (un)maximize it. The
+                // compositor answers later, so the size reported here is the
+                // current one; read set_viewport's area_w/area_h after.
+                let w = &self.wins[self.cur].window;
+                if let Some(m) = p.get("maximized").and_then(|v| v.as_bool()) {
+                    w.set_maximized(m);
+                }
+                if let (Some(width), Some(height)) = (arg_f32(p, "width"), arg_f32(p, "height")) {
+                    w.set_maximized(false);
+                    let _ = w.request_inner_size(winit::dpi::PhysicalSize::new(width.max(400.0) as u32, height.max(300.0) as u32));
+                }
+                let s = w.inner_size();
+                Ok(json!({"width": s.width, "height": s.height, "maximized": w.is_maximized()}))
+            }
             "screenshot" => {
                 let path = std::path::PathBuf::from(need_str(p, "path")?);
                 if path.extension().and_then(|e| e.to_str()) != Some("png") {

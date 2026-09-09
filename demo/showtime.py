@@ -104,13 +104,13 @@ def zoom_about(m, canvas, wx, wy, factor):
     m.call("set_viewport", canvas_id=canvas, x=wx - sx / z, y=wy - sy / z, zoom=z)
 
 
-def frame(m, canvas, x, y, w, h, pad=48, left=0):
+def frame(m, canvas, x, y, w, h, pad=48, bottom=0):
     """Glide the view to fit the world rectangle (x, y, w, h), using only
-    the part of the window right of `left` screen pixels."""
+    the part of the window above `bottom` screen pixels (a pinned log)."""
     v = m.call("set_viewport", canvas_id=canvas)
-    aw, ah = v["area_w"] - left, v["area_h"]
+    aw, ah = v["area_w"], v["area_h"] - bottom
     z = min(aw / (w + 2 * pad), ah / (h + 2 * pad), 4.0)
-    m.call("set_viewport", canvas_id=canvas, x=x + w / 2 - (left + aw / 2) / z, y=y + h / 2 - ah / 2 / z, zoom=z)
+    m.call("set_viewport", canvas_id=canvas, x=x + w / 2 - aw / 2 / z, y=y + h / 2 - ah / 2 / z, zoom=z)
 
 
 def rect_of(m, item_id=None, group_id=None):
@@ -239,7 +239,7 @@ def main():
     # MCP call. The log is pinned to the glass so it stays in view while
     # the camera follows where the agent is looking.
     LX, LY = 0, 800  # the scene sits below the first four acts
-    log = m.call("create_terminal", canvas_id=canvas, name="agent · orchestrator", command=AGENT_SHELL, x=LX, y=LY, cols=76, rows=18)
+    log = m.call("create_terminal", canvas_id=canvas, name="agent · orchestrator", command=AGENT_SHELL, x=LX, y=LY, cols=76, rows=12)
     m.call("zoom_to", item_id=log["item_id"])
     wait(1.5, "the agent opens a log card", hold=True)
     say(m, log["terminal_id"], "plan: audit the repo. three workers, one job each.")
@@ -247,7 +247,7 @@ def main():
     _, _, log_w, log_h = rect_of(m, item_id=log["item_id"])
     area = m.call("set_viewport", canvas_id=canvas)
     m.call("pin_item", item_id=log["item_id"], pinned=True, x=16, y=area["area_h"] - log_h - 16)
-    LEFT = log_w + 48  # the camera keeps out from under the pinned log
+    BOTTOM = log_h + 32  # the camera keeps out from under the pinned log
     wait(1.0, "log pinned bottom-left, 1:1", hold=True)
 
     jobs = [
@@ -260,10 +260,10 @@ def main():
         say(m, log["terminal_id"], f"spawning worker '{name}'")
         w = m.call("create_terminal", canvas_id=canvas, name=f"worker · {name}", cwd=REPO, command=with_shell(cmd), x=x, y=y, cols=52, rows=10)
         workers.append((name, w))
-        frame(m, canvas, *rect_of(m, item_id=w["item_id"]), left=LEFT)
+        frame(m, canvas, *rect_of(m, item_id=w["item_id"]), bottom=BOTTOM)
         wait(1.6, f"'{name}' spawned, camera on it", hold=True)
     scene = union(*[rect_of(m, item_id=w["item_id"]) for _, w in workers])
-    frame(m, canvas, *scene, left=LEFT)
+    frame(m, canvas, *scene, bottom=BOTTOM)
     wait(1.5, "three scattered workers", hold=True)
 
     say(m, log["terminal_id"], "reading their screens")
@@ -278,7 +278,7 @@ def main():
         m.call("move_item", item_id=w["item_id"], x=x, y=LY)
         wait(0.6, f"moved '{name}' into the row", hold=True)
     row = union(*[rect_of(m, item_id=w["item_id"]) for _, w in workers])
-    frame(m, canvas, *row, left=LEFT)
+    frame(m, canvas, *row, bottom=BOTTOM)
     wait(1.5, "a neat row", hold=True)
 
     say(m, log["terminal_id"], "grouping 'lines' and 'todos'. 'history' stays out for now.")
@@ -286,7 +286,7 @@ def main():
     wait(2.5, "a frame around two of the three", hold=True)
     say(m, log["terminal_id"], "now 'history' joins: the frame grows to take it in.")
     m.call("add_to_group", group_id=audit["group_id"], item_id=workers[2][1]["item_id"])
-    frame(m, canvas, *rect_of(m, group_id=audit["group_id"]), left=LEFT)
+    frame(m, canvas, *rect_of(m, group_id=audit["group_id"]), bottom=BOTTOM)
     wait(2.5, "the frame grew", hold=True)
     say(m, log["terminal_id"], "renaming the group: audit · 3 workers")
     m.call("rename_group", group_id=audit["group_id"], name="audit · 3 workers")
@@ -307,14 +307,14 @@ def main():
     m.call("move_item", item_id=todos, x=row_x[0], y=LY)
     m.call("delete_group", group_id=audit["group_id"])
     audit = m.call("create_group", item_ids=[todos], name="audit · 1 open")
-    frame(m, canvas, *rect_of(m, group_id=audit["group_id"]), left=LEFT)
+    frame(m, canvas, *rect_of(m, group_id=audit["group_id"]), bottom=BOTTOM)
     wait(2.5, "one card, renamed and enlarged, in a fresh snug group", hold=True)
 
     print("▶ Act 6 · the rest of the board")
     # The agent turns to the cards from Act 3: a silence monitor that fired,
     # and loose cards that belong together.
     quiet = any(t["terminal_id"] == build["terminal_id"] and t["quiet_alert"] for t in m.call("get_activity"))
-    frame(m, canvas, *rect_of(m, item_id=build["item_id"]), left=LEFT)
+    frame(m, canvas, *rect_of(m, item_id=build["item_id"]), bottom=BOTTOM)
     if quiet:
         say(m, log["terminal_id"], "the build card is blinking: its silence monitor fired.")
         say(m, log["terminal_id"], "build says: " + last_line(m, build["terminal_id"])[:52], cps=48)
@@ -326,11 +326,11 @@ def main():
         wait(1.5, "build still busy", hold=True)
     say(m, log["terminal_id"], "build and git belong together: grouping them as 'repo'")
     repo = m.call("create_group", item_ids=[build["item_id"], git["item_id"]], name="repo")
-    frame(m, canvas, *rect_of(m, group_id=repo["group_id"]), left=LEFT)
+    frame(m, canvas, *rect_of(m, group_id=repo["group_id"]), bottom=BOTTOM)
     wait(2.5, "the repo group", hold=True)
     say(m, log["terminal_id"], "the docs server and the requests that hit it: 'docs site'")
     web = m.call("create_group", item_ids=[server["item_id"], client["item_id"]], name="docs site")
-    frame(m, canvas, *rect_of(m, group_id=web["group_id"]), left=LEFT)
+    frame(m, canvas, *rect_of(m, group_id=web["group_id"]), bottom=BOTTOM)
     wait(2.5, "the docs site group: a server and its client", hold=True)
 
     say(m, log["terminal_id"], "done. unpinning my log and handing back.")

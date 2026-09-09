@@ -55,6 +55,7 @@ fn tools() -> Vec<Tool> {
         Tool { name: "place_image", description: "Put an image file (png/jpg/gif/webp) on a canvas.", schema: obj(json!({"path": {"type": "string"}, "canvas_id": {"type": "integer"}}), &["path"]) },
         Tool { name: "remove_item", description: "Remove an image or mirror item (for terminals use close_terminal).", schema: obj(json!({"item_id": iid}), &["item_id"]) },
         Tool { name: "list_sessions", description: "Detached shell sessions (hosts) known to this machine, attached or not.", schema: obj(json!({}), &[]) },
+        Tool { name: "set_window", description: "Resize the active window to width x height pixels (this un-maximizes it), or set maximized true/false. The compositor applies it a moment later; read set_viewport's area_w/area_h for the new canvas size.", schema: obj(json!({"width": {"type": "number"}, "height": {"type": "number"}, "maximized": {"type": "boolean"}}), &[]) },
         Tool { name: "screenshot", description: "Save a PNG of the active window to `path` (must end in .png).", schema: obj(json!({"path": {"type": "string"}}), &["path"]) },
     ]
 }
