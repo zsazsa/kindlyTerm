@@ -114,6 +114,7 @@ stay in sync.
 | `Ctrl+Shift+K` | New empty canvas tab. |
 | `Ctrl+Shift+F` | Canvas focus mode: zoom the focused terminal to fill the window; again to go back. |
 | `Ctrl+Shift+A` | Canvas: fit every terminal into view. |
+| `Ctrl+Shift+G` | Canvas: group the selected terminals in a named frame; on a selected group, dissolve it. |
 | `Ctrl+Shift+=` / `Ctrl+Shift+-` / `Ctrl+Shift+0` | Canvas: zoom in / out / reset. On a plain tab these change the font size. |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab. `Ctrl+PageDown` / `Ctrl+PageUp` also work. |
 | `Alt+1` … `Alt+8`, `Alt+9` | Jump to tab N, `Alt+9` = last tab. |
@@ -174,6 +175,15 @@ holding a free canvas show a `▦` marker in the tab bar.
 - **Focus mode**, **fit all** (`Ctrl+Shift+A`), **reset zoom**, rename, move a
   terminal to another canvas tab, or *Maximize terminal* to turn a one-item
   canvas back into a plain tab: all in the right-click menus.
+- **Select several** with `Shift`+click on terminals or `Shift`+drag on
+  empty canvas. Dragging one selected title bar moves them all;
+  `Ctrl+Shift+F` zooms to the whole selection.
+- **Groups** (`Ctrl+Shift+G`, or the canvas menu) put the selection in a
+  named, tinted frame. Drag the frame's label to move everything inside,
+  double-click it to rename, resize the frame to change who belongs: any
+  terminal fully inside is a member. `Ctrl+Shift+F` with a group selected
+  zooms to it. Right-click the label for zoom, rename, ungroup, or close
+  all.
 - Canvas tabs tear off, merge, and reorder like any other tab.
 
 The layout (windows, tabs, item positions, zoom, and what each item was

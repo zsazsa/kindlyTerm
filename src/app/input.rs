@@ -208,6 +208,10 @@ impl App {
                         }
                         return true;
                     }
+                    "g" => {
+                        self.toggle_group();
+                        return true;
+                    }
                     "=" | "+" => {
                         if self.on_free_canvas() { self.zoom_by(1.25, None) } else { self.set_font_pt(self.font_pt + 1.0) }
                         return true;

@@ -236,6 +236,11 @@ impl App {
                     _ if a == "fit" => self.fit_all(),
                     _ if a == "focusmode" => self.toggle_focus_mode(),
                     _ if a == "maximize" => self.maximize_canvas(),
+                    Some(("shift", on)) => {
+                        // Hold or release Shift for the following mouse actions.
+                        self.mods = if on == "on" { winit::keyboard::ModifiersState::SHIFT } else { winit::keyboard::ModifiersState::empty() };
+                    }
+                    _ if a == "group" => self.toggle_group(),
                     _ if a == "newwindow" => {
                         if let Some(el) = event_loop {
                             self.create_window(el, super::windows::NewWindow::Shell);

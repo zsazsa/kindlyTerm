@@ -24,7 +24,7 @@ pub const EDGE_PX: f32 = 7.0;
 pub const MIN_ZOOM: f32 = 0.15;
 pub const MAX_ZOOM: f32 = 4.0;
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct WRect {
     pub x: f32,
     pub y: f32,
@@ -48,6 +48,11 @@ impl WRect {
     pub fn center(&self) -> (f32, f32) {
         (self.x + self.w / 2.0, self.y + self.h / 2.0)
     }
+    /// Does this rect fully contain `o`?
+    pub fn contains_rect(&self, o: &WRect) -> bool {
+        o.x >= self.x && o.y >= self.y && o.right() <= self.right() && o.bottom() <= self.bottom()
+    }
+
     pub fn intersects(&self, o: &WRect) -> bool {
         self.x < o.right() && o.x < self.right() && self.y < o.bottom() && o.y < self.bottom()
     }
@@ -142,6 +147,56 @@ pub struct LaunchSpec {
     pub session: Option<String>,
 }
 
+pub type GroupId = u64;
+
+/// Padding between a group's frame and its members when created.
+pub const GROUP_PAD: f32 = 18.0;
+/// Height of the name tab drawn above a group's frame (world units).
+pub const GROUP_LABEL_H: f32 = 22.0;
+/// Smallest group frame.
+pub const GROUP_MIN: f32 = 80.0;
+
+/// A named, tinted frame around a set of items. Dragging the frame moves
+/// the members; membership is by containment in `rect`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Group {
+    pub id: GroupId,
+    pub name: String,
+    /// Content box in world units (the label sits above it).
+    pub rect: WRect,
+    /// ANSI palette index used for the tint.
+    pub color: u8,
+    pub members: Vec<ItemId>,
+}
+
+/// Part of a group frame under the pointer.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum GroupPart {
+    Label,
+    Edge(Edge),
+    Inside,
+}
+
+/// Hit-test a group's screen-space content box and label.
+pub fn group_part(screen: WRect, label: WRect, sx: f32, sy: f32) -> Option<GroupPart> {
+    if label.contains(sx, sy) {
+        return Some(GroupPart::Label);
+    }
+    let e = EDGE_PX;
+    let outer = WRect::new(screen.x - e, screen.y - e, screen.w + 2.0 * e, screen.h + 2.0 * e);
+    if !outer.contains(sx, sy) {
+        return None;
+    }
+    let left = sx < screen.x + e;
+    let right = sx >= screen.right() - e;
+    let top = sy < screen.y + e;
+    let bottom = sy >= screen.bottom() - e;
+    if left || right || top || bottom {
+        return Some(GroupPart::Edge(Edge { left, right, top, bottom }));
+    }
+    Some(GroupPart::Inside)
+}
+
 /// How a canvas tab presents itself.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CanvasMode {
@@ -172,17 +227,26 @@ pub struct Canvas {
     /// Counter for cascading new items.
     #[serde(default)]
     pub spawn_n: u32,
+    /// Group frames, drawn behind items.
+    #[serde(default)]
+    pub groups: Vec<Group>,
+    /// Multi-selection (the focused item may or may not be in it).
+    #[serde(skip)]
+    pub selected: Vec<ItemId>,
+    /// Group whose label was clicked last; Focus Mode zooms to it.
+    #[serde(skip)]
+    pub group_sel: Option<GroupId>,
 }
 
 impl Canvas {
     pub fn new(id: CanvasId, name: impl Into<String>) -> Self {
-        Self { id, name: name.into(), mode: CanvasMode::Free, cwd: None, view: Viewport::default(), items: Vec::new(), focus: None, focus_prev: None, spawn_n: 0 }
+        Self { id, name: name.into(), mode: CanvasMode::Free, cwd: None, view: Viewport::default(), items: Vec::new(), focus: None, focus_prev: None, spawn_n: 0, groups: Vec::new(), selected: Vec::new(), group_sel: None }
     }
 
     /// A classic terminal tab: one maximized item.
     pub fn single(id: CanvasId, item: Item) -> Self {
         let focus = Some(item.id);
-        Self { id, name: String::new(), mode: CanvasMode::Single, cwd: None, view: Viewport::default(), items: vec![item], focus, focus_prev: None, spawn_n: 0 }
+        Self { id, name: String::new(), mode: CanvasMode::Single, cwd: None, view: Viewport::default(), items: vec![item], focus, focus_prev: None, spawn_n: 0, groups: Vec::new(), selected: Vec::new(), group_sel: None }
     }
 
     pub fn is_single(&self) -> bool {
@@ -215,6 +279,64 @@ impl Canvas {
             let it = self.items.remove(pos);
             self.items.push(it);
         }
+    }
+
+    // --- groups and selection ---------------------------------------------
+
+    pub fn group(&self, id: GroupId) -> Option<&Group> {
+        self.groups.iter().find(|g| g.id == id)
+    }
+
+    pub fn group_mut(&mut self, id: GroupId) -> Option<&mut Group> {
+        self.groups.iter_mut().find(|g| g.id == id)
+    }
+
+    /// Recompute every group's members by containment, and drop members
+    /// that no longer exist. An item belongs to at most one group: the
+    /// smallest frame that contains it wins.
+    pub fn recompute_membership(&mut self) {
+        let mut order: Vec<usize> = (0..self.groups.len()).collect();
+        order.sort_by(|&a, &b| {
+            let (ra, rb) = (self.groups[a].rect, self.groups[b].rect);
+            (ra.w * ra.h).partial_cmp(&(rb.w * rb.h)).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let mut taken: Vec<ItemId> = Vec::new();
+        for gi in order {
+            let rect = self.groups[gi].rect;
+            let members: Vec<ItemId> = self
+                .items
+                .iter()
+                .filter(|i| !taken.contains(&i.id) && rect.contains_rect(&i.rect))
+                .map(|i| i.id)
+                .collect();
+            taken.extend(members.iter().copied());
+            self.groups[gi].members = members;
+        }
+    }
+
+    /// Is the item part of the current multi-selection?
+    pub fn is_selected(&self, id: ItemId) -> bool {
+        self.selected.contains(&id)
+    }
+
+    /// The focused item plus any multi-selection, deduplicated.
+    pub fn selection_or_focus(&self) -> Vec<ItemId> {
+        let mut v = self.selected.clone();
+        if let Some(f) = self.focus
+            && !v.contains(&f)
+            && self.item(f).is_some()
+        {
+            v.push(f);
+        }
+        v.retain(|id| self.item(*id).is_some());
+        v
+    }
+
+    /// Union of the given items' rects.
+    pub fn bounds_of(&self, ids: &[ItemId]) -> Option<WRect> {
+        let mut it = ids.iter().filter_map(|id| self.item(*id)).map(|i| i.rect);
+        let first = it.next()?;
+        Some(it.fold(first, |a, b| a.union(&b)))
     }
 
     /// Bounding rect of all items (None if empty).

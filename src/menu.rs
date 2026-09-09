@@ -34,6 +34,11 @@ pub enum MenuAction {
     MoveToCanvas(crate::terminal::TabId, usize),
     CloseTerminal(crate::terminal::TabId),
     RenameItem(crate::canvas::ItemId),
+    GroupSelection,
+    RenameGroup(crate::canvas::GroupId),
+    ZoomGroup(crate::canvas::GroupId),
+    Ungroup(crate::canvas::GroupId),
+    CloseGroup(crate::canvas::GroupId),
     /// Non-interactive divider line.
     Separator,
 }
@@ -123,11 +128,24 @@ impl Menu {
             MenuItem::sep(),
             MenuItem::new("Fit everything", "Ctrl+Shift+A", MenuAction::FitAll),
             MenuItem::new("Reset zoom", "Ctrl+Shift+0", MenuAction::ResetZoom),
+            MenuItem::new("Group selected terminals", "Ctrl+Shift+G", MenuAction::GroupSelection),
             MenuItem::new("Maximize terminal", "", MenuAction::Maximize).enabled(one_item),
             MenuItem::sep(),
             MenuItem::new("New canvas tab", "Ctrl+Shift+K", MenuAction::NewCanvasTab),
             MenuItem::new("Control Deck", "Ctrl+Shift+,", MenuAction::OpenDeck),
             MenuItem::new("Keyboard cheat sheet", "Ctrl+/", MenuAction::CheatSheet),
+        ];
+        Self::new(x, y, items)
+    }
+
+    /// Menu for a right-click on a group's label.
+    pub fn for_group(x: f32, y: f32, g: crate::canvas::GroupId, name: &str) -> Self {
+        let items = vec![
+            MenuItem::new(&format!("Zoom to {name}"), "Ctrl+Shift+F", MenuAction::ZoomGroup(g)),
+            MenuItem::new("Rename group", "double-click", MenuAction::RenameGroup(g)),
+            MenuItem::sep(),
+            MenuItem::new("Ungroup", "Ctrl+Shift+G", MenuAction::Ungroup(g)),
+            MenuItem::new("Close every terminal in it", "", MenuAction::CloseGroup(g)),
         ];
         Self::new(x, y, items)
     }

@@ -3,7 +3,7 @@
 
 use super::*;
 use super::draw::{draw_term_view, TermPlace};
-use crate::canvas::{item_part, Edge, Viewport, EDGE_PX, MAX_ZOOM, MIN_ZOOM, SNAP_PX};
+use crate::canvas::{item_part, Edge, GroupPart, Viewport, EDGE_PX, MAX_ZOOM, MIN_ZOOM, SNAP_PX};
 use winit::dpi::PhysicalSize;
 
 /// Minimum item grid while resizing.
@@ -178,9 +178,18 @@ impl App {
         if let Some(c) = w.canvas_mut() {
             if let Some(prev) = c.focus_prev.take() {
                 c.view = prev;
-            } else if let Some(r) = c.focus.and_then(|id| c.item(id)).map(|i| i.rect) {
-                c.focus_prev = Some(c.view);
-                c.view.fit(l.area, r, 24.0);
+            } else {
+                // A selected group, a multi-selection, or the focused item.
+                let target = c
+                    .group_sel
+                    .and_then(|g| c.group(g))
+                    .map(|g| WRect::new(g.rect.x, g.rect.y - crate::canvas::GROUP_LABEL_H, g.rect.w, g.rect.h + crate::canvas::GROUP_LABEL_H))
+                    .or_else(|| if c.selected.len() > 1 { c.bounds_of(&c.selected) } else { None })
+                    .or_else(|| c.focus.and_then(|f| c.item(f)).map(|i| i.rect));
+                if let Some(r) = target {
+                    c.focus_prev = Some(c.view);
+                    c.view.fit(l.area, r, 24.0);
+                }
             }
         }
         w.dirty = true;
@@ -199,21 +208,42 @@ impl App {
 
         // Finish drags on release.
         if state == ElementState::Released {
-            let drag = self.win().cdrag;
+            let drag = self.win().cdrag.clone();
             match drag {
                 CDrag::None => return false,
-                CDrag::Move { item, moved, .. } => {
+                CDrag::Move { item, moved, starts, .. } => {
                     if moved {
                         self.snap_item(item, false);
+                        self.follow_primary(item, &starts);
+                        self.settle_groups();
                         self.mark_dirty();
                     }
                 }
                 CDrag::Resize { item, .. } => {
                     self.snap_item(item, true);
                     self.apply_item_grid(item);
+                    self.settle_groups();
                     self.mark_dirty();
                 }
                 CDrag::Pan { .. } => self.mark_dirty(),
+                CDrag::Select { start, cur } => {
+                    let band = WRect::new(start.0.min(cur.0), start.1.min(cur.1), (cur.0 - start.0).abs(), (cur.1 - start.1).abs());
+                    if band.w > 2.0 || band.h > 2.0 {
+                        self.select_in_rect(band);
+                    } else {
+                        self.clear_selection();
+                    }
+                }
+                CDrag::MoveGroup { moved, .. } => {
+                    if moved {
+                        self.settle_groups();
+                        self.mark_dirty();
+                    }
+                }
+                CDrag::ResizeGroup { .. } => {
+                    self.settle_groups();
+                    self.mark_dirty();
+                }
             }
             self.win_mut().cdrag = CDrag::None;
             self.request_redraw();
@@ -234,6 +264,11 @@ impl App {
                 if let Some((id, _)) = self.item_at(mx, my) {
                     self.focus_item(id);
                     self.open_item_menu(id, mx, my);
+                } else if let Some((gid, GroupPart::Label)) = self.group_at(mx, my) {
+                    if let Some(c) = self.win_mut().canvas_mut() {
+                        c.group_sel = Some(gid);
+                    }
+                    self.open_group_menu(gid, mx, my);
                 } else {
                     self.open_canvas_menu(mx, my);
                 }
@@ -255,26 +290,36 @@ impl App {
                 true
             }
             Some((id, ItemPart::Title)) => {
+                if self.mods.shift_key() {
+                    self.toggle_selected(id);
+                    return true;
+                }
                 let now = Instant::now();
                 let dbl = matches!(self.win().last_title_click, Some((t, j)) if j == id && now.duration_since(t).as_millis() < 400);
                 self.win_mut().last_title_click = Some((now, id));
+                // Clicking outside the selection collapses it.
+                if !self.win().canvas().map(|c| c.is_selected(id)).unwrap_or(false) {
+                    self.clear_selection();
+                }
                 self.focus_item(id);
                 if dbl {
                     self.win_mut().last_title_click = None;
                     self.start_item_rename(id);
                     return true;
                 }
+                let starts = self.drag_set(id);
                 let w = self.win();
                 if let Some(c) = w.canvas() {
                     let (wx, wy) = c.view.screen_to_world(l.area, mx, my);
                     if let Some(it) = c.item(id) {
                         let grab = (wx - it.rect.x, wy - it.rect.y);
-                        self.win_mut().cdrag = CDrag::Move { item: id, grab, moved: false };
+                        self.win_mut().cdrag = CDrag::Move { item: id, grab, moved: false, starts };
                     }
                 }
                 true
             }
             Some((id, ItemPart::Edge(edge))) => {
+                self.clear_selection();
                 self.focus_item(id);
                 let w = self.win();
                 if let Some(c) = w.canvas() {
@@ -287,7 +332,16 @@ impl App {
                 true
             }
             Some((id, ItemPart::Content)) => {
+                if self.mods.shift_key() && self.win().canvas().and_then(|c| c.focus) != Some(id) {
+                    // Shift+click on another terminal extends the item
+                    // selection rather than the text selection.
+                    self.toggle_selected(id);
+                    return true;
+                }
                 if self.win().canvas().and_then(|c| c.focus) != Some(id) {
+                    if !self.win().canvas().map(|c| c.is_selected(id)).unwrap_or(false) {
+                        self.clear_selection();
+                    }
                     self.focus_item(id);
                 }
                 // Text selection inside the terminal: existing path.
@@ -295,11 +349,47 @@ impl App {
                 true
             }
             None => {
-                // Empty canvas: left-drag pans; a click clears the selection.
+                // Group frames sit behind items.
+                match self.group_at(mx, my) {
+                    Some((gid, GroupPart::Label)) => {
+                        let now = Instant::now();
+                        let key = ITEM_RENAME_BASE as u64 + gid; // distinct from item ids
+                        let dbl = matches!(self.win().last_title_click, Some((t, j)) if j == key && now.duration_since(t).as_millis() < 400);
+                        self.win_mut().last_title_click = Some((now, key));
+                        if dbl {
+                            self.win_mut().last_title_click = None;
+                            self.start_group_rename(gid);
+                            return true;
+                        }
+                        let (wx, wy) = self.win().canvas().map(|c| c.view.screen_to_world(l.area, mx, my)).unwrap_or((0.0, 0.0));
+                        self.begin_group_move(gid, wx, wy);
+                        self.request_redraw();
+                        return true;
+                    }
+                    Some((gid, GroupPart::Edge(edge))) => {
+                        let (wx, wy) = self.win().canvas().map(|c| c.view.screen_to_world(l.area, mx, my)).unwrap_or((0.0, 0.0));
+                        let start = self.win().canvas().and_then(|c| c.group(gid)).map(|g| g.rect).unwrap_or_default();
+                        if let Some(c) = self.win_mut().canvas_mut() {
+                            c.group_sel = Some(gid);
+                            c.selected.clear();
+                        }
+                        self.win_mut().cdrag = CDrag::ResizeGroup { group: gid, edge, start, press: (wx, wy) };
+                        return true;
+                    }
+                    _ => {}
+                }
+                // Empty canvas: Shift+drag selects, plain drag pans; either
+                // way the text selection and any item selection clear.
                 if let Some(tab) = self.active_tab() {
                     tab.term.lock().selection = None;
                 }
-                self.win_mut().cdrag = CDrag::Pan { last: (mx, my) };
+                self.clear_selection();
+                if self.mods.shift_key() {
+                    let (wx, wy) = self.win().canvas().map(|c| c.view.screen_to_world(l.area, mx, my)).unwrap_or((0.0, 0.0));
+                    self.win_mut().cdrag = CDrag::Select { start: (wx, wy), cur: (wx, wy) };
+                } else {
+                    self.win_mut().cdrag = CDrag::Pan { last: (mx, my) };
+                }
                 true
             }
         }
@@ -343,7 +433,24 @@ impl App {
     pub(super) fn canvas_mouse_move(&mut self) -> bool {
         let (mx, my) = (self.win().mouse.x as f32, self.win().mouse.y as f32);
         let Some(l) = self.win().layout else { return false };
-        match self.win().cdrag {
+        match self.win().cdrag.clone() {
+            CDrag::Select { start, .. } => {
+                let Some((wx, wy)) = self.win().canvas().map(|c| c.view.screen_to_world(l.area, mx, my)) else { return false };
+                self.win_mut().cdrag = CDrag::Select { start, cur: (wx, wy) };
+                self.set_cursor(CursorIcon::Crosshair);
+                self.request_redraw();
+                true
+            }
+            CDrag::MoveGroup { .. } => {
+                let Some((wx, wy)) = self.win().canvas().map(|c| c.view.screen_to_world(l.area, mx, my)) else { return false };
+                self.drag_group_move(wx, wy);
+                true
+            }
+            CDrag::ResizeGroup { .. } => {
+                let Some((wx, wy)) = self.win().canvas().map(|c| c.view.screen_to_world(l.area, mx, my)) else { return false };
+                self.drag_group_resize(wx, wy);
+                true
+            }
             CDrag::Pan { last } => {
                 let w = self.win_mut();
                 if let Some(c) = w.canvas_mut() {
@@ -356,21 +463,22 @@ impl App {
                 self.request_redraw();
                 true
             }
-            CDrag::Move { item, grab, moved } => {
+            CDrag::Move { item, grab, moved, starts } => {
                 let Some((wx, wy)) = self.win().canvas().map(|c| c.view.screen_to_world(l.area, mx, my)) else { return false };
                 let w = self.win_mut();
+                let mut now_moved = moved;
                 if let Some(it) = w.canvas_mut().and_then(|c| c.item_mut(item)) {
                     let nx = (wx - grab.0).round();
                     let ny = (wy - grab.1).round();
                     let changed = (nx - it.rect.x).abs() > 0.5 || (ny - it.rect.y).abs() > 0.5;
                     it.rect.x = nx;
                     it.rect.y = ny;
-                    if changed || moved {
-                        w.cdrag = CDrag::Move { item, grab, moved: true };
-                    }
+                    now_moved = changed || moved;
                 }
-                // Live snap while moving.
+                // Live snap while moving; the rest of the selection follows.
                 self.snap_item(item, false);
+                self.follow_primary(item, &starts);
+                self.win_mut().cdrag = CDrag::Move { item, grab, moved: now_moved, starts };
                 self.set_cursor(CursorIcon::Grabbing);
                 self.request_redraw();
                 true
@@ -434,9 +542,13 @@ impl App {
                         Some((_, ItemPart::Close)) => CursorIcon::Pointer,
                         Some((_, ItemPart::Edge(e))) => resize_cursor(e),
                         Some((_, ItemPart::Content)) => CursorIcon::Text,
-                        None => {
-                            if self.win().space_held || self.win().pan_mode { CursorIcon::Grab } else { CursorIcon::Default }
-                        }
+                        None => match self.group_at(mx, my) {
+                            Some((_, GroupPart::Label)) => CursorIcon::Grab,
+                            Some((_, GroupPart::Edge(e))) => resize_cursor(e),
+                            _ => {
+                                if self.win().space_held || self.win().pan_mode { CursorIcon::Grab } else { CursorIcon::Default }
+                            }
+                        },
                     };
                     self.set_cursor(icon);
                 }
@@ -591,6 +703,8 @@ impl App {
             }
         }
 
+        Self::draw_groups(w, l, theme);
+
         // Items, back to front.
         let ids: Vec<ItemId> = w.canvases[ci].items.iter().map(|i| i.id).collect();
         for id in ids {
@@ -603,6 +717,7 @@ impl App {
                 continue;
             }
             let focused = focus == Some(id);
+            let selected = w.canvases[ci].is_selected(id);
             let hovered = hover.map(|(h, _)| h == id).unwrap_or(false);
             let title_h = TITLE_H * zoom;
             let radius = (8.0 * zoom).clamp(2.0, 10.0);
@@ -613,8 +728,11 @@ impl App {
             if focused {
                 w.batch.rect(sr.x, sr.y, sr.w, (2.0 * zoom).max(1.5), theme.accent);
             }
-            let border = if focused { theme.accent } else if hovered { theme.muted } else { theme.highlight };
+            let border = if focused || selected { theme.accent } else if hovered { theme.muted } else { theme.highlight };
             w.batch.outline(sr.x, sr.y, sr.w, sr.h, radius, if focused { 1.5 } else { 1.0 }, border);
+            if selected {
+                w.batch.rrect(sr.x, sr.y, sr.w, sr.h, radius, with_alpha(theme.accent, 0.06));
+            }
 
             // Title text and close button (skipped when too small to read).
             let tab_ref = match kind {
@@ -677,6 +795,9 @@ impl App {
                 draw_term_view(&mut w.fonts, &mut w.batch, theme, &anim_mode, &effects_cfg, tab, place);
             }
         }
+
+        Self::draw_group_labels(w, l, theme);
+        Self::draw_selection_band(w, l, theme);
 
         // Empty-canvas hint.
         if w.canvases[ci].items.is_empty() {
@@ -803,6 +924,11 @@ impl App {
             }
         }
         let n = canvases.len();
+        for c in &mut canvases {
+            for g in &c.groups {
+                self.next_group_id = self.next_group_id.max(g.id + 1);
+            }
+        }
         self.win_mut().canvases = canvases;
         let l = self.win().layout.expect("layout");
         for ci in 0..n {
@@ -892,7 +1018,7 @@ impl App {
 /// (item renames); below it they are tab indices.
 pub(super) const ITEM_RENAME_BASE: usize = 1 << 20;
 
-fn resize_cursor(e: Edge) -> CursorIcon {
+pub(super) fn resize_cursor(e: Edge) -> CursorIcon {
     match (e.left, e.right, e.top, e.bottom) {
         (true, _, true, _) | (_, true, _, true) => CursorIcon::NwseResize,
         (true, _, _, true) | (_, true, true, _) => CursorIcon::NeswResize,

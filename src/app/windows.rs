@@ -4,6 +4,7 @@
 use super::*;
 
 /// What a new window starts with.
+#[allow(clippy::large_enum_variant)]
 pub(super) enum NewWindow {
     /// One tab with a fresh shell.
     Shell,

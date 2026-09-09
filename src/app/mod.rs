@@ -63,6 +63,7 @@ macro_rules! deck_env {
 
 mod canvas_ui;
 mod debug;
+mod groups;
 mod draw;
 mod input;
 mod windows;
@@ -131,15 +132,22 @@ struct TabDrag {
 }
 
 /// An in-progress pointer interaction on a free canvas.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum CDrag {
     None,
     /// Panning: last pointer position.
     Pan { last: (f32, f32) },
-    /// Moving an item: pointer offset from its world origin.
-    Move { item: ItemId, grab: (f32, f32), moved: bool },
+    /// Moving an item (and whatever is selected with it): pointer offset
+    /// from the primary's world origin, plus every follower's start rect.
+    Move { item: ItemId, grab: (f32, f32), moved: bool, starts: Vec<(ItemId, WRect)> },
     /// Resizing an item from the given edges.
     Resize { item: ItemId, edge: crate::canvas::Edge, start: WRect, press: (f32, f32) },
+    /// Rubber-band selection in world coordinates.
+    Select { start: (f32, f32), cur: (f32, f32) },
+    /// Moving a group frame with its members.
+    MoveGroup { group: crate::canvas::GroupId, grab: (f32, f32), rect0: WRect, starts: Vec<(ItemId, WRect)>, moved: bool },
+    /// Resizing a group frame (membership follows).
+    ResizeGroup { group: crate::canvas::GroupId, edge: crate::canvas::Edge, start: WRect, press: (f32, f32) },
 }
 
 /// A tab released outside its window: waiting to see whether another
@@ -352,6 +360,7 @@ pub struct App {
     gpu: Option<Arc<Gpu>>,
     next_canvas_id: CanvasId,
     next_item_id: ItemId,
+    next_group_id: crate::canvas::GroupId,
     last_save: Instant,
     /// Next time an animation frame is due (cursor breath/travel/pulse).
     next_frame: Option<Instant>,
@@ -440,6 +449,7 @@ impl App {
             gpu: None,
             next_canvas_id: 1,
             next_item_id: 1,
+            next_group_id: 1,
             last_save: Instant::now(),
             next_frame: None,
             effects: EffectsConfig::load(),
@@ -881,6 +891,17 @@ impl App {
         if commit {
             let text = text.trim().to_string();
             let w = self.win_mut();
+            if index >= groups::GROUP_RENAME_BASE {
+                let gid = (index - groups::GROUP_RENAME_BASE) as crate::canvas::GroupId;
+                if let Some(g) = w.canvas_mut().and_then(|c| c.group_mut(gid))
+                    && !text.is_empty()
+                {
+                    g.name = text;
+                }
+                w.dirty = true;
+                self.request_redraw();
+                return;
+            }
             if index >= canvas_ui::ITEM_RENAME_BASE {
                 // A terminal item on a free canvas.
                 if let Some(term) = w.terms.get_mut(index - canvas_ui::ITEM_RENAME_BASE) {
@@ -1493,6 +1514,11 @@ impl App {
             MenuAction::MoveToCanvas(tab, ci) => self.move_item_to_canvas(tab, ci),
             MenuAction::CloseTerminal(tab) => self.close_terminal(tab, event_loop),
             MenuAction::RenameItem(id) => self.start_item_rename(id),
+            MenuAction::GroupSelection => self.toggle_group(),
+            MenuAction::RenameGroup(g) => self.start_group_rename(g),
+            MenuAction::ZoomGroup(g) => self.zoom_to_group(g),
+            MenuAction::Ungroup(g) => self.ungroup(g),
+            MenuAction::CloseGroup(g) => self.close_group(g, event_loop),
             MenuAction::Separator | MenuAction::Cancel => {}
         }
         self.request_redraw();
