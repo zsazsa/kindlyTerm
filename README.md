@@ -268,6 +268,9 @@ opacity = 1.0          # 0.3..1.0 window translucency (Deck → Appearance → O
   dialog asks first (`clipboard.confirm_multiline_paste`).
 - **Shortcut hotkeys** cannot take Ctrl+C, Ctrl+D, or Ctrl+Z from the shell.
 - **Developer hooks** below are inert unless `KINDLYTERM_DEBUG=1` is set.
+- **Distributing binaries**: release builds are stripped. To also keep your
+  home directory out of panic messages, add to `~/.cargo/config.toml`:
+  `[build] rustflags = ["--remap-path-prefix=/home/you=~"]`.
 
 ## Debug knobs
 
