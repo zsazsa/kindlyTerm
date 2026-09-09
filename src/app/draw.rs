@@ -345,7 +345,7 @@ pub(crate) fn draw_term_view(
         let now = Instant::now();
         let animate = anim_mode != "none";
         if let Some(vp) = cursor_vp {
-            let target = (place.x + vp.column.0 as f32 * m.width, place.y + vp.line as f32 * m.height);
+            let target = (vp.column.0 as f32, vp.line as f32);
             if anim.tab != tab_id || !animate {
                 // New tab: snap.
                 anim.tab = tab_id;
@@ -363,6 +363,8 @@ pub(crate) fn draw_term_view(
         let travel_t = anim.travel_t();
         let ease = 1.0 - (1.0 - travel_t).powi(3);
         anim.pos = (anim.from.0 + (anim.to.0 - anim.from.0) * ease, anim.from.1 + (anim.to.1 - anim.from.1) * ease);
+        // Cells -> pixels for this frame's placement.
+        let cell_px = |c: (f32, f32)| (place.x + c.0 * m.width, place.y + c.1 * m.height);
         let travelling = animate && travel_t < 1.0;
         let idle_s = anim.last_input.elapsed().as_secs_f32();
         // Resting behaviour: breathe (soft alpha wave) or blink, after a pause.
@@ -501,7 +503,8 @@ pub(crate) fn draw_term_view(
         // Cursor overlay: animated position, trail, pulse ring, other shapes.
         if let Some(vp) = cursor_vp {
             let _ = vp;
-            let (x, y) = anim.pos;
+            let (x, y) = cell_px(anim.pos);
+            let (fx0, fy0) = cell_px(anim.from);
             let color = colors[NamedColor::Cursor].map(rgb_to_rgba).unwrap_or(theme.cursor);
             let t = 2.0f32.max((m.width / 8.0).floor());
             let alpha = if focused { rest_alpha } else { 1.0 };
@@ -510,14 +513,14 @@ pub(crate) fn draw_term_view(
             if travelling {
                 let fade = (1.0 - travel_t) * 0.35;
                 if (anim.from.1 - anim.to.1).abs() < 0.5 {
-                    let x0 = anim.from.0.min(x);
-                    let x1 = anim.from.0.max(x) + m.width;
+                    let x0 = fx0.min(x);
+                    let x1 = fx0.max(x) + m.width;
                     batch.rrect(x0, y + 1.0, x1 - x0, m.height - 2.0, 3.0, with_alpha(color, fade));
                 } else {
                     for k in 1..=4 {
                         let f = k as f32 / 5.0;
-                        let gx = anim.from.0 + (x - anim.from.0) * f;
-                        let gy = anim.from.1 + (y - anim.from.1) * f;
+                        let gx = fx0 + (x - fx0) * f;
+                        let gy = fy0 + (y - fy0) * f;
                         batch.rrect(gx, gy, m.width, m.height, 3.0, with_alpha(color, fade * f));
                     }
                 }

@@ -107,11 +107,10 @@ impl App {
             if !self.mods.control_key() && !self.mods.alt_key()
                 && let (Key::Character(_), Some(text)) = (&event.logical_key, event.text.as_deref()) {
                     let cfg = self.effects.typing_trail.clone();
-                    let cw = self.win().fonts.metrics.width;
                     if let Some(v) = self.win_mut().view_mut() {
-                        let (x, y) = v.cursor_anim.to;
+                        let (col, row) = v.cursor_anim.to;
                         for (i, ch) in text.chars().enumerate() {
-                            v.fx.typed(&cfg, ch, x + i as f32 * cw, y);
+                            v.fx.typed(&cfg, ch, col + i as f32, row);
                         }
                     }
                 }

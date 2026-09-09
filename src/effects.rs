@@ -214,8 +214,9 @@ impl EffectsConfig {
 
 struct TrailGlyph {
     ch: char,
-    x: f32,
-    y: f32,
+    /// Grid cell (column, row); converted to pixels when drawn.
+    col: f32,
+    row: f32,
     at: Instant,
     /// 0..1 strength from typing speed at the time.
     intensity: f32,
@@ -309,7 +310,7 @@ impl Effects {
     }
 
     /// Record a typed character at the cell where it will appear.
-    pub fn typed(&mut self, cfg: &TrailConfig, ch: char, x: f32, y: f32) {
+    pub fn typed(&mut self, cfg: &TrailConfig, ch: char, col: f32, row: f32) {
         if !cfg.enabled || ch.is_control() {
             return;
         }
@@ -319,7 +320,7 @@ impl Effects {
         let cps = recent as f32;
         let full = cfg.full_speed_cps.max(1.5);
         let intensity = ((cps - 1.5) / (full - 1.5)).clamp(0.0, 1.0);
-        self.trail.push_back(TrailGlyph { ch, x, y, at: now, intensity });
+        self.trail.push_back(TrailGlyph { ch, col, row, at: now, intensity });
         while self.trail.len() > cfg.length.max(1) {
             self.trail.pop_front();
         }
@@ -435,16 +436,17 @@ impl Effects {
                 continue;
             }
             let color = trail_color(&cfg.typing_trail.color, theme, age);
+            let (gx, gy) = (grid_x + g.col * m.width, grid_y + g.row * m.height);
             if cfg.typing_trail.glow {
                 let spread = 2.0 + 4.0 * (1.0 - age);
-                batch.rrect(g.x - spread, g.y - spread, m.width + 2.0 * spread, m.height + 2.0 * spread, 4.0 + spread, with_alpha(color, a * 0.22));
-                batch.rrect(g.x - 1.0, g.y - 1.0, m.width + 2.0, m.height + 2.0, 3.0, with_alpha(color, a * 0.35));
+                batch.rrect(gx - spread, gy - spread, m.width + 2.0 * spread, m.height + 2.0 * spread, 4.0 + spread, with_alpha(color, a * 0.22));
+                batch.rrect(gx - 1.0, gy - 1.0, m.width + 2.0, m.height + 2.0, 3.0, with_alpha(color, a * 0.35));
             }
             if let Some(gl) = fonts.glyph(key(g.ch, true)) {
-                batch.glyph(g.x, g.y + m.ascent, &gl, with_alpha(color, a));
+                batch.glyph(gx, gy + m.ascent, &gl, with_alpha(color, a));
             }
             // A thin scanline under the glyph, cyberpunk style.
-            batch.rect(g.x, g.y + m.height - 2.0, m.width, 1.0, with_alpha(color, a * 0.8));
+            batch.rect(gx, gy + m.height - 2.0, m.width, 1.0, with_alpha(color, a * 0.8));
         }
 
         // ---- paste rain --------------------------------------------------

@@ -181,11 +181,10 @@ impl App {
                     Some(("typefast", text)) => {
                         // Simulate fast typing: trail glyphs + pty input.
                         let cfg = self.effects.typing_trail.clone();
-                        let cw = self.win().fonts.metrics.width;
                         if let Some(v) = self.win_mut().view_mut() {
-                            let (x, y) = v.cursor_anim.to;
+                            let (col, row) = v.cursor_anim.to;
                             for (i, ch) in text.chars().enumerate() {
-                                v.fx.typed(&cfg, ch, x + i as f32 * cw, y);
+                                v.fx.typed(&cfg, ch, col + i as f32, row);
                             }
                         }
                         if let Some(tab) = self.win().active_term() {

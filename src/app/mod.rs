@@ -164,7 +164,9 @@ pub struct TermView {
 /// pulse, and a resting "breath".
 #[derive(Clone, Copy, Debug)]
 pub struct CursorAnim {
-    /// Where the cursor is currently drawn (pixels, top-left of the cell).
+    /// Where the cursor is currently drawn, in fractional grid cells
+    /// (column, line). Cell units, not pixels, so panning, zooming or
+    /// moving the terminal never makes the cursor chase its own grid.
     pos: (f32, f32),
     from: (f32, f32),
     to: (f32, f32),
