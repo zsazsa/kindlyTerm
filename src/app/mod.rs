@@ -1685,7 +1685,7 @@ impl App {
             MenuAction::NewGroupWith(id) => self.new_group_with(id),
             MenuAction::AddToGroup(id, g) => self.add_item_to_group(id, g),
             MenuAction::TogglePin(id) => self.toggle_pin(id),
-            MenuAction::OpenLink(uri) => self.open_link(&uri),
+            MenuAction::OpenLink(uri) => self.open_link(&uri, true),
             MenuAction::CopyLink(uri) => {
                 if let Some(cb) = self.clipboard.as_mut() {
                     let _ = cb.set_text(uri);

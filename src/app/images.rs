@@ -6,6 +6,11 @@ use super::*;
 use crate::renderer::ImageId;
 use std::path::{Path, PathBuf};
 
+/// Largest dimension a decoder will accept at all, and the most memory it
+/// may use, before the picture is downscaled to `MAX_SIDE`.
+const MAX_DECODE_SIDE: u32 = 16_384;
+const MAX_DECODE_BYTES: u64 = 256 << 20;
+
 /// Longest side an image is decoded to; bigger inputs are downscaled.
 const MAX_SIDE: u32 = 2048;
 /// Animated GIFs keep at most this many frames on the GPU.
@@ -58,8 +63,16 @@ type Decoded = (Vec<(Vec<u8>, u32)>, u32, u32);
 
 /// Decode a file into RGBA frames, downscaled to `MAX_SIDE`.
 fn decode(path: &Path) -> anyhow::Result<Decoded> {
-    use image::AnimationDecoder;
+    use image::{AnimationDecoder, ImageDecoder};
+    // A crafted header cannot ask for gigabytes: decoders stop at these.
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_DECODE_SIDE);
+    limits.max_image_height = Some(MAX_DECODE_SIDE);
+    limits.max_alloc = Some(MAX_DECODE_BYTES);
     let bytes = std::fs::read(path)?;
+    if bytes.len() as u64 > MAX_DECODE_BYTES {
+        anyhow::bail!("image file is larger than {} MiB", MAX_DECODE_BYTES >> 20);
+    }
     let fmt = image::guess_format(&bytes)?;
     let scale = |img: image::RgbaImage| -> image::RgbaImage {
         let (w, h) = img.dimensions();
@@ -72,7 +85,8 @@ fn decode(path: &Path) -> anyhow::Result<Decoded> {
         }
     };
     if fmt == image::ImageFormat::Gif {
-        let dec = image::codecs::gif::GifDecoder::new(std::io::Cursor::new(&bytes))?;
+        let mut dec = image::codecs::gif::GifDecoder::new(std::io::Cursor::new(&bytes))?;
+        dec.set_limits(limits)?;
         let mut frames = Vec::new();
         let (mut w, mut h) = (0, 0);
         for f in dec.into_frames().take(MAX_FRAMES) {
@@ -88,7 +102,9 @@ fn decode(path: &Path) -> anyhow::Result<Decoded> {
         }
         return Ok((frames, w, h));
     }
-    let img = image::load_from_memory_with_format(&bytes, fmt)?.to_rgba8();
+    let mut reader = image::ImageReader::with_format(std::io::Cursor::new(&bytes), fmt);
+    reader.limits(limits);
+    let img = reader.decode()?.to_rgba8();
     let img = scale(img);
     let (w, h) = img.dimensions();
     Ok((vec![(img.into_raw(), 0)], w, h))
@@ -212,7 +228,10 @@ impl App {
             self.place_image_file(path, at);
             return;
         }
-        let quoted = shell_quote(&path.to_string_lossy());
+        // Control characters cannot be typed safely (a carriage return
+        // would run the half-typed line), so they are dropped.
+        let name: String = path.to_string_lossy().chars().filter(|&c| !(c.is_control() || ('\u{80}'..='\u{9f}').contains(&c))).collect();
+        let quoted = shell_quote(&name);
         if let Some(t) = self.win().active_term() {
             t.write(quoted.into_bytes());
         }
@@ -221,7 +240,7 @@ impl App {
 
 /// Single-quote a path for the shell.
 fn shell_quote(s: &str) -> String {
-    if !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || "-_./+:@%=".contains(c)) {
+    if !s.is_empty() && !s.starts_with('-') && s.chars().all(|c| c.is_ascii_alphanumeric() || "-_./+:@%=".contains(c)) {
         return s.to_string();
     }
     format!("'{}'", s.replace('\'', "'\\''"))

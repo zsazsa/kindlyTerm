@@ -794,7 +794,7 @@ impl App {
                     && self.mods.control_key()
                     && let Some(hit) = self.link_under_pointer()
                 {
-                    self.open_link(&hit.uri);
+                    self.open_link(&hit.uri, false);
                     return;
                 }
                 self.on_left_button(state)

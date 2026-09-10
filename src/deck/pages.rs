@@ -791,7 +791,7 @@ impl Deck {
             badge: Some(Badge { glyph: '⌬', color: if on { 3 } else { 8 } }),
             title: "Let tools drive kindlyTerm (MCP)".into(),
             hi: vec![],
-            subtitle: if on { "on: Claude Code can read screens and type via `kindlyterm --mcp`".into() } else { "off: no program can read or type into your terminals".into() },
+            subtitle: if on { "on: Claude Code can read screens and type via `kindlyterm --mcp`".into() } else { "off: no tool can drive this window (shells stay reachable to your own processes, as with tmux)".into() },
             value: String::new(),
             kind: RowKind::Toggle(on),
             enabled: true,

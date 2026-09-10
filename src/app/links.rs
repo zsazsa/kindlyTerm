@@ -188,16 +188,30 @@ impl App {
     pub(super) fn update_link_hover(&mut self) {
         let hit = if self.mods.control_key() && self.win().menu.is_none() { self.link_under_pointer() } else { None };
         if hit != self.win().hover_link {
+            // Say where the link really goes: OSC 8 text can differ from
+            // its target.
+            if let Some(h) = &hit {
+                self.set_status(format!("Ctrl+click opens {}", h.uri.chars().take(120).collect::<String>()));
+            }
             self.win_mut().hover_link = hit;
             self.request_redraw();
         }
     }
 
-    pub(super) fn open_link(&mut self, uri: &str) {
+    /// `shown` means the target was on screen when the user chose it (the
+    /// right-click menu). `file:` links need that: xdg-open will launch a
+    /// `.desktop` file, so they never open on a bare Ctrl+click.
+    pub(super) fn open_link(&mut self, uri: &str, shown: bool) {
         // Only web/file style targets go to xdg-open; anything odd is
         // refused rather than handed to the desktop.
-        let ok = ["https://", "http://", "file://", "ftp://"].iter().any(|s| uri.to_lowercase().starts_with(s));
-        if !ok {
+        let lower = uri.to_lowercase();
+        let web = ["https://", "http://", "ftp://"].iter().any(|s| lower.starts_with(s));
+        let file = lower.starts_with("file://");
+        if file && !shown {
+            self.set_status("file links open from the right-click menu, where the target is shown".into());
+            return;
+        }
+        if !web && !file {
             self.set_status(format!("not opening '{}'", uri.chars().take(40).collect::<String>()));
             return;
         }

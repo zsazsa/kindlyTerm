@@ -444,7 +444,11 @@ opacity = 1.0          # 0.3..1.0 window translucency (Deck → Appearance → O
   dialog asks first (`clipboard.confirm_multiline_paste`).
 - **Shortcut hotkeys** cannot take Ctrl+C, Ctrl+D, or Ctrl+Z from the shell.
 - **Session hosts** are ordinary user processes talking over private Unix
-  sockets in your runtime directory; there is no network listener. A host
+  sockets in your runtime directory; there is no network listener. Any
+  process running as your user can attach to a host and read or type into
+  that shell, the same boundary tmux and screen have; the MCP toggle
+  governs the window, not the shells. On a shared machine, set
+  `persistent_sessions = false` if that matters to you. A host
   answers terminal size and device-attribute queries itself while no window
   is attached, so a program cannot hang, but colour and clipboard requests
   wait for a window.

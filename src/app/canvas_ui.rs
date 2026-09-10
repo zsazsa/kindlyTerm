@@ -383,7 +383,7 @@ impl App {
                 if self.mods.control_key()
                     && let Some(hit) = self.link_under_pointer()
                 {
-                    self.open_link(&hit.uri);
+                    self.open_link(&hit.uri, false);
                     return true;
                 }
                 if self.mods.shift_key() && self.win().canvas().and_then(|c| c.focus) != Some(id) {

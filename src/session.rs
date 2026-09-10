@@ -291,15 +291,45 @@ pub fn dir() -> PathBuf {
     base.join("kindlyterm")
 }
 
-/// Create the session directory with private permissions.
+/// Create the session directory with private permissions, refusing to
+/// use anything that is not a real directory owned by this user.
 pub fn ensure_dir() -> io::Result<PathBuf> {
     let d = dir();
-    if !d.exists() {
-        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&d)?;
+    // The /tmp fallback has a parent we own too; check it first, since a
+    // stranger's directory there would let them swap our sockets around
+    // (the sticky bit on /tmp stops them touching a directory we own).
+    if let Some(parent) = d.parent()
+        && d.starts_with(std::env::temp_dir())
+    {
+        private_dir(parent)?;
+    }
+    private_dir(&d)?;
+    Ok(d)
+}
+
+/// Create `p` (parent must exist) as a 0700 directory and verify it is a
+/// plain directory we own with no wider permission bits.
+fn private_dir(p: &std::path::Path) -> io::Result<()> {
+    use std::os::unix::fs::MetadataExt;
+    match std::fs::DirBuilder::new().mode(0o700).create(p) {
+        Ok(()) => {}
+        Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
+        Err(e) => return Err(e),
     }
     // Tighten in case it pre-existed with looser bits.
-    let _ = std::fs::set_permissions(&d, std::fs::Permissions::from_mode(0o700));
-    Ok(d)
+    let _ = std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o700));
+    let m = std::fs::symlink_metadata(p)?;
+    let uid = unsafe { libc::getuid() };
+    if !m.is_dir() || m.uid() != uid || m.mode() & 0o077 != 0 {
+        return Err(io::Error::other(format!(
+            "{} is not a private directory owned by you (it is {}, uid {}, mode {:o}); refusing to keep sessions there",
+            p.display(),
+            if m.file_type().is_symlink() { "a symlink" } else if m.is_dir() { "a directory" } else { "not a directory" },
+            m.uid(),
+            m.mode() & 0o777
+        )));
+    }
+    Ok(())
 }
 
 pub fn socket_path(id: &str) -> PathBuf {
@@ -395,5 +425,47 @@ mod tests {
         assert!(valid_id(&a));
         assert!(!valid_id("../x"));
         assert!(!valid_id(""));
+    }
+}
+
+#[cfg(test)]
+mod private_dir_tests {
+    use super::private_dir;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let p = std::env::temp_dir().join(format!("kindlyterm-test-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&p);
+        let _ = std::fs::remove_file(&p);
+        p
+    }
+
+    #[test]
+    fn creates_and_tightens() {
+        let p = scratch("loose");
+        std::fs::create_dir(&p).unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+        private_dir(&p).unwrap();
+        assert_eq!(std::fs::metadata(&p).unwrap().permissions().mode() & 0o777, 0o700);
+        let fresh = scratch("fresh");
+        private_dir(&fresh).unwrap();
+        assert_eq!(std::fs::metadata(&fresh).unwrap().permissions().mode() & 0o777, 0o700);
+        let _ = std::fs::remove_dir_all(&p);
+        let _ = std::fs::remove_dir_all(&fresh);
+    }
+
+    #[test]
+    fn refuses_a_symlink_or_a_file() {
+        let target = scratch("target");
+        std::fs::create_dir(&target).unwrap();
+        let link = scratch("link");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(private_dir(&link).is_err(), "a symlink must be refused");
+        let file = scratch("file");
+        std::fs::write(&file, b"").unwrap();
+        assert!(private_dir(&file).is_err(), "a plain file must be refused");
+        let _ = std::fs::remove_file(&link);
+        let _ = std::fs::remove_file(&file);
+        let _ = std::fs::remove_dir_all(&target);
     }
 }
