@@ -21,11 +21,9 @@ The same paste with the `matrix` preset (green katakana):
 
 ![matrix paste rain](docs/matrix.gif)
 
-**Typing trail** and the **Pac-Man cursor** (hold Backspace):
+**Typing trail**:
 
 ![typing trail](docs/trail.gif)
-
-![pac-man cursor](docs/pacman.gif)
 
 **The Control Deck** sliding in, then quick-running a shortcut by typing:
 
@@ -282,12 +280,12 @@ The bytes reach the shell before any of that starts, so an agent is
 never slowed down by the show. For a
 slower, watchable version an agent can pass `typing` (characters per
 second) to `send_text`, or `count` to `send_key` to hold a key down: held
-Backspace or Delete brings out the Pac-Man cursor. Both return at once
+Backspace or Delete brings out the laser cutter. Both return at once
 and play out on the app's timer.
 
 To see all of it in one go, `python3 demo/showtime.py` plays a scripted
 tour on the running window (or `/showtime` from Claude Code in this repo):
-typing, Pac-Man both ways, a banner falling in as rain, then real work (a
+typing, the laser cutter both ways, a banner falling in as rain, then real work (a
 cargo build with a silence monitor, a docs server and a client, git) and a
 pan and zoom around the board. Then an agent takes over: it narrates its
 plan in a log card of its own and pins it to the screen so it stays in
@@ -323,10 +321,10 @@ jumping, a soft ring ripples out from it when you click into the window or the
 window regains focus, and at rest it breathes (a slow brightness wave) rather
 than hard-blinking. `cursor_animation` in `config.toml` picks `breathe`
 (default), classic `blink`, or `none`. Hold Backspace or Delete for about a
-second and a half and the cursor turns into a chomping Pac-Man facing the
-text it is eating, until you let go. `chomp` picks what it becomes:
-`pacman` (default), `laser` (a cutter head with a magenta halo, a beam
-into the cell being cut, sparks and embers drifting behind), or `none`.
+second and a half and the cursor turns into a laser cutter facing the
+text it is cutting, until you let go: a cutter head with a magenta halo, a
+beam into the cell being cut, sparks and embers drifting behind. `chomp`
+picks `laser` (default) or `none`.
 The Deck's Cursor page has the same choice.
 
 ## Effects
@@ -420,7 +418,7 @@ shell_args = []        # e.g. ["-l"] for a login shell
 padding = 6.0
 cursor = "block"       # block | beam | underline
 cursor_animation = "breathe"   # breathe | blink | none
-chomp = "pacman"               # pacman | laser | none: held Backspace/Delete
+chomp = "laser"                # laser | none: held Backspace/Delete
 persistent_sessions = true     # shells run in detached hosts and survive a restart
 
 [colors]

@@ -70,21 +70,6 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         let t = textureSample(image_tex, image_smp, uv);
         return vec4<f32>(t.rgb, t.a * in.color.a);
     }
-    if (in.kind == 4u) {
-        // Pac-Man: a disc with a wedge cut out. thickness = mouth half-angle,
-        // uv.x (unnormalised, see vs) carries the facing angle.
-        let half = in.size * 0.5;
-        let p = in.local - half;
-        let r = min(half.x, half.y);
-        let d = length(p) - r;
-        var a = 1.0 - smoothstep(-0.8, 0.4, d);
-        let facing = in.uv.x * globals.atlas.x; // undo the atlas normalisation
-        let ang = atan2(-p.y, p.x);
-        var diff = abs(ang - facing);
-        if (diff > 3.14159265) { diff = 6.2831853 - diff; }
-        if (diff < in.thickness) { a = 0.0; }
-        return vec4<f32>(in.color.rgb, in.color.a * a);
-    }
     if (in.kind == 0u || in.kind == 3u) {
         let half = in.size * 0.5;
         let r = min(in.radius, min(half.x, half.y));

@@ -8,7 +8,7 @@ About -> "Let Claude Code drive"):
     python3 demo/showtime.py --cleanup  # play, then close the board
     python3 demo/showtime.py --fast     # shorter pauses
 
-It opens a "Showtime" canvas, types with the neon trail, lets Pac-Man eat
+It opens a "Showtime" canvas, types with the neon trail, lets the laser cutter eat
 the line both ways, pastes a banner as rain, then does real work: a cargo
 build with a silence monitor, a docs server and a client hitting it, git.
 It pans and zooms around the board (each move one call, the camera
@@ -183,12 +183,12 @@ def main():
     m.call("send_text", terminal_id=tw["terminal_id"], text=TYPED, typing=24)
     wait(len(TYPED) / 24 + 2.0, "typing with the neon trail")
     m.call("send_key", terminal_id=tw["terminal_id"], key="backspace", count=len(TYPED) + 5)
-    wait((len(TYPED) + 5) * 0.04 + 2.5, "Pac-Man eating it backwards")
+    wait((len(TYPED) + 5) * 0.04 + 2.5, "laser cutting it backwards")
     m.call("send_text", terminal_id=tw["terminal_id"], text=TYPED_2, typing=28)
     wait(len(TYPED_2) / 28 + 1.5, "typing again")
     m.call("send_key", terminal_id=tw["terminal_id"], key="home")
     m.call("send_key", terminal_id=tw["terminal_id"], key="delete", count=len(TYPED_2) + 5)
-    wait((len(TYPED_2) + 5) * 0.04 + 2.5, "Pac-Man eating it forwards")
+    wait((len(TYPED_2) + 5) * 0.04 + 2.5, "laser cutting it forwards")
 
     print("▶ Act 2 · the rain")
     # A real shell. The agent pastes a block: a heredoc that prints the

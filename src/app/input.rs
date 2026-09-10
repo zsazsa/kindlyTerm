@@ -12,7 +12,7 @@ impl App {
         if matches!(event.logical_key, Key::Named(NamedKey::Space)) && !self.wins.is_empty() {
             self.win_mut().space_held = event.state == ElementState::Pressed;
         }
-        // Pac-Man mode: track how long Backspace/Delete has been held.
+        // Chomp mode: track how long Backspace/Delete has been held.
         let is_eater = matches!(event.logical_key, Key::Named(NamedKey::Backspace) | Key::Named(NamedKey::Delete));
         if let Some(view) = self.wins.get_mut(self.cur).and_then(|w| w.view_mut()) {
             let now = Instant::now();

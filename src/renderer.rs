@@ -35,7 +35,6 @@ pub const KIND_RECT: u32 = 0;
 pub const KIND_MASK: u32 = 1;
 pub const KIND_COLOR: u32 = 2;
 pub const KIND_OUTLINE: u32 = 3;
-pub const KIND_PACMAN: u32 = 4;
 /// Samples the per-segment image texture (bind group 1) with uv in 0..1.
 #[allow(dead_code)] // used by canvas images (phase 4)
 pub const KIND_IMAGE: u32 = 5;
@@ -188,15 +187,6 @@ impl Batch {
         }
         self.push(
             Instance { pos: [x, y], size: [w, h], uv0: [0.0; 2], uv1: [0.0; 2], color, kind: KIND_RECT, radius, thickness: 0.0, _pad: 0 },
-            None,
-        );
-    }
-
-    /// A Pac-Man disc filling the rect: `facing` in radians (0 = right,
-    /// PI = left), `mouth` = half-angle of the open mouth in radians.
-    pub fn pacman(&mut self, x: f32, y: f32, size: f32, facing: f32, mouth: f32, color: Rgba) {
-        self.push(
-            Instance { pos: [x, y], size: [size, size], uv0: [facing, 0.0], uv1: [facing, 0.0], color, kind: KIND_PACMAN, radius: size * 0.5, thickness: mouth, _pad: 0 },
             None,
         );
     }

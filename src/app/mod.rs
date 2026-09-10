@@ -206,7 +206,7 @@ impl CursorAnim {
         Self { pos: (0.0, 0.0), from: (0.0, 0.0), to: (0.0, 0.0), move_start: now, pulse_start: None, last_input: now, tab: 0, chomp: None }
     }
     pub(super) const CHOMP_AFTER_MS: u128 = 1400;
-    /// Pac-Man mode: held long enough and still being repeated recently.
+    /// Chomp mode: held long enough and still being repeated recently.
     fn chomping(&self) -> Option<bool> {
         let (start, last, left) = self.chomp?;
         (start.elapsed().as_millis() >= Self::CHOMP_AFTER_MS && last.elapsed().as_millis() < 350).then_some(left)

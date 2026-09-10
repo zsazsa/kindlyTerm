@@ -42,9 +42,8 @@ impl Deck {
             s
         };
         let chomp = match c.terminal.chomp.to_lowercase().as_str() {
-            "laser" => "Laser cutter",
             "none" => "Plain",
-            _ => "Pac-Man",
+            _ => "Laser cutter",
         }
         .to_string();
         let scrollback = format!("{} lines", group_thousands(c.terminal.scrollback));
@@ -524,7 +523,7 @@ impl Deck {
         // What the cursor turns into while Backspace or Delete is held.
         let chomp = env.config.terminal.chomp.to_lowercase();
         b.widgets.push(W::Label { text: "HOLD BACKSPACE".into(), right: "or Delete".into() });
-        let rows: Vec<Row> = [("pacman", '●', "Pac-Man", "chomps the text it eats"), ("laser", '⚡', "Laser cutter", "a beam, sparks and embers"), ("none", '▊', "Plain", "just the cursor")]
+        let rows: Vec<Row> = [("laser", '⚡', "Laser cutter", "a beam, sparks and embers"), ("none", '▊', "Plain", "just the cursor")]
             .iter()
             .map(|(id, g, title, sub)| {
                 let idx = b.simple(Act::App(DeckAction::SetChomp(id.to_string())));
@@ -534,7 +533,7 @@ impl Deck {
                     hi: vec![],
                     subtitle: sub.to_string(),
                     value: String::new(),
-                    kind: RowKind::Check(chomp == *id),
+                    kind: RowKind::Check(if *id == "none" { chomp == "none" } else { chomp != "none" }),
                     enabled: true,
                     danger: false,
                     focus: Some(idx),

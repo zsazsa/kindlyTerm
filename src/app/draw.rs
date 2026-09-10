@@ -377,7 +377,7 @@ pub(crate) fn draw_term_view(
             } else if anim.to != target {
                 // A line wrap (one end of a row to the other end of the next
                 // or previous row) is not a journey across the grid: snap,
-                // so a held Backspace does not send Pac-Man on a diagonal.
+                // so a held Backspace does not send the cutter on a diagonal.
                 let cols = tab.size.cols as f32;
                 let (lo, hi) = (anim.to.0.min(target.0), anim.to.0.max(target.0));
                 let wrap = (anim.to.1 - target.1).abs() >= 0.5 && lo <= 1.5 && hi >= cols - 2.5;
@@ -588,12 +588,12 @@ pub(crate) fn draw_term_view(
                 grow = 3.0 * (1.0 - pt);
             }
 
-            // Pac-Man: replaces the cursor while Backspace/Delete is held.
+            // Chomp: the cursor becomes a laser cutter while Backspace/Delete is held.
             let chomping = if animate { anim.chomping() } else { None };
             if anim.chomp.map(|(_, last, _)| last.elapsed().as_millis() > 400).unwrap_or(false) {
                 anim.chomp = None;
             }
-            if let Some(left) = chomping.filter(|_| chomp_style == "laser") {
+            if let Some(left) = chomping.filter(|_| chomp_style != "none") {
                 // Laser cutter: a hot head with a magenta halo, a beam into
                 // the cell being cut (which flashes), embers drifting behind.
                 let tt = anim.chomp.map(|(s, _, _)| s.elapsed().as_secs_f32()).unwrap_or(0.0);
@@ -636,27 +636,6 @@ pub(crate) fn draw_term_view(
                     let d = (3.0 * (1.0 - ph)).max(1.0);
                     let col = if k % 2 == 0 { ember } else { magenta };
                     batch.rrect(ex - d / 2.0, ey - d / 2.0, d, d, d / 2.0, with_alpha(col, 0.8 * (1.0 - ph)));
-                }
-            } else if let Some(left) = chomping.filter(|_| chomp_style != "none") {
-                let size = m.height * 1.05;
-                let cx = x + m.width / 2.0 - size / 2.0;
-                let cy = y + m.height / 2.0 - size / 2.0;
-                let tt = anim.chomp.map(|(s, _, _)| s.elapsed().as_secs_f32()).unwrap_or(0.0);
-                // About five chomps a second, closing fully each time.
-                let mouth = 0.02 + 0.6 * (tt * 16.0).sin().abs();
-                let facing = if left { std::f32::consts::PI } else { 0.0 };
-                let yellow = rgb([0xff, 0xe1, 0x35]);
-                batch.pacman(cx, cy, size, facing, mouth, yellow);
-                // Eye: a dark dot up and toward the mouth.
-                let eye = (size * 0.13).max(2.0);
-                let ex = if left { cx + size * 0.30 } else { cx + size * 0.57 };
-                batch.rrect(ex, cy + size * 0.22, eye, eye, eye / 2.0, theme.bg);
-                // Crumbs behind it.
-                for k in 1..=3 {
-                    let dx = if left { m.width * k as f32 } else { -m.width * k as f32 };
-                    let phase = ((tt * 16.0 + k as f32) % 2.0) / 2.0;
-                    let crumb = (2.0_f32 + 2.0 * phase).min(3.5);
-                    batch.rrect(x + m.width / 2.0 + dx - crumb / 2.0, y + m.height / 2.0 - crumb / 2.0, crumb, crumb, crumb / 2.0, with_alpha(yellow, 0.5 * (1.0 - phase)));
                 }
             } else {
             match (cursor.shape, focused) {

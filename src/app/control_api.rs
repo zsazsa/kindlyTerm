@@ -427,7 +427,7 @@ impl App {
                 let count = p.get("count").and_then(|v| v.as_u64()).unwrap_or(1).clamp(1, 2000) as usize;
                 if count > 1 {
                     // Hold the key: repeats at the usual auto-repeat rate.
-                    // Backspace and Delete get the Pac-Man chomp.
+                    // Backspace and Delete get the chomp effect.
                     let eater = match key.as_str() { "backspace" => Some(true), "delete" => Some(false), _ => None };
                     let steps: VecDeque<DripStep> = (0..count).map(|_| match eater {
                         Some(left) => DripStep::Eat(left, bytes.clone()),

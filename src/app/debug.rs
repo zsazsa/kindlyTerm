@@ -211,7 +211,7 @@ impl App {
                         self.on_wheel(MouseScrollDelta::PixelDelta(PhysicalPosition::new(0.0, dy as f64)));
                     }
                     Some(("del", n)) => {
-                        // N backspaces, keeping the Pac-Man hold alive.
+                        // N backspaces, keeping the chomp hold alive.
                         let n: usize = n.parse().unwrap_or(1);
                         let now = Instant::now();
                         if let Some(v) = self.win_mut().view_mut() {

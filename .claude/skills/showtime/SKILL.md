@@ -1,6 +1,6 @@
 ---
 name: showtime
-description: Play the scripted Canvas demo (typing trail, Pac-Man, paste rain, real work cards, pan and zoom, an agent that spawns workers, reads them, arranges, groups and renames them) on the running kindlyTerm window via MCP.
+description: Play the scripted Canvas demo (typing trail, laser cutter, paste rain, real work cards, pan and zoom, an agent that spawns workers, reads them, arranges, groups and renames them) on the running kindlyTerm window via MCP.
 ---
 
 Run the demo script from the project root and relay its progress lines:
