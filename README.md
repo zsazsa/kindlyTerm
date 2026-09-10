@@ -1,10 +1,11 @@
 # kindlyTerm
 
-A GPU-accelerated terminal for Linux with spatial awareness: shells live
-on an infinite, zoomable canvas where you arrange them, group them, pin
-them and see them all at once. Tabs, a keyboard-driven Control Deck of
-saved commands, shells that survive a restart, and an MCP control API so
-an agent can use the same canvas you do.
+A GPU-accelerated terminal for Linux with spatial awareness. Any tab can
+become an infinite, zoomable canvas where shells are cards you arrange,
+group, pin and see all at once, or stay a plain terminal tab. Add a
+keyboard-driven Control Deck of saved commands, shells that survive a
+restart, and an MCP control API so an agent can use the same canvas you
+do.
 
 ![kindlyTerm](docs/hero.png)
 
@@ -16,11 +17,14 @@ an agent can use the same canvas you do.
 
 ## What it does
 
-**The Canvas.** Every shell is a card on a zoomable board. Move and resize
+**Tabs and the Canvas.** A tab opens as one shell filling the window, as
+in any terminal. Add a second terminal to it and the tab becomes a
+canvas: a zoomable board where each shell is a card. Move and resize
 cards, snap them together, gather them into named groups, pin one to the
 screen while you pan around, mirror one for a second view, drop images
 next to them. Zoom far out and dozens of shells become a map of activity.
-A plain tab is still a plain tab until you ask for more.
+Tabs and canvases mix freely, and a canvas with one card left can go back
+to being a plain tab.
 
 **Shells that survive a restart.** Each shell runs in its own detached
 host. Quit or crash the app, and the next start reattaches to every shell
