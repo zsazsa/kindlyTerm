@@ -90,7 +90,7 @@ impl App {
         if w.canvases[to].is_single() {
             // Target becomes a free canvas holding both.
             let g = Self::grid_size_of(w);
-            let (iw, ih) = w.rect_for_grid(g.cols.min(120), g.rows.min(40));
+            let (iw, ih) = w.rect_for_grid(g.cols.min(100), g.rows.min(30));
             let c = &mut w.canvases[to];
             c.mode = CanvasMode::Free;
             if let Some(it) = c.items.first_mut() {
@@ -1093,7 +1093,7 @@ impl App {
             return;
         }
         let Some(l) = self.win().layout else { return };
-        let (iw, ih) = self.win().rect_for_grid(80, 24);
+        let (iw, ih) = self.win().rect_for_grid(Win::NEW_CARD.0, Win::NEW_CARD.1);
         let mut canvas: Option<Canvas> = None;
         for sid in orphans {
             let grid = self.win().grid_for_rect(WRect::new(0.0, 0.0, iw, ih));

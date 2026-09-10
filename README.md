@@ -1,532 +1,288 @@
 # kindlyTerm
 
-A GPU-accelerated, keyboard-driven terminal for Linux with tabs, a
-palette of saved commands, and the Canvas: an infinite, zoomable board
-where every shell is a card you can move, group, pin and mirror. Shells
-run in detached hosts, so they survive a restart of the app. Claude Code
-and other MCP clients can drive all of it: open and read terminals, type
-into them, arrange and group cards, and watch a job for silence, with
-every action visible on screen as it happens.
+A GPU-accelerated terminal for Linux built around the **Canvas**: an
+infinite, zoomable board where every shell is a card you can move, resize,
+group, pin and mirror. Shells run in detached hosts and survive a restart
+of the app. **Claude Code and other MCP clients can drive all of it**: open
+terminals, read their screens, type into them, arrange and group the
+cards, and watch a job for silence, with every action visible on screen as
+it happens.
 
 ![kindlyTerm](docs/hero.png)
 
-## In motion
+Written in Rust on `alacritty_terminal` (VT parsing, grid, scrollback),
+`wgpu` (rendering), `winit` (Wayland/X11) and `swash` (glyphs).
 
-**Paste rain.** Paste a block of text and every character drops from the top
-into the exact cell where the shell put it, then the passage assembles:
-
-![paste rain](docs/rain.gif)
-
-The same paste with the `matrix` preset (green katakana):
-
-![matrix paste rain](docs/matrix.gif)
-
-**Typing trail**:
-
-![typing trail](docs/trail.gif)
-
-**The Control Deck** sliding in, then quick-running a shortcut by typing:
-
-![control deck](docs/deck.gif)
-
-## Screens
-
-| Deck Home | Themes |
-|---|---|
-| ![deck home](docs/deck_home.png) | ![themes](docs/deck_theme.png) |
-
-| Shortcut editor | Effects |
-|---|---|
-| ![editor](docs/deck_editor.png) | ![effects](docs/deck_effects.png) |
-
-| Quick-run | Keyboard cheat sheet (Ctrl+/) |
-|---|---|
-| ![quick run](docs/quickrun.png) | ![cheat sheet](docs/cheat.png) |
- Written in Rust from scratch on top of
-`alacritty_terminal` (VT parsing, grid, scrollback), `wgpu` (Vulkan rendering),
-`winit` (Wayland/X11 windowing), and `swash` (glyph rasterization).
-
-## Build & run
+## Quick start
 
 ```sh
-cargo run --release
-```
-
-The first run writes `~/.config/kindlyterm/config.toml` with defaults.
-
-## Install into GNOME
-
-```sh
-./install.sh            # user-local: ~/.local/bin, launcher + icon, no sudo
-./install.sh --system   # or /usr/local for all users
+cargo run --release        # try it
+./install.sh               # or install: ~/.local/bin/kindlyterm, a launcher and an icon
 ./install.sh --uninstall
 ```
 
-After that, press Super and type `term` (or `kind`, `shell`, `ssh`): kindlyTerm
-appears in GNOME search with its icon, and can be pinned to the dash. The
-launcher has a right-click action to open straight into the Control Deck
-(`kindlyterm --deck`). The window sets the Wayland app id `kindlyterm` so GNOME
-pairs it with the icon. Files: `assets/kindlyterm.desktop`, `assets/kindlyterm.svg`.
+The first run writes `~/.config/kindlyterm/config.toml` with defaults.
+Launching kindlyTerm again while it is running opens a new window in the
+same instance, with the shell started in the launching directory.
 
-## Control Deck
-
-**Tap `Ctrl+Shift`** (press both, let go) or `Ctrl+Shift+,`, or click the ⚙ at
-the right of the tab bar, to slide in the **Control Deck**: a 360 px sidebar that is both the shortcut launcher and the settings
-app, in the style of iOS Settings. Everything in it works from the keyboard;
-the mouse works too.
-
-- **Home** shows your shortcuts as app-style tiles (a list with A–Z headers,
-  pinned and recent sections once you have more than 12), then the settings
-  groups: Appearance, Terminal, Input, Shortcuts, About.
-- **Type to filter** anywhere on Home. Results are ranked exact name, prefix,
-  word initials (`pdp` → prod-db-primary), subsequence, host, command body,
-  ties broken by recency. Matched characters are highlighted. `Enter` runs the
-  top match, `Alt+Enter` forces a new tab, `Shift+Enter` runs it in the
-  current tab. No match offers to run the typed text as a command.
-- **Theme** lists Kind Night, Paper, Ember, Gruvbox, Solarized Dark, and
-  Catppuccin Mocha with live previews behind the panel as you move; `Enter`
-  applies and saves, `Esc` reverts.
-- **Font & Size** lists installed monospace fonts (moving previews them live),
-  with steppers for size and line spacing.
-- **Shortcut editor** (`Ctrl+Shift+S`, or `→` on a shortcut): glyph and badge
-  color pickers, name, command (host auto-detected from `ssh user@host`),
-  working directory, run-in (new tab or this tab), keep-open, confirm-first,
-  and a hotkey field: press `Enter` then the key combo, e.g. `Alt+H`, to bind
-  a global launcher for it.
-- Other pages: Padding, Cursor shape, Shell, Scrollback, Tabs, Keyboard
-  (binding reference), Clipboard toggles, Import/Export, About.
-
-Everything the Deck changes is written straight to `config.toml`,
-`commands.toml`, or `state.toml` (run history), so hand edits and the Deck
-stay in sync.
-
-## Keybindings
-
-| Keys | Action |
-|---|---|
-| `Ctrl+/` | Keyboard cheat sheet overlay: kindlyTerm keys and shell line-editing keys. Any key or click closes it. |
-| `Ctrl+Shift` tap, or `Ctrl+Shift+,` | Toggle the **Control Deck** (launcher + settings). A tap means pressing both and releasing with no other key; chords like `Ctrl+Shift+T` are unaffected. Turn off with `input.ctrl_shift_tap_opens_deck = false`. |
-| `Ctrl+Shift+Space` (or `Ctrl+Shift+P`) | Open the Deck ready to type: quick-run a shortcut. |
-| `Ctrl+Shift+S` | New shortcut in the Deck editor (prefilled with the selection, if any). |
-| Your own hotkeys | Any `Alt+…`/`Ctrl+…` combo bound in the shortcut editor launches that shortcut. |
-| `Ctrl+Shift+O` | Tab switcher palette. |
-| `Ctrl+Shift+T` | New shell tab. |
-| `Ctrl+Shift+N` | New window. |
-| `Ctrl+Shift+W` | Close current tab, or on a canvas just the focused terminal (the app exits when the last tab closes). |
-| `Ctrl+Shift+Enter` | Add a terminal beside this one. A plain tab turns into a **canvas** (see below). |
-| `Ctrl+Shift+K` | New empty canvas tab. |
-| `Ctrl+Shift+F` | Canvas focus mode: zoom the focused terminal to fill the window; again to go back. |
-| `Ctrl+Shift+A` | Canvas: fit every terminal into view. |
-| `Ctrl+Shift+G` | Canvas: group the selected terminals in a named frame; on a selected group, dissolve it. |
-| `Ctrl+Shift+P` | Canvas: pin the focused terminal to the screen (it ignores pan and zoom); again to release. On a plain tab, opens the Deck. |
-| `Ctrl+Shift+=` / `Ctrl+Shift+-` / `Ctrl+Shift+0` | Canvas: zoom in / out / reset. On a plain tab these change the font size. |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab. `Ctrl+PageDown` / `Ctrl+PageUp` also work. |
-| `Alt+1` … `Alt+8`, `Alt+9` | Jump to tab N, `Alt+9` = last tab. |
-| `Shift+PageUp` / `Shift+PageDown` | Scroll history by a page. Plain `PageUp`/`PageDown` do too at a shell prompt (not inside full-screen programs); turn off with `input.page_keys_scroll = false`. |
-| `Ctrl`+hover / `Ctrl`+click | Underline / open a link in the output: plain URLs (across wrapped lines) and OSC 8 hyperlinks. Right-click also offers *Open* and *Copy link*. |
-| `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | Scroll history by a line. |
-| `Shift+Home` / `Shift+End` | Jump to the top / bottom of history. Mouse wheel scrolls too, three lines a notch; `Alt`+wheel scrolls one line a notch. A program that asks for mouse events (Claude Code, vim, less, htop) gets the wheel itself and scrolls its own view. |
-| `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy selection / paste. `Ctrl+Insert` / `Shift+Insert` do the same. |
-| `Ctrl+C` with text selected | Copies the selection (and clears it). With nothing selected it interrupts as usual. |
-| `Ctrl+V` at a shell prompt | Pastes. Inside full-screen apps (vim, htop, tmux) `Ctrl+V` is passed through untouched. |
-| `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Font size bigger / smaller / reset. |
-| `Ctrl+Shift+Q` | Quit. |
-
-Inside a palette: `Up`/`Down` or `Ctrl+J`/`Ctrl+K` move, `Ctrl+U` clears the
-input, `Ctrl+W` deletes a word, `Esc` closes.
-
-## Mouse
-
-Tab bar:
-
-- **Left click** a tab to switch to it. Click its **×** to close it, or the **+** at the end for a new shell tab.
-- **Double-click a tab's title** to rename it in place. The title is selected, so just type the new name; press `→` or `End` first to keep it and append. `Enter` saves, `Esc` cancels, an empty name goes back to the program's own title. Also in the right-click menu as Rename tab.
-- **Drag a tab** left or right to reorder.
-- **Drag a tab down** out of the bar and release: it becomes its own window. Release it **over another kindlyTerm window** instead and it joins that window as a tab. Dragging a window's only tab onto another window merges the two windows.
-- **Middle click** a tab to close it. **Scroll wheel** over the bar cycles tabs.
-- **Right click** for a context menu: new tab, new window, run a shortcut, move the tab left/right, move it to a new window or to any other open window, close it, close the others.
-
-Wayland note: the compositor decides where a torn-off window appears, and the
-merge is detected by which window the pointer lands in when you release, so
-drag by the tab rather than the title bar.
-
-Terminal area:
-
-- Drag to select. Drag past the top or bottom edge and the history scrolls under the selection, faster the farther out the pointer is, so a selection can be longer than the screen. Double-click selects a word, triple-click a line. `Shift`+click extends.
-- Selecting also fills the primary selection, so **middle click** pastes it.
-- **Right click** for a context menu: copy, paste, new tab, saved commands, save a command, clear scrollback, close tab.
-
-Menus can be driven from the keyboard too: `Up`/`Down` (or `Ctrl+J`/`Ctrl+K`), `Enter`, `Esc`.
-
-## The Canvas
-
-Every tab is a canvas. A fresh tab shows one terminal filling the window, as
-you would expect. Press `Ctrl+Shift+Enter` (or right-click and choose *Turn
-into canvas*) and the tab becomes a free layout: an infinite, zoomable surface
-where each terminal is a movable, resizable item with its own title bar. Tabs
-holding a free canvas show a `▦` marker in the tab bar.
-
-- **Add** terminals with `Ctrl+Shift+Enter`, the right-click *New terminal
-  here* entry, or by launching a saved command from the Deck.
-- **Move** by dragging a title bar; **resize** by dragging any edge or corner.
-  Items snap to each other's edges, and resizing steps in whole cells so the
-  shell reflows cleanly.
-- **Pan** with the wheel (Shift swaps axes), a middle-button drag, or a
-  left-drag on empty space. Hold `Space` or double-tap `Ctrl` to pan while over
-  a terminal. `Ctrl`+wheel **zooms** about the pointer; text stays crisp at
-  every zoom because glyphs are rasterised per zoom level.
-- **Focus** a terminal by clicking it or with `Ctrl+Tab`; keyboard input goes
-  to the focused item. `Ctrl+Shift+F` zooms it to fill the window and back.
-- **Focus mode**, **fit all** (`Ctrl+Shift+A`), **reset zoom**, rename, move a
-  terminal to another canvas tab, or *Maximize terminal* to turn a one-item
-  canvas back into a plain tab: all in the right-click menus.
-- **Select several** with `Shift`+click on terminals or `Shift`+drag on
-  empty canvas. Dragging one selected title bar moves them all;
-  `Ctrl+Shift+F` zooms to the whole selection.
-- **Groups** (`Ctrl+Shift+G`, or the canvas menu) first pack the selection
-  into a tidy grid, reading order kept, then put it in a named, tinted
-  frame. Drag the frame's label to move everything inside, double-click it
-  to rename, resize the frame to change who belongs: any terminal fully
-  inside is a member. `Ctrl+Shift+F` with a group selected zooms to it.
-  Right-click the label for zoom, rename, *Arrange members* (re-pack after
-  resizing or adding), ungroup, or close all. A terminal's own menu has
-  *New group with this* and *Add to '‹group›'*, which moves it in and
-  re-packs the group. *Arrange selected terminals* on the canvas menu
-  tidies a selection without grouping it.
-- **Pin** a terminal (`Ctrl+Shift+P` or its menu) and it floats above the
-  canvas in screen space: pan and zoom leave it where it is, and it keeps
-  its distance from the nearest window corner when you resize. A build log
-  or a tail can stay in the corner while you work elsewhere.
-- **Watch for quiet**: a terminal's menu → *Tell me when it goes quiet*.
-  After 30 seconds without output its frame blinks and the tab bar says
-  so, until output resumes or you turn the watch off from the same menu
-  (clicking the card does not clear it). Good for builds and long jobs you
-  have panned away from. The title shows ◔ while a terminal is watched.
-- **Mirror** a terminal (its menu → *Mirror here*) to get a second live view
-  of the same shell. Both render the same screen and either can type;
-  resizing one resizes both. Closing a mirror only removes that view.
-- **Images**: drop a PNG, JPEG, WebP, BMP or GIF file onto the window, or
-  paste a copied picture with `Ctrl+Shift+V` when the clipboard holds no
-  text. Animated GIFs play. Images move, resize (aspect locked), group and
-  pin like terminals; pasted pictures are kept under
-  `~/.config/kindlyterm/images/`. Dropping any other file types its quoted
-  path into the focused terminal.
-- Zoomed far out, terminals draw as compact row bars with a cursor dot
-  instead of glyphs, so a canvas with dozens of shells stays cheap and you
-  can still see where the output is.
-- Canvas tabs tear off, merge, and reorder like any other tab.
-
-The layout (windows, tabs, item positions, zoom, and what each item was
-launched with) is saved to `~/.config/kindlyterm/state.json` and restored on
-the next start, together with the shells themselves (next section). Maximized
-windows come back maximized.
-
-kindlyTerm runs as one instance: launching it again (dock, `kindlyterm` in a
-shell, `kindlyterm --deck`) opens a new window in the running one, with the
-shell started in the launching directory, rather than restoring the same
-layout and shells a second time.
-
-## Shells that survive a restart
-
-Every shell runs in its own small host process, detached from the window.
-Quit kindlyTerm, log back in later, or crash it: the shells keep running,
-and the next start attaches to them again with their scrollback, colours,
-cursor, and whatever full-screen program was up (vim, htop, less).
-
-- **Closing** a tab, a terminal on a canvas, or one window of several ends
-  its shell, exactly as before. Only quitting (or closing the last window)
-  leaves shells running.
-- **Reattaching** is exact when the window is the same size: the host keeps
-  the last 8 MiB of raw output and replays it. Otherwise, or when more has
-  scrolled by, the host re-creates the screen and history from its own copy
-  of the terminal (the way tmux attaches).
-- **Recovery**: a running shell that no saved layout claims (for example
-  after `state.json` was deleted) comes back on a canvas tab called
-  *Recovered*.
-- `kindlyterm --sessions` lists the hosts (`--prune` removes leftovers of
-  dead ones). Inside a hosted shell, `$KINDLYTERM_SESSION` is its id.
-- Turn it off in the Deck under *Terminal → Scrollback → Keep shells
-  running*, or with `terminal.persistent_sessions = false`; shells then run
-  in-process and end with the window.
-
-Hosts listen on Unix sockets in `$XDG_RUNTIME_DIR/kindlyterm/` (mode 0700,
-sockets 0600). Nothing touches the network.
-
-## Claude Code and other tools (MCP)
-
-kindlyTerm can be driven by an AI coding agent through the
-[Model Context Protocol](https://modelcontextprotocol.io). It is **off by
-default**. Turn it on in the Deck under *About → Let tools drive kindlyTerm*,
-then register the server once:
+To let Claude Code drive it, turn on *About → Let tools drive kindlyTerm*
+in the Deck (`Ctrl+Shift+,`), then register the server once:
 
 ```sh
 claude mcp add kindlyterm -- kindlyterm --mcp
 ```
 
-Claude Code then gets tools to list canvases and terminals, read a
-terminal's screen or scrollback, type text and keys, open and close
-terminals (with a command and working directory), move, resize, rename,
-group, pin and mirror items (a pin can take a screen position, so an
-agent can park its own log in a corner while it works), watch a terminal
-for silence, place images, set the view, size the window, and take a
-screenshot. Every action that types, closes, or
-moves something is announced in the tab bar, and typing lights the
-terminal up: its frame (and its tab, if it is not the one showing) glows
-in the accent colour for a moment, short text replays the typing trail
-and longer text falls in as paste rain. Multi-line text is delivered as
-one bracketed paste when the program has asked for it, so a shell shows
-the block and waits for Enter instead of running each line as it lands.
-The bytes reach the shell before any of that starts, so an agent is
-never slowed down by the show. For a
-slower, watchable version an agent can pass `typing` (characters per
-second) to `send_text`, or `count` to `send_key` to hold a key down: held
-Backspace or Delete brings out the laser cutter. Both return at once
-and play out on the app's timer.
+## The Canvas
 
-To see all of it in one go, `python3 demo/showtime.py` plays a scripted
-tour on the running window (or `/showtime` from Claude Code in this repo):
-typing, the laser cutter both ways, a banner falling in as rain, then real work (a
-cargo build with a silence monitor, a docs server and a client, git) and a
-pan and zoom around the board. Then an agent takes over: it narrates its
-plan in a log card of its own and pins it to the screen so it stays in
-view while the camera follows its work. It spawns three workers, reads
-their screens back and writes down what each found, lines the cards up,
-groups two of them, adds the third so the frame grows, renames the group,
-closes the finished workers, and regroups around the one that is left.
-Then it turns to the rest of the board: it notices the build card's
-silence monitor firing, reads the finished build and clears the monitor,
-groups build with git as "repo" and the docs server with its client as
-"docs site", unpins its log, and zooms out to the whole board. `--fast`
-shortens the pauses, `--cleanup` closes the tab after. Every demo card
-runs bash with a staged `dev@kindlyTerm` prompt (`demo/rc.sh`), so a
-recording shows no real user or host name. To record one,
-`python3 demo/record.py out --window 1280x800 &` sizes the window and
-grabs frames over MCP while the Showtime tab is showing; play the demo,
-then `touch out/stop` and it restores the window and writes
-`showtime.gif` and `showtime.mp4` (needs ffmpeg). The GIF keeps the
-window's pixels 1:1, so text stays readable.
+Every tab is a canvas. A fresh tab shows one terminal filling the window.
+Press `Ctrl+Shift+Enter` (or right-click → *Turn into canvas*) and it
+becomes a free layout where each terminal is a movable, resizable card
+with its own title bar. Tabs holding a free canvas show `▦` in the tab bar.
 
-How it works: with the toggle on, the running app serves a small JSON API on
-a private Unix socket (`$XDG_RUNTIME_DIR/kindlyterm/control.sock`, mode
-0600). `kindlyterm --mcp` is a stdio bridge that Claude Code spawns; it
-forwards each tool call to that socket. Nothing listens on the network, and
-turning the toggle off removes the socket immediately. While it is on, any
-program running as your user can read your terminals and type into them,
-which is the whole point and the whole risk.
+- **Add** terminals with `Ctrl+Shift+Enter`, right-click → *New terminal
+  here*, or by launching a saved command from the Deck.
+- **Move** by dragging a title bar; **resize** by dragging any edge. Cards
+  snap to each other, and resizing steps in whole cells.
+- **Pan** with the wheel, a middle-button drag, or a left-drag on empty
+  space; hold `Space` to pan while over a terminal. `Ctrl`+wheel **zooms**
+  about the pointer, and text stays crisp at every zoom.
+- **Focus** a card by clicking it or with `Ctrl+Tab`. `Ctrl+Shift+F` zooms
+  it to fill the window and back; `Ctrl+Shift+A` fits everything into view.
+- **Select several** with `Shift`+click or `Shift`+drag on empty canvas.
+  Dragging one selected card moves them all.
+- **Groups** (`Ctrl+Shift+G`, or *New group with this* on a card's menu)
+  gather the selection into a tidy grid inside a named, tinted frame,
+  moved into free space so no outsider is caught in it. Drag the label to
+  move the whole group, double-click it to rename, resize the frame to
+  change who belongs. **Drag a card onto a group** and the frame lights up;
+  release and the group re-tidies around it. The label's menu has zoom,
+  rename, *Arrange members*, ungroup and close all.
+- **Pin** a card (`Ctrl+Shift+P`) and it floats in screen space above the
+  canvas, unmoved by pan and zoom: a build log can stay in the corner
+  while you work elsewhere.
+- **Watch for quiet**: a card's menu → *Tell me when it goes quiet*. After
+  30 seconds without output its frame blinks and the tab bar says so.
+- **Mirror** a card for a second live view of the same shell; both can
+  type. **Images** (PNG, JPEG, WebP, BMP, GIF) drop or paste onto the
+  canvas and move, resize, group and pin like terminals.
+- Zoomed far out, cards draw as compact bars with a cursor dot, so a
+  board with dozens of shells stays cheap and you can still see activity.
 
-## Cursor
+The layout is saved to `~/.config/kindlyterm/state.json` and restored on
+the next start, together with the shells themselves.
 
-The cursor is animated: it glides between cells with a short trail instead of
-jumping, a soft ring ripples out from it when you click into the window or the
-window regains focus, and at rest it breathes (a slow brightness wave) rather
-than hard-blinking. `cursor_animation` in `config.toml` picks `breathe`
-(default), classic `blink`, or `none`. Hold Backspace or Delete for about a
-second and a half and the cursor turns into a laser cutter facing the
-text it is cutting, until you let go: a cutter head with a magenta halo, a
-beam into the cell being cut, sparks and embers drifting behind. `chomp`
-picks `laser` (default) or `none`.
-The Deck's Cursor page has the same choice.
+## Driving it from Claude Code (MCP)
 
-## Effects
+With the toggle on and the server registered, Claude Code gets one tool
+per thing you can do on the canvas:
 
-Two optional effects, configured in `~/.config/kindlyterm/effects.toml` and in
-the Deck under Appearance → **Effects**:
+| | Tools |
+|---|---|
+| Look | `list_canvases` `list_terminals` `read_screen` `read_scrollback` `get_activity` `list_sessions` `screenshot` |
+| Type | `send_text` `send_key` (optional `typing` speed and key `count`) |
+| Terminals | `create_terminal` (command, cwd, name, position) `close_terminal` `focus` `rename_item` `mirror_terminal` `set_monitor` |
+| Arrange | `move_item` `resize_item` `pin_item` `place_image` `remove_item` |
+| Groups | `create_group` `add_to_group` `arrange_group` `rename_group` `delete_group` |
+| View | `zoom_to` `set_viewport` `set_window` `create_canvas` `rename_canvas` `delete_canvas` |
 
-- **Typing trail**: each typed character leaves a neon afterglow that fades
-  over about half a second, capped at the last N cells. Strength scales with
-  typing speed, so slow typing shows almost nothing and fast bursts light up.
-- **Paste rain**: a paste above a size threshold makes every pasted character
-  drop from the top of the screen into the exact cell where it landed, bright
-  head and shimmering tail, revealing the real text as each one arrives. It
-  works by snapshotting the grid before the paste and diffing afterwards, so
-  it is exact for multi-line pastes, wrapped lines, scrolling, and pastes into
-  editors. Tails shimmer through the pasted text, katakana, ascii, or binary.
+Everything an agent does is visible. Typing lights the card up, short text
+replays the typing trail and longer text falls in as paste rain; closes,
+moves and groupings are announced in the tab bar. The bytes reach the
+shell before the show starts, so the agent is never slowed down by it.
+Multi-line text arrives as one bracketed paste, so a shell shows the
+block and waits for Enter instead of running each line as it lands.
 
-Presets: `off`, `subtle`, `cyberpunk` (default), `matrix`. Every knob (length,
-fade, colors, threshold, duration, density) is editable; changes are written
-back to `effects.toml` immediately, and the preset name becomes `custom`.
-**To share a look, copy `effects.toml`** to another machine (or paste one
-you were given) and pick Reload on the Effects page. The file is commented.
+A typical pattern: the agent opens a terminal per worker with
+`create_terminal`, puts them in a group named after the job, watches them
+with `get_activity` and `set_monitor`, reads results back with
+`read_screen`, and closes what it no longer needs. You can click into any
+worker and type, because each one is a real shell.
 
-## Copy & paste
+**Demo.** `python3 demo/showtime.py` (or `/showtime` from Claude Code in
+this repo) plays a scripted tour on the running window: typing, paste
+rain, real work cards with a silence monitor, a pan and zoom, then an
+agent that narrates in a pinned log, spawns workers, reads them, lines
+them up, groups and renames them, and closes the finished ones. `--fast`
+shortens the pauses, `--cleanup` closes the tab after.
 
-Out of the box, the easiest path is: **select with the mouse, it's already
-copied**; then `Ctrl+V` at a prompt (or `Ctrl+Shift+V` anywhere, or middle
-click). A "copied N chars" note appears in the tab bar as confirmation.
+**How it works.** The app serves a small JSON API on a private Unix socket
+(`$XDG_RUNTIME_DIR/kindlyterm/control.sock`, mode 0600). `kindlyterm --mcp`
+is a stdio bridge Claude Code spawns; it forwards each tool call to that
+socket. Nothing listens on the network, and turning the toggle off removes
+the socket at once.
 
-Details, all tunable in the `[clipboard]` section of `config.toml`:
+![paste rain](docs/rain.gif)
 
-| Setting | Default | Effect |
-|---|---|---|
-| `copy_on_select` | `true` | Mouse selection goes straight to the clipboard. The primary selection (middle click) is always filled either way. |
-| `ctrl_c_copies_selection` | `true` | `Ctrl+C` copies when text is selected, otherwise sends the interrupt. |
-| `ctrl_v_pastes_in_shell` | `true` | `Ctrl+V` pastes unless the program is full-screen or uses the kitty keyboard protocol. |
-| `trim_trailing_newline` | `true` | A single copied line loses its trailing newline, so pasting it does not run it immediately. |
+## Shells that survive a restart
 
-Pasting uses bracketed paste when the program supports it, so multi-line
-pastes into bash, zsh, fish, or an editor are safe. Programs that set the
-clipboard themselves (tmux, neovim via OSC 52) work too.
+Every shell runs in its own small host process, detached from the window.
+Quit kindlyTerm or crash it: the shells keep running, and the next start
+attaches to them again with scrollback, colours, cursor and whatever
+full-screen program was up. Closing a tab or a card ends its shell; only
+quitting leaves shells running. A shell no saved layout claims comes back
+on a tab called *Recovered*. `kindlyterm --sessions` lists the hosts
+(`--prune` removes dead ones). Turn it off with
+`terminal.persistent_sessions = false` to run shells in-process.
 
-Note for GNOME on Wayland: the clipboard is served through the X11 bridge, so
-text copied from kindlyTerm stays available while kindlyTerm is running (which is
-the normal case), but is not handed to a clipboard manager on exit.
+## Control Deck
 
-## Saved commands
+Tap `Ctrl+Shift` (press both, let go), `Ctrl+Shift+,`, or click ⚙ in the
+tab bar to slide in the Deck: shortcut launcher and settings in one
+sidebar, fully keyboard-driven.
 
-Stored in `~/.config/kindlyterm/commands.toml`. You can edit it by hand:
+- **Home** shows your shortcuts as tiles; **type to filter** (exact, prefix,
+  initials, subsequence). `Enter` runs the top match, `Alt+Enter` in a
+  new tab, `Shift+Enter` in this one.
+- **Theme**, **Font & Size**, **Effects**, Padding, Cursor, Shell,
+  Scrollback, Tabs, Keyboard, Clipboard, Import/Export, About.
+- **Shortcut editor** (`Ctrl+Shift+S`): glyph and colour, name, command,
+  working directory, run-in, keep-open, confirm-first and a global hotkey.
+
+Everything the Deck changes is written to `config.toml`, `commands.toml`
+or `state.toml`, and edits to those files apply live.
+
+![control deck](docs/deck.gif)
+
+## Keys and mouse
+
+`Ctrl+/` shows the full cheat sheet in the app. The ones to know:
+
+| Keys | Action |
+|---|---|
+| `Ctrl+Shift+T` / `W` / `N` / `Q` | New tab / close tab (or the focused card) / new window / quit |
+| `Ctrl+Shift+Enter` | Add a terminal beside this one (a plain tab becomes a canvas) |
+| `Ctrl+Shift+K` | New empty canvas tab |
+| `Ctrl+Shift+F` / `A` / `G` / `P` | Focus mode / fit all / group selection / pin |
+| `Ctrl+Shift+=` `-` `0` | Canvas zoom in / out / reset (font size on a plain tab) |
+| `Ctrl+Tab`, `Alt+1`…`9` | Next tab, jump to tab N |
+| `Ctrl+Shift+O` | Tab switcher |
+| `Shift+PageUp/Down`, `Shift+Home/End` | Scroll history |
+| `Ctrl`+hover / click | Underline / open a link (URLs and OSC 8; the target shows in the status line) |
+| `Ctrl+Shift+C` / `V` | Copy / paste. `Ctrl+C` copies when text is selected, `Ctrl+V` pastes at a prompt |
+
+Tabs: drag to reorder, drag out of the bar to tear off into a window, drop
+on another kindlyTerm window to merge, double-click to rename, middle-click
+to close. Closing a tab that holds several terminals asks first.
+Terminal: drag to select (past the edge to keep selecting through
+history), double-click a word, triple-click a line, middle-click pastes the
+primary selection. Right-click anywhere for the relevant menu; menus work
+from the keyboard too.
+
+## Cursor and effects
+
+The cursor glides between cells, ripples when the window gains focus, and
+breathes at rest (`cursor_animation = "breathe" | "blink" | "none"`). Hold
+Backspace or Delete for a second and a half and it becomes a laser cutter
+facing the text it is cutting (`chomp = "laser" | "none"`).
+
+Two optional effects live in `effects.toml` and the Deck's Effects page:
+the **typing trail** (a neon afterglow that scales with typing speed) and
+**paste rain** (every pasted character drops into the exact cell where it
+landed, exact even for wrapped and scrolling pastes). Presets `off`,
+`subtle`, `cyberpunk` (default) and `matrix`; copy the file to share a look.
+
+## Copy and paste
+
+Select with the mouse and it is already copied; `Ctrl+V` at a prompt or
+middle-click pastes. Tunable in `[clipboard]`: `copy_on_select`,
+`ctrl_c_copies_selection`, `ctrl_v_pastes_in_shell`,
+`trim_trailing_newline`, `confirm_multiline_paste`. Bracketed paste is
+used when the program supports it. On GNOME Wayland the clipboard goes
+through the X11 bridge, so copied text is not handed to a clipboard
+manager after kindlyTerm exits.
+
+## Configuration
+
+`~/.config/kindlyterm/config.toml`, watched and applied live:
+
+```toml
+[font]
+family = "monospace"           # or e.g. "JetBrains Mono"
+size = 13.0
+
+[terminal]
+scrollback = 10000
+shell = "/bin/zsh"             # optional; defaults to $SHELL
+cursor = "block"               # block | beam | underline
+cursor_animation = "breathe"   # breathe | blink | none
+chomp = "laser"                # laser | none
+osc52 = "copy"                 # copy | none | both: what programs may do with the clipboard
+persistent_sessions = true     # shells survive a restart
+
+[colors]
+opacity = 1.0                  # 0.3..1.0 window translucency
+# ... see the generated file for every key
+```
+
+Saved commands live in `commands.toml` and are editable by hand:
 
 ```toml
 [[commands]]
 name = "homelab"
 command = "ssh dev@192.168.1.10"
-icon = "⌂"                # badge glyph (one character)
-color = 4                 # badge color, ANSI index 0..15
+icon = "⌂"                # badge glyph
+color = 4                 # ANSI index 0..15
 hotkey = "Alt+H"          # global launcher
-
-[[commands]]
-name = "logs"
-command = "journalctl -f"
 keep_open = true          # drop into a shell when the command exits
-cwd = "~/Projects"        # optional working directory
+cwd = "~/Projects"
 confirm = true            # ask before running
-run_in = "here"           # "here" types it into the current tab; default is a new tab
+run_in = "here"           # type it into the current tab; default is a new tab
 ```
 
-Icon and color are optional; the Deck guesses sensible ones from the
-command (ssh → house, databases → cylinder, logs → lines, builds → hammer).
-
-Commands run through your login shell (`$SHELL -lc "..."`), so aliases from
-your profile and your `PATH` apply. When the command exits the tab closes,
-unless `keep_open = true`.
-
-## Configuration
-
-`~/.config/kindlyterm/config.toml`. The files in that directory are watched:
-save an edit to `config.toml`, `effects.toml`, or `commands.toml` and it
-applies at once, no restart (the tab bar says "reloaded …").
-
-```toml
-[font]
-family = "monospace"   # or e.g. "JetBrains Mono"
-size = 13.0
-line_padding = 0.0
-
-[terminal]
-scrollback = 10000
-shell = "/bin/zsh"     # optional; defaults to $SHELL
-shell_args = []        # e.g. ["-l"] for a login shell
-padding = 6.0
-cursor = "block"       # block | beam | underline
-cursor_animation = "breathe"   # breathe | blink | none
-chomp = "laser"                # laser | none: held Backspace/Delete
-persistent_sessions = true     # shells run in detached hosts and survive a restart
-
-[colors]
-foreground = "#d8dee9"
-background = "#1b1f27"
-opacity = 1.0          # 0.3..1.0 window translucency (Deck → Appearance → Opacity)
-# ... see the generated file for every key
-```
+Commands run through your login shell, so aliases and `PATH` apply.
 
 ## Security notes
 
-- **Clipboard access by programs (OSC 52)**: programs may *set* the clipboard
-  (you get a "a program copied to the clipboard" notice) but may not *read*
-  it, so a remote host cannot exfiltrate what you last copied. Change with
-  `terminal.osc52 = "copy" | "none" | "both"`.
-- **Paste sanitizing**: pasted text is stripped of control characters (except
-  tab and newline) and of the bracketed-paste end marker, so a crafted paste
-  cannot inject escape sequences or break out of the paste bracket.
-- **Multi-line paste confirmation**: when the foreground program does not
-  support bracketed paste, so every newline would run a command, a confirm
-  dialog asks first (`clipboard.confirm_multiline_paste`).
-- **Shortcut hotkeys** cannot take Ctrl+C, Ctrl+D, or Ctrl+Z from the shell.
-- **Session hosts** are ordinary user processes talking over private Unix
-  sockets in your runtime directory; there is no network listener. Any
-  process running as your user can attach to a host and read or type into
-  that shell, the same boundary tmux and screen have; the MCP toggle
-  governs the window, not the shells. On a shared machine, set
-  `persistent_sessions = false` if that matters to you. A host
-  answers terminal size and device-attribute queries itself while no window
-  is attached, so a program cannot hang, but colour and clipboard requests
-  wait for a window.
-- **Control API (MCP)** is off by default. When on, it is a user-private
-  Unix socket; the Deck's About page says so plainly and every tool action
-  is shown in the tab bar.
-- **Developer hooks** below are inert unless `KINDLYTERM_DEBUG=1` is set.
-- **Distributing binaries**: release builds are stripped. To also keep your
-  home directory out of panic messages, add to `~/.cargo/config.toml`:
-  `[build] rustflags = ["--remap-path-prefix=/home/you=~"]`.
+- **Clipboard (OSC 52)**: programs may set the clipboard (you get a notice)
+  but not read it, unless `terminal.osc52 = "both"`.
+- **Paste**: control characters and the bracketed-paste end marker are
+  stripped, and a multi-line paste into a program without bracketed paste
+  asks first.
+- **Links**: only http, https, ftp and file targets open, never through a
+  shell. The real target is shown while you Ctrl-hover; `file:` links open
+  only from the right-click menu, where it is visible.
+- **Sockets**: hosts and the control API use Unix sockets in a private
+  directory that is verified to be owned by you (mode 0700, sockets 0600).
+  Nothing listens on the network.
+- **Boundary**: any process running as your user can attach to a session
+  host and read or type into that shell, the same boundary tmux has. The
+  MCP toggle governs the window, not the shells. On a shared machine set
+  `persistent_sessions = false` if that matters. While the API is on, any
+  program running as you can drive the window, which is the point and the
+  risk.
+- **Images** are decoded with size limits; dropped file names are
+  sanitised before being typed.
+- **Hotkeys** cannot take Ctrl+C, Ctrl+D or Ctrl+Z from the shell.
+- Developer hooks are inert unless `KINDLYTERM_DEBUG=1` is set.
 
-## Debug knobs
-
-Set `KINDLYTERM_DEBUG=1` to enable these environment variables while developing:
-
-- `KINDLYTERM_SCREENSHOT=/path/out.png` renders a frame offscreen and saves it
-  (`KINDLYTERM_SCREENSHOT_FRAME=n` picks the frame, default 30).
-- `KINDLYTERM_INPUT='ls\r'` types into the first tab at startup.
-- `KINDLYTERM_KEYS=newtab,scroll:40,deck:home,deck:theme,deck:editor,type:gra|down|enter,menu:tabbar,clipset:text,clipget,clippaste`
-  applies actions just before the screenshot frame, or after `KINDLYTERM_ACTIONS_AFTER=ms`.
-  If the screenshot has not been taken when `KINDLYTERM_EXIT_AFTER` fires, it is taken at exit.
-- `KINDLYTERM_EXIT_AFTER=3000` quits after N milliseconds.
-- `KINDLYTERM_SESSION_DIR=/run/user/1000/kt-test` keeps a test run's session
-  hosts apart from your real ones (must be a short path: it holds sockets).
-- `RUST_LOG=kindlyterm=debug` for verbose logs.
-
-## Layout
+## Developing
 
 ```
-src/main.rs         entry point, event loop
-src/app/mod.rs      windows, tabs, palette, Deck actions, winit handler
-src/app/input.rs    keyboard and mouse
-src/app/draw.rs     tab bar, terminal grid, overlays
-src/app/windows.rs  window lifecycle, tab tear-off / merge, wake-ups
-src/app/canvas_ui.rs canvas interaction, drawing, and state save/restore
-src/app/debug.rs    developer hooks (KINDLYTERM_DEBUG=1)
-src/canvas.rs       canvas model: viewport maths, items, hit testing, state.json
-src/session.rs      UI <-> host wire protocol and the session socket directory
-src/instance.rs     single-instance socket: later launches become new windows
-src/host.rs         the detached PTY host: output ring, headless Term, snapshots
-src/control.rs      control socket: JSON lines between the UI and tool bridges
-src/mcp.rs          `--mcp` stdio Model Context Protocol server (Claude Code)
-src/app/control_api.rs what each tool does inside the app
-src/app/groups.rs   multi-selection and group frames
-src/app/pins.rs     pinned items and mirrors
-src/app/images.rs   images on the canvas
-src/app/links.rs    URL / OSC 8 link detection
-src/app/watch.rs    live config reload
-src/terminal.rs     one terminal: alacritty Term + local PTY thread or a session-host client
-src/renderer.rs  wgpu pipeline: instanced quads (rects + glyphs)
-src/shader.wgsl  the one shader
-src/font.rs      fontdb/swash loading, glyph atlas, fallback fonts
-src/keys.rs      key event -> escape sequence encoding
-src/deck/mod.rs     the Control Deck: state, focus model, ranking
-src/deck/pages.rs   page builders
-src/deck/input.rs   Deck keyboard and mouse
-src/deck/draw.rs    Deck layout, drawing, UI text helpers
-src/theme.rs        resolved theme + the six built-in palettes + icon sheet
-src/effects.rs      typing trail and paste rain, plus effects.toml
-src/palette.rs      tab switcher palette
-src/menu.rs         right-click context menus
-src/config.rs    config.toml and commands.toml
-demo/showtime.py    the scripted Canvas tour, driven over MCP
-.claude/skills/showtime  the /showtime skill for Claude Code (runs the tour)
+src/app/         windows, tabs, input, drawing, canvas interaction, groups, pins,
+                 images, links, the control API, developer hooks
+src/canvas.rs    canvas model: viewport maths, items, groups, free-space packing
+src/host.rs      the detached PTY host; src/session.rs its wire protocol
+src/control.rs   control socket; src/mcp.rs the --mcp stdio bridge
+src/terminal.rs  one terminal: alacritty Term + local PTY or a host client
+src/renderer.rs  wgpu pipeline and src/shader.wgsl
+src/deck/        the Control Deck; src/effects.rs trail and rain
+demo/showtime.py the scripted tour; .claude/skills/showtime runs it
 ```
 
-## Not yet done
+`cargo test` runs the unit tests. With `KINDLYTERM_DEBUG=1`:
+`KINDLYTERM_SCREENSHOT=out.png` renders a frame offscreen,
+`KINDLYTERM_INPUT='ls\r'` types at startup, `KINDLYTERM_KEYS=…` scripts
+actions, `KINDLYTERM_EXIT_AFTER=3000` quits, and
+`KINDLYTERM_SESSION_DIR=/run/user/1000/kt-test` keeps test sessions apart
+from real ones. `RUST_LOG=kindlyterm=debug` for verbose logs.
 
-- Mouse reporting to applications: clicks and drags (the wheel is reported)
-- Bell
-- Search in scrollback
-- Deck: shortcut folders, aliases, per-row font previews, ligatures, undo after launch
+Not yet done: mouse clicks reported to applications (the wheel is), bell,
+search in scrollback.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). The icon and the design files under `assets/`
-and `design/` are covered by the same license.
-
-Built on [alacritty_terminal](https://github.com/alacritty/alacritty) (Apache-2.0),
-[wgpu](https://github.com/gfx-rs/wgpu) and [winit](https://github.com/rust-windowing/winit),
-[swash](https://github.com/dfrg/swash), [fontdb](https://github.com/RazrFalcon/fontdb),
-and [nucleo](https://github.com/helix-editor/nucleo) (MPL-2.0). See `Cargo.lock`
-for the full dependency list and `cargo metadata` for their licenses.
+MIT. See [LICENSE](LICENSE). Built on
+[alacritty_terminal](https://github.com/alacritty/alacritty) (Apache-2.0),
+[wgpu](https://github.com/gfx-rs/wgpu), [winit](https://github.com/rust-windowing/winit),
+[swash](https://github.com/dfrg/swash), [fontdb](https://github.com/RazrFalcon/fontdb)
+and [nucleo](https://github.com/helix-editor/nucleo) (MPL-2.0).

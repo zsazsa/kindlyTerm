@@ -359,6 +359,10 @@ impl Win {
         let rows = (((r.h - TITLE_H - 2.0 * ITEM_PAD) / m.height).floor() as usize).max(1);
         GridSize { cols, rows, cell_width: m.width as u16, cell_height: m.height as u16 }
     }
+    /// Grid of a freshly opened card: a classic terminal, whatever the
+    /// window's size.
+    pub(super) const NEW_CARD: (usize, usize) = (80, 24);
+
     /// World size of an item that shows `cols` × `rows` cells.
     fn rect_for_grid(&self, cols: usize, rows: usize) -> (f32, f32) {
         let m = self.fonts.metrics;
@@ -779,7 +783,7 @@ impl App {
         let rect = match at {
             Some(r) => r,
             None => {
-                let (w, h) = self.win().rect_for_grid(80, 24);
+                let (w, h) = self.win().rect_for_grid(Win::NEW_CARD.0, Win::NEW_CARD.1);
                 self.win_mut().canvas_mut()?.spawn_rect(l.area, w, h)
             }
         };
@@ -1661,8 +1665,7 @@ impl App {
             MenuAction::NewCanvasTab => self.open_canvas_tab(),
             MenuAction::NewTerminalAt(wx, wy) => {
                 let launch = self.shell_launch();
-                let g = Self::grid_size_of(self.win());
-                let (w, h) = self.win().rect_for_grid(g.cols, g.rows);
+                let (w, h) = self.win().rect_for_grid(Win::NEW_CARD.0, Win::NEW_CARD.1);
                 self.new_terminal_in_canvas(launch, Some(WRect::new(wx.round(), wy.round(), w, h)), None);
             }
             MenuAction::FocusMode => self.toggle_focus_mode(),
