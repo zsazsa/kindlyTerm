@@ -141,10 +141,36 @@ impl App {
         Some(WRect::new(ox, oy, bw, bh))
     }
 
+    /// Pack `ids` into a grid, then slide the block into free space so
+    /// the frame drawn around it covers no outsider (membership is by
+    /// containment, so an overlapped stranger would be absorbed). `skip`
+    /// is the block's own group, whose frame is not an obstacle. Returns
+    /// the members' bounds.
+    pub(super) fn gather(&mut self, ids: &[ItemId], skip: Option<GroupId>) -> Option<WRect> {
+        const GAP: f32 = 24.0;
+        let b = self.arrange_items(ids)?;
+        let w = self.win_mut();
+        let c = w.canvas_mut()?;
+        let frame = WRect::new(b.x - GROUP_PAD, b.y - GROUP_PAD - GROUP_LABEL_H, b.w + 2.0 * GROUP_PAD, b.h + 2.0 * GROUP_PAD + GROUP_LABEL_H);
+        let (fx, fy) = crate::canvas::free_spot(frame, &c.obstacles_for(ids, skip), GAP);
+        let (dx, dy) = (fx - frame.x, fy - frame.y);
+        if dx != 0.0 || dy != 0.0 {
+            for id in ids {
+                if let Some(it) = c.item_mut(*id).filter(|i| i.pin.is_none()) {
+                    it.rect.x += dx;
+                    it.rect.y += dy;
+                }
+            }
+            c.recompute_membership();
+            w.dirty = true;
+        }
+        Some(WRect::new(b.x + dx, b.y + dy, b.w, b.h))
+    }
+
     /// Re-tidy a group's members and shrink-wrap its frame around them.
     pub(super) fn arrange_group(&mut self, gid: GroupId) {
         let Some(ids) = self.win().canvas().and_then(|c| c.group(gid)).map(|g| g.members.clone()) else { return };
-        let Some(b) = self.arrange_items(&ids) else { return };
+        let Some(b) = self.gather(&ids, Some(gid)) else { return };
         let w = self.win_mut();
         if let Some(c) = w.canvas_mut() {
             if let Some(g) = c.group_mut(gid) {
@@ -157,11 +183,13 @@ impl App {
         self.request_redraw();
     }
 
-    /// Menu: put one item into an existing group. It is moved beside the
-    /// group's members and the whole group is re-tidied around it.
+    /// Menu: put an item (or the whole selection containing it) into an
+    /// existing group. Newcomers are moved beside the group's members and
+    /// the whole group is re-tidied around them.
     pub(super) fn add_item_to_group(&mut self, id: ItemId, gid: GroupId) {
         let Some((gr, members)) = self.win().canvas().and_then(|c| c.group(gid)).map(|g| (g.rect, g.members.clone())) else { return };
-        if members.contains(&id) {
+        let new: Vec<ItemId> = self.menu_targets(id).into_iter().filter(|i| !members.contains(i)).collect();
+        if new.is_empty() {
             return;
         }
         {
@@ -169,19 +197,24 @@ impl App {
             let Some(c) = w.canvas_mut() else { return };
             // Leave any other group and land just right of the frame.
             for g in &mut c.groups {
-                g.members.retain(|m| *m != id);
+                g.members.retain(|m| !new.contains(m));
             }
-            if let Some(it) = c.item_mut(id) {
-                if it.pin.is_some() {
-                    return;
+            c.groups.retain(|g| g.id == gid || !g.members.is_empty());
+            let mut x = gr.right() + GROUP_PAD;
+            for &n in &new {
+                if let Some(it) = c.item_mut(n) {
+                    if it.pin.is_some() {
+                        continue;
+                    }
+                    it.rect.x = x;
+                    it.rect.y = gr.y + GROUP_PAD;
+                    x += it.rect.w + GROUP_PAD;
                 }
-                it.rect.x = gr.right() + GROUP_PAD;
-                it.rect.y = gr.y + GROUP_PAD;
             }
         }
         let mut ids = members;
-        ids.push(id);
-        let Some(b) = self.arrange_items(&ids) else { return };
+        ids.extend(new);
+        let Some(b) = self.gather(&ids, Some(gid)) else { return };
         let w = self.win_mut();
         if let Some(c) = w.canvas_mut() {
             if let Some(g) = c.group_mut(gid) {
@@ -196,18 +229,27 @@ impl App {
         self.request_redraw();
     }
 
-    /// Menu: a new group holding just this item.
+    /// The items a menu action on `id` applies to: the multi-selection
+    /// when it contains the clicked item, else the clicked item alone.
+    fn menu_targets(&self, id: ItemId) -> Vec<ItemId> {
+        self.win().canvas().map(|c| c.action_targets(id)).unwrap_or_else(|| vec![id])
+    }
+
+    /// Menu: a new group holding this item, or the whole selection when
+    /// the item is part of it.
     pub(super) fn new_group_with(&mut self, id: ItemId) {
+        let ids = self.menu_targets(id);
         if let Some(c) = self.win_mut().canvas_mut() {
-            c.selected = vec![id];
+            c.selected = ids;
             c.group_sel = None;
         }
-        self.toggle_group(false);
+        self.toggle_group(true);
     }
 
     /// Ctrl+Shift+G: group the selection (or the focused item). If the
     /// selection is exactly an existing group, dissolve it instead. With
-    /// `arrange`, the members are first packed into a tidy grid.
+    /// `arrange`, the members are gathered into a tidy grid in free space,
+    /// however scattered they were.
     pub(super) fn toggle_group(&mut self, arrange: bool) {
         if !self.on_free_canvas() {
             self.set_status("Groups live on canvas tabs (Ctrl+Shift+Enter turns this one into a canvas)".into());
@@ -235,21 +277,22 @@ impl App {
             self.set_status("group dissolved".into());
             return;
         }
-        if arrange {
-            self.arrange_items(&ids);
+        // Leave any previous group first, so a group emptied by this one
+        // is no longer in the way.
+        if let Some(c) = self.win_mut().canvas_mut() {
+            for g in &mut c.groups {
+                g.members.retain(|m| !ids.contains(m));
+            }
+            c.groups.retain(|g| !g.members.is_empty());
         }
+        let b = if arrange { self.gather(&ids, None) } else { self.win().canvas().and_then(|c| c.bounds_of(&ids)) };
+        let Some(b) = b else { return };
         let gid = self.next_group_id;
         self.next_group_id += 1;
         let n_before = self.win().canvas().map(|c| c.groups.len()).unwrap_or(0);
         let w = self.win_mut();
         let Some(c) = w.canvas_mut() else { return };
-        let Some(b) = c.bounds_of(&ids) else { return };
         let rect = WRect::new(b.x - GROUP_PAD, b.y - GROUP_PAD, b.w + 2.0 * GROUP_PAD, b.h + 2.0 * GROUP_PAD);
-        // Leave any previous group.
-        for g in &mut c.groups {
-            g.members.retain(|m| !ids.contains(m));
-        }
-        c.groups.retain(|g| !g.members.is_empty());
         let color = GROUP_COLORS[n_before % GROUP_COLORS.len()];
         c.groups.push(Group { id: gid, name: format!("Group {}", n_before + 1), rect, color, members: ids.clone() });
         c.recompute_membership();
@@ -327,11 +370,7 @@ impl App {
     pub(super) fn drag_set(&self, primary: ItemId) -> Vec<(ItemId, WRect)> {
         let Some(c) = self.win().canvas() else { return Vec::new() };
         let primary_pinned = c.item(primary).map(|i| i.pin.is_some()).unwrap_or(false);
-        let mut ids: Vec<ItemId> = if c.is_selected(primary) && !primary_pinned {
-            c.selected.iter().copied().filter(|&i| c.item(i).map(|x| x.pin.is_none()).unwrap_or(false)).collect()
-        } else {
-            vec![primary]
-        };
+        let mut ids: Vec<ItemId> = if primary_pinned { vec![primary] } else { c.action_targets(primary) };
         if !ids.contains(&primary) {
             ids.push(primary);
         }

@@ -419,9 +419,35 @@ impl Canvas {
         }
     }
 
+    /// What a block holding `ids` must keep clear of: every other unpinned
+    /// item and every other group's frame, label included. `skip` names
+    /// the group the block belongs to, so its own frame does not count.
+    pub fn obstacles_for(&self, ids: &[ItemId], skip: Option<GroupId>) -> Vec<WRect> {
+        let mut v: Vec<WRect> = self.items.iter().filter(|i| i.pin.is_none() && !ids.contains(&i.id)).map(|i| i.rect).collect();
+        v.extend(
+            self.groups
+                .iter()
+                .filter(|g| Some(g.id) != skip)
+                .map(|g| WRect::new(g.rect.x, g.rect.y - GROUP_LABEL_H, g.rect.w, g.rect.h + GROUP_LABEL_H)),
+        );
+        v
+    }
+
     /// Is the item part of the current multi-selection?
     pub fn is_selected(&self, id: ItemId) -> bool {
         self.selected.contains(&id)
+    }
+
+    /// The items an action on `id` applies to (a context-menu entry, a
+    /// drag): the multi-selection when it contains the item, else the
+    /// item alone. Pinned items never take part.
+    pub fn action_targets(&self, id: ItemId) -> Vec<ItemId> {
+        let unpinned = |i: &ItemId| self.item(*i).map(|x| x.pin.is_none()).unwrap_or(false);
+        if self.is_selected(id) {
+            self.selected.iter().copied().filter(unpinned).collect()
+        } else {
+            vec![id]
+        }
     }
 
     /// The focused item plus any multi-selection, deduplicated.
@@ -614,6 +640,38 @@ impl SavedState {
     }
 }
 
+/// The nearest top-left to `want`'s where a block of its size sits at
+/// least `gap` away from every obstacle. `want`'s own position is taken
+/// when it is already clear; otherwise the block slides along the edges
+/// of whatever is in the way, preferring the smallest move.
+pub fn free_spot(want: WRect, obstacles: &[WRect], gap: f32) -> (f32, f32) {
+    let clear = |x: f32, y: f32| {
+        let r = WRect::new(x - gap, y - gap, want.w + 2.0 * gap, want.h + 2.0 * gap);
+        !obstacles.iter().any(|o| r.intersects(o))
+    };
+    if clear(want.x, want.y) {
+        return (want.x, want.y);
+    }
+    let mut xs = vec![want.x];
+    let mut ys = vec![want.y];
+    for o in obstacles {
+        xs.push(o.right() + gap);
+        xs.push(o.x - want.w - gap);
+        ys.push(o.bottom() + gap);
+        ys.push(o.y - want.h - gap);
+    }
+    let mut best: Option<(f32, f32, f32)> = None;
+    for &x in &xs {
+        for &y in &ys {
+            let d = (x - want.x).powi(2) + (y - want.y).powi(2);
+            if best.map(|b| d < b.2).unwrap_or(true) && clear(x, y) {
+                best = Some((x, y, d));
+            }
+        }
+    }
+    best.map(|(x, y, _)| (x.round(), y.round())).unwrap_or((want.x, want.y))
+}
+
 /// Flow `sizes` (w, h) into rows of equal count, left to right then top to
 /// bottom, with `gap` between them; the column count is the one whose
 /// bounding box is closest to 16:10. Returns each item's offset from the
@@ -677,5 +735,85 @@ mod pack_tests {
         let (pos, w, h) = pack_grid(&[(800.0, 100.0)], 20.0);
         assert_eq!(pos, vec![(0.0, 0.0)]);
         assert_eq!((w, h), (800.0, 100.0));
+    }
+}
+
+#[cfg(test)]
+mod free_spot_tests {
+    use super::{free_spot, WRect};
+
+    #[test]
+    fn a_clear_spot_is_kept() {
+        let want = WRect::new(100.0, 100.0, 400.0, 300.0);
+        let obstacles = [WRect::new(1000.0, 0.0, 200.0, 200.0)];
+        assert_eq!(free_spot(want, &obstacles, 24.0), (100.0, 100.0));
+    }
+
+    #[test]
+    fn a_blocked_spot_slides_to_the_nearest_gap() {
+        let want = WRect::new(100.0, 100.0, 400.0, 300.0);
+        // An outsider sits just inside the block's right edge.
+        let obstacles = [WRect::new(450.0, 100.0, 300.0, 200.0)];
+        let (x, y) = free_spot(want, &obstacles, 24.0);
+        let placed = WRect::new(x - 24.0, y - 24.0, 448.0, 348.0);
+        assert!(!placed.intersects(&obstacles[0]), "landed on the outsider at {x},{y}");
+        // Sliding left of the outsider is the shortest move.
+        assert_eq!((x, y), (26.0, 100.0));
+    }
+
+    #[test]
+    fn always_finds_room_among_many() {
+        let want = WRect::new(0.0, 0.0, 500.0, 500.0);
+        let obstacles: Vec<WRect> = (0..10).map(|i| WRect::new((i % 4) as f32 * 300.0, (i / 4) as f32 * 300.0, 250.0, 250.0)).collect();
+        let (x, y) = free_spot(want, &obstacles, 24.0);
+        let placed = WRect::new(x - 24.0, y - 24.0, 548.0, 548.0);
+        assert!(obstacles.iter().all(|o| !placed.intersects(o)));
+    }
+}
+
+#[cfg(test)]
+mod selection_tests {
+    use super::*;
+
+    fn canvas_with(n: u64) -> Canvas {
+        let mut c = Canvas::new(0, "t");
+        for i in 0..n {
+            c.items.push(Item {
+                id: i,
+                kind: ItemKind::Pending,
+                rect: WRect::new(i as f32 * 500.0, 0.0, 400.0, 300.0),
+                pin: None,
+                mirror: false,
+                monitor: None,
+                name: None,
+                launch: None,
+            });
+        }
+        c
+    }
+
+    #[test]
+    fn menu_on_a_selected_item_targets_the_whole_selection() {
+        let mut c = canvas_with(3);
+        c.selected = vec![0, 2];
+        assert_eq!(c.action_targets(2), vec![0, 2]);
+        assert_eq!(c.action_targets(0), vec![0, 2]);
+    }
+
+    #[test]
+    fn menu_outside_the_selection_targets_just_that_item() {
+        let mut c = canvas_with(3);
+        c.selected = vec![0, 2];
+        assert_eq!(c.action_targets(1), vec![1]);
+        c.selected.clear();
+        assert_eq!(c.action_targets(2), vec![2]);
+    }
+
+    #[test]
+    fn pinned_items_drop_out_of_the_selection() {
+        let mut c = canvas_with(3);
+        c.items[1].pin = Some(Corner::TopLeft);
+        c.selected = vec![0, 1, 2];
+        assert_eq!(c.action_targets(0), vec![0, 2]);
     }
 }
