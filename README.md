@@ -1,23 +1,54 @@
 # kindlyTerm
 
-A GPU-accelerated terminal for Linux built around the **Canvas**: an
-infinite, zoomable board where every shell is a card you can move, resize,
-group, pin and mirror. Shells run in detached hosts and survive a restart
-of the app. **Claude Code and other MCP clients can drive all of it**: open
-terminals, read their screens, type into them, arrange and group the
-cards, and watch a job for silence, with every action visible on screen as
-it happens.
+A terminal for Linux where the shells live on an infinite, zoomable
+**Canvas**, and where **Claude Code can work the board with you** through
+MCP: opening terminals, reading them, typing into them, grouping them,
+all visible on screen as it happens.
 
 ![kindlyTerm](docs/hero.png)
 
-Written in Rust on `alacritty_terminal` (VT parsing, grid, scrollback),
-`wgpu` (rendering), `winit` (Wayland/X11) and `swash` (glyphs).
+## What it does
 
-## Quick start
+**The Canvas.** Every shell is a card on a zoomable board. Move and resize
+cards, snap them together, gather them into named groups, pin one to the
+screen while you pan around, mirror one for a second view, drop images
+next to them. Zoom far out and dozens of shells become a map of activity.
+A plain tab is still a plain tab until you ask for more.
+
+**Driven by Claude Code.** Turn on the control API and register
+`kindlyterm --mcp`. Claude Code then gets a tool for everything you can do
+on the canvas: create terminals with a command, read screens and
+scrollback, type, arrange, group, pin, watch a job for silence, take a
+screenshot. An agent can spawn a terminal per worker, put them in a group
+named after the job, read the results back and close what is done, and
+you can click into any worker and type, because each one is a real shell.
+Every action is announced and animated so you always see what it did.
+
+**Shells that survive a restart.** Each shell runs in its own detached
+host. Quit or crash the app, and the next start reattaches to every shell
+with its scrollback, colours and whatever full-screen program was up.
+
+**And a good terminal.** GPU rendering, crisp text at every zoom, a
+keyboard-driven Control Deck for saved commands and settings, an animated
+cursor, a typing trail and paste rain if you like effects, and careful
+handling of the clipboard, pastes and links.
+
+## Prerequisites
+
+- Linux with Wayland or X11, and a GPU driver with Vulkan (what `wgpu`
+  renders through). Any desktop works; the installer adds a launcher entry
+  and icon that GNOME, KDE and others pick up.
+- Rust 1.88 or newer (`rustup update stable`).
+- `fontconfig` and a monospace font.
+- Optional: [Claude Code](https://claude.com/claude-code) to drive it over
+  MCP, `python3` for the demo, `ffmpeg` to record it.
+
+## Install
 
 ```sh
-cargo run --release        # try it
-./install.sh               # or install: ~/.local/bin/kindlyterm, a launcher and an icon
+cargo run --release        # try it without installing
+./install.sh               # ~/.local/bin/kindlyterm plus a launcher and icon
+./install.sh --system      # /usr/local instead (sudo)
 ./install.sh --uninstall
 ```
 
@@ -92,11 +123,10 @@ shell before the show starts, so the agent is never slowed down by it.
 Multi-line text arrives as one bracketed paste, so a shell shows the
 block and waits for Enter instead of running each line as it lands.
 
-A typical pattern: the agent opens a terminal per worker with
-`create_terminal`, puts them in a group named after the job, watches them
-with `get_activity` and `set_monitor`, reads results back with
-`read_screen`, and closes what it no longer needs. You can click into any
-worker and type, because each one is a real shell.
+The worker pattern in tool terms: `create_terminal` per worker, then
+`create_group` named after the job, `get_activity` and `set_monitor` to
+watch them, `read_screen` to collect results, `close_terminal` for the
+ones that are done.
 
 **Demo.** `python3 demo/showtime.py` (or `/showtime` from Claude Code in
 this repo) plays a scripted tour on the running window: typing, paste
@@ -256,6 +286,9 @@ Commands run through your login shell, so aliases and `PATH` apply.
 - Developer hooks are inert unless `KINDLYTERM_DEBUG=1` is set.
 
 ## Developing
+
+Written in Rust on `alacritty_terminal` (VT parsing, grid, scrollback),
+`wgpu` (rendering), `winit` (Wayland/X11) and `swash` (glyphs).
 
 ```
 src/app/         windows, tabs, input, drawing, canvas interaction, groups, pins,
