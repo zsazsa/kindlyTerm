@@ -145,7 +145,8 @@ enum CDrag {
     Pan { last: (f32, f32) },
     /// Moving an item (and whatever is selected with it): pointer offset
     /// from the primary's world origin, plus every follower's start rect.
-    Move { item: ItemId, grab: (f32, f32), moved: bool, starts: Vec<(ItemId, WRect)> },
+    /// `over` is the group under the pointer that the drop would join.
+    Move { item: ItemId, grab: (f32, f32), moved: bool, starts: Vec<(ItemId, WRect)>, over: Option<crate::canvas::GroupId> },
     /// Resizing an item from the given edges.
     Resize { item: ItemId, edge: crate::canvas::Edge, start: WRect, press: (f32, f32) },
     /// Rubber-band selection in world coordinates.

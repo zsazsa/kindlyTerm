@@ -44,6 +44,24 @@ impl App {
         None
     }
 
+    /// The group a drag of `item` would join if released with the pointer
+    /// here: the group under the pointer, unless the item is already one
+    /// of its members.
+    pub(super) fn drop_group_at(&self, item: ItemId, sx: f32, sy: f32) -> Option<GroupId> {
+        let (gid, _) = self.group_at(sx, sy)?;
+        let c = self.win().canvas()?;
+        let g = c.group(gid)?;
+        (!g.members.contains(&item)).then_some(gid)
+    }
+
+    /// The group currently offered as a drop target, if a drag is over one.
+    fn drop_target(w: &Win) -> Option<GroupId> {
+        match w.cdrag {
+            CDrag::Move { over, .. } => over,
+            _ => None,
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Selection
     // -----------------------------------------------------------------------
@@ -486,6 +504,7 @@ impl App {
         let view = c.view;
         let z = view.zoom;
         let sel = c.group_sel;
+        let target = Self::drop_target(w);
         let groups: Vec<Group> = c.groups.clone();
         for g in &groups {
             let fr = view.rect_to_screen(l.area, g.rect);
@@ -494,13 +513,14 @@ impl App {
             }
             let tint = theme.ansi[(g.color as usize).min(15)];
             let active = sel == Some(g.id);
+            let hot = target == Some(g.id);
             let radius = (10.0 * z).clamp(3.0, 12.0);
-            w.batch.rrect(fr.x, fr.y, fr.w, fr.h, radius, with_alpha(tint, if active { 0.12 } else { 0.07 }));
-            // Dashed outline.
-            let dash = (10.0 * z).max(4.0);
-            let gap = (6.0 * z).max(3.0);
-            let th = if active { 1.5 } else { 1.0 };
-            let col = with_alpha(tint, if active { 0.95 } else { 0.6 });
+            w.batch.rrect(fr.x, fr.y, fr.w, fr.h, radius, with_alpha(tint, if hot { 0.22 } else if active { 0.12 } else { 0.07 }));
+            // Dashed outline; a drop target gets a solid, heavier one.
+            let dash = if hot { fr.w.max(fr.h) } else { (10.0 * z).max(4.0) };
+            let gap = if hot { 0.0 } else { (6.0 * z).max(3.0) };
+            let th = if hot { 2.5 } else if active { 1.5 } else { 1.0 };
+            let col = with_alpha(tint, if hot || active { 0.95 } else { 0.6 });
             let mut x = fr.x + radius;
             while x < fr.right() - radius {
                 let wdt = dash.min(fr.right() - radius - x);
@@ -524,10 +544,15 @@ impl App {
         let Some(c) = w.canvases.get(ci) else { return };
         let z = c.view.zoom;
         let sel = c.group_sel;
-        let groups: Vec<Group> = c.groups.clone();
-        for g in &groups {
+        let target = Self::drop_target(w);
+        let mut groups: Vec<Group> = c.groups.clone();
+        for g in &mut groups {
             let tint = theme.ansi[(g.color as usize).min(15)];
-            let active = sel == Some(g.id);
+            let hot = target == Some(g.id);
+            if hot {
+                g.name = format!("+ {}", g.name);
+            }
+            let active = hot || sel == Some(g.id);
             let radius = (10.0 * z).clamp(3.0, 12.0);
             let label = Self::group_label_rect(w, l, g);
             if label.intersects(&l.area) && label.h >= 10.0 {

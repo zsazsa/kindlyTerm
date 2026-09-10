@@ -254,10 +254,14 @@ impl App {
             let drag = self.win().cdrag.clone();
             match drag {
                 CDrag::None => return false,
-                CDrag::Move { item, moved, starts, .. } => {
+                CDrag::Move { item, moved, starts, over, .. } => {
                     if moved {
                         if self.is_pinned(item) {
                             self.settle_pin(item);
+                        } else if let Some(gid) = over {
+                            // Dropped onto a group: it takes the item (and
+                            // the rest of the selection) and re-tidies.
+                            self.add_item_to_group(item, gid);
                         } else {
                             self.snap_item(item, false);
                             self.follow_primary(item, &starts);
@@ -361,7 +365,7 @@ impl App {
                 let (wx, wy) = self.item_point(id, mx, my);
                 if let Some(it) = self.win().canvas().and_then(|c| c.item(id)) {
                     let grab = (wx - it.rect.x, wy - it.rect.y);
-                    self.win_mut().cdrag = CDrag::Move { item: id, grab, moved: false, starts };
+                    self.win_mut().cdrag = CDrag::Move { item: id, grab, moved: false, starts, over: None };
                 }
                 true
             }
@@ -525,7 +529,7 @@ impl App {
                 self.request_redraw();
                 true
             }
-            CDrag::Move { item, grab, moved, starts } => {
+            CDrag::Move { item, grab, moved, starts, over } => {
                 let pinned = self.is_pinned(item);
                 let (wx, wy) = self.item_point(item, mx, my);
                 let w = self.win_mut();
@@ -543,8 +547,14 @@ impl App {
                     self.snap_item(item, false);
                     self.follow_primary(item, &starts);
                 }
-                self.win_mut().cdrag = CDrag::Move { item, grab, moved: now_moved, starts };
-                self.set_cursor(CursorIcon::Grabbing);
+                // Hovering a group the item is not in offers to add it.
+                let now_over = if pinned || !now_moved { None } else { self.drop_group_at(item, mx, my) };
+                if now_over != over {
+                    let msg = now_over.and_then(|g| self.win().canvas().and_then(|c| c.group(g)).map(|g| format!("release to add to '{}'", g.name)));
+                    self.set_status(msg.unwrap_or_default());
+                }
+                self.win_mut().cdrag = CDrag::Move { item, grab, moved: now_moved, starts, over: now_over };
+                self.set_cursor(if now_over.is_some() { CursorIcon::Copy } else { CursorIcon::Grabbing });
                 self.request_redraw();
                 true
             }
