@@ -860,6 +860,39 @@ impl App {
     }
 
     /// Close tab `index` (a canvas) and every terminal on it.
+    /// Show a confirmation in the middle of the window.
+    fn ask(&mut self, label: &str, action: MenuAction) {
+        let r = &self.wins[self.cur].renderer;
+        let (w, h) = (r.width as f32, r.height as f32);
+        self.wins[self.cur].menu = Some(Menu::confirm_close(w / 2.0 - 140.0, h / 2.0 - 40.0, label, action));
+        self.request_redraw();
+    }
+
+    /// Close a tab, asking first when it holds more than one terminal:
+    /// a canvas full of work should not vanish on one keystroke.
+    fn request_close_tab(&mut self, index: usize, event_loop: &ActiveEventLoop) {
+        let Some(n) = self.win().canvases.get(index).map(|c| c.tabs().count()) else { return };
+        if n < 2 {
+            self.close_tab(index, event_loop);
+            return;
+        }
+        let name = self.win().tab_title(index);
+        self.ask(&format!("Close '{name}' and its {n} terminals"), MenuAction::CloseTabConfirmed(index));
+    }
+
+    /// Close every other tab, asking first when that means several terminals.
+    fn request_close_others(&mut self, keep: usize, event_loop: &ActiveEventLoop) {
+        let w = self.win();
+        let others: Vec<usize> = (0..w.canvases.len()).filter(|&i| i != keep).collect();
+        let n: usize = others.iter().map(|&i| w.canvases[i].tabs().count()).sum();
+        if n < 2 {
+            self.close_others(keep, event_loop);
+            return;
+        }
+        let tabs = others.len();
+        self.ask(&format!("Close {tabs} other tabs and their {n} terminals"), MenuAction::CloseOthersConfirmed(keep));
+    }
+
     fn close_tab(&mut self, index: usize, event_loop: &ActiveEventLoop) {
         if index >= self.wins[self.cur].canvases.len() {
             return;
@@ -1577,8 +1610,10 @@ impl App {
                 let a = self.wins[self.cur].deck.toggle();
                 self.apply_deck_action(a);
             }
-            MenuAction::CloseTab(i) => self.close_tab(i, event_loop),
-            MenuAction::CloseOthers(i) => self.close_others(i, event_loop),
+            MenuAction::CloseTab(i) => self.request_close_tab(i, event_loop),
+            MenuAction::CloseOthers(i) => self.request_close_others(i, event_loop),
+            MenuAction::CloseTabConfirmed(i) => self.close_tab(i, event_loop),
+            MenuAction::CloseOthersConfirmed(i) => self.close_others(i, event_loop),
             MenuAction::MoveLeft(i) => self.move_tab(i, i.saturating_sub(1)),
             MenuAction::MoveRight(i) => self.move_tab(i, i + 1),
             MenuAction::Copy => {

@@ -173,10 +173,10 @@ impl App {
                             if let Some(f) = self.win().canvas().and_then(|c| c.focus) {
                                 self.close_item(f, event_loop);
                             } else {
-                                self.close_tab(self.wins[self.cur].active, event_loop);
+                                self.request_close_tab(self.wins[self.cur].active, event_loop);
                             }
                         } else {
-                            self.close_tab(self.wins[self.cur].active, event_loop);
+                            self.request_close_tab(self.wins[self.cur].active, event_loop);
                         }
                         return true;
                     }
@@ -743,7 +743,7 @@ impl App {
             }
             log::debug!("tab bar press at ({mx:.0},{my:.0}) -> {:?}, hits {:?}", self.hover_at(mx, my), self.win().tab_hits.iter().map(|h| (h.x0, h.x1)).collect::<Vec<_>>());
             match (button, self.hover_at(mx, my)) {
-                (MouseButton::Left, Hover::Close(i)) | (MouseButton::Middle, Hover::Close(i)) => self.close_tab(i, event_loop),
+                (MouseButton::Left, Hover::Close(i)) | (MouseButton::Middle, Hover::Close(i)) => self.request_close_tab(i, event_loop),
                 (MouseButton::Left, Hover::Tab(i)) => {
                     // Double-click on the title starts an inline rename.
                     let now = Instant::now();
@@ -760,7 +760,7 @@ impl App {
                     log::debug!("tab drag start: tab {i} grab_dx {grab_dx:.0}");
                     self.win_mut().drag = Some(TabDrag { index: i, grab_dx, press_x: mx, press_y: my, active: false, outside: false });
                 }
-                (MouseButton::Middle, Hover::Tab(i)) => self.close_tab(i, event_loop),
+                (MouseButton::Middle, Hover::Tab(i)) => self.request_close_tab(i, event_loop),
                 (MouseButton::Left, Hover::Plus) => {
                     let l = self.shell_launch();
                     self.open_tab(l);

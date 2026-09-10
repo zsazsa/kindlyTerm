@@ -7,6 +7,9 @@ pub enum MenuAction {
     SaveCommand,
     CloseTab(usize),
     CloseOthers(usize),
+    /// The user has confirmed closing a tab that holds several terminals.
+    CloseTabConfirmed(usize),
+    CloseOthersConfirmed(usize),
     MoveLeft(usize),
     MoveRight(usize),
     Copy,
@@ -243,6 +246,14 @@ impl Menu {
             ],
         );
         m.selected = Some(0);
+        m
+    }
+
+    /// Confirmation before closing tabs that hold several terminals.
+    /// Cancel is preselected so a reflexive Enter does not close anything.
+    pub fn confirm_close(x: f32, y: f32, label: &str, action: MenuAction) -> Self {
+        let mut m = Self::new(x, y, vec![MenuItem::new(label, "⏎", action), MenuItem::new("Cancel", "Esc", MenuAction::Cancel)]);
+        m.selected = Some(1);
         m
     }
 
