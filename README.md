@@ -1,7 +1,7 @@
 # kindlyTerm
 
 A terminal for Linux where the shells live on an infinite, zoomable
-**Canvas**, and where **Claude Code can work the board with you** through
+**Canvas**, and where **an AI agent can work the board with you** through
 MCP: opening terminals, reading them, typing into them, grouping them,
 all visible on screen as it happens.
 
@@ -15,9 +15,9 @@ screen while you pan around, mirror one for a second view, drop images
 next to them. Zoom far out and dozens of shells become a map of activity.
 A plain tab is still a plain tab until you ask for more.
 
-**Driven by Claude Code.** Turn on the control API and register
-`kindlyterm --mcp`. Claude Code then gets a tool for everything you can do
-on the canvas: create terminals with a command, read screens and
+**Driven by AI agents.** Turn on the control API and point any MCP client
+at `kindlyterm --mcp`. The agent gets a tool for everything you can do on
+the canvas: create terminals with a command, read screens and
 scrollback, type, arrange, group, pin, watch a job for silence, take a
 screenshot. An agent can spawn a terminal per worker, put them in a group
 named after the job, read the results back and close what is done, and
@@ -40,8 +40,9 @@ handling of the clipboard, pastes and links.
   and icon that GNOME, KDE and others pick up.
 - Rust 1.88 or newer (`rustup update stable`).
 - `fontconfig` and a monospace font.
-- Optional: [Claude Code](https://claude.com/claude-code) to drive it over
-  MCP, `python3` for the demo, `ffmpeg` to record it.
+- Optional: an [MCP](https://modelcontextprotocol.io) client such as
+  Claude Code, Codex or Cursor to drive it, `python3` for the demo,
+  `ffmpeg` to record it.
 
 ## Install
 
@@ -56,8 +57,9 @@ The first run writes `~/.config/kindlyterm/config.toml` with defaults.
 Launching kindlyTerm again while it is running opens a new window in the
 same instance, with the shell started in the launching directory.
 
-To let Claude Code drive it, turn on *About → Let tools drive kindlyTerm*
-in the Deck (`Ctrl+Shift+,`), then register the server once:
+To let an agent drive it, turn on *About → Let tools drive kindlyTerm* in
+the Deck (`Ctrl+Shift+,`), then register `kindlyterm --mcp` as a stdio MCP
+server in your client. With Claude Code that is one command:
 
 ```sh
 claude mcp add kindlyterm -- kindlyterm --mcp
@@ -102,10 +104,12 @@ with its own title bar. Tabs holding a free canvas show `▦` in the tab bar.
 The layout is saved to `~/.config/kindlyterm/state.json` and restored on
 the next start, together with the shells themselves.
 
-## Driving it from Claude Code (MCP)
+## Driving it from an AI agent (MCP)
 
-With the toggle on and the server registered, Claude Code gets one tool
-per thing you can do on the canvas:
+kindlyTerm speaks the [Model Context Protocol](https://modelcontextprotocol.io),
+so any agent that can use MCP tools can drive it. With the toggle on and
+the server registered, the agent gets one tool per thing you can do on
+the canvas:
 
 | | Tools |
 |---|---|
@@ -128,8 +132,8 @@ The worker pattern in tool terms: `create_terminal` per worker, then
 watch them, `read_screen` to collect results, `close_terminal` for the
 ones that are done.
 
-**Demo.** `python3 demo/showtime.py` (or `/showtime` from Claude Code in
-this repo) plays a scripted tour on the running window: typing, paste
+**Demo.** `python3 demo/showtime.py` (or the `/showtime` skill in this
+repo) plays a scripted tour on the running window: typing, paste
 rain, real work cards with a silence monitor, a pan and zoom, then an
 agent that narrates in a pinned log, spawns workers, reads them, lines
 them up, groups and renames them, and closes the finished ones. `--fast`
@@ -137,8 +141,8 @@ shortens the pauses, `--cleanup` closes the tab after.
 
 **How it works.** The app serves a small JSON API on a private Unix socket
 (`$XDG_RUNTIME_DIR/kindlyterm/control.sock`, mode 0600). `kindlyterm --mcp`
-is a stdio bridge Claude Code spawns; it forwards each tool call to that
-socket. Nothing listens on the network, and turning the toggle off removes
+is a stdio bridge the MCP client spawns; it forwards each tool call to
+that socket. Nothing listens on the network, and turning the toggle off removes
 the socket at once.
 
 ![paste rain](docs/rain.gif)
