@@ -1,11 +1,18 @@
 # kindlyTerm
 
-A terminal for Linux where the shells live on an infinite, zoomable
-**Canvas**, and where **an AI agent can work the board with you** through
-MCP: opening terminals, reading them, typing into them, grouping them,
-all visible on screen as it happens.
+A GPU-accelerated terminal for Linux with spatial awareness: shells live
+on an infinite, zoomable canvas where you arrange them, group them, pin
+them and see them all at once. Tabs, a keyboard-driven Control Deck of
+saved commands, shells that survive a restart, and an MCP control API so
+an agent can use the same canvas you do.
 
 ![kindlyTerm](docs/hero.png)
+
+> **A note on how it was made.** kindlyTerm was designed, written and
+> reviewed by one person working with AI coding tools. It is used daily,
+> but it has not had a second pair of human eyes. Read the security notes
+> before pointing it at anything that matters, and please report what you
+> find.
 
 ## What it does
 
@@ -15,23 +22,22 @@ screen while you pan around, mirror one for a second view, drop images
 next to them. Zoom far out and dozens of shells become a map of activity.
 A plain tab is still a plain tab until you ask for more.
 
-**Driven by AI agents.** Turn on the control API and point any MCP client
-at `kindlyterm --mcp`. The agent gets a tool for everything you can do on
-the canvas: create terminals with a command, read screens and
-scrollback, type, arrange, group, pin, watch a job for silence, take a
-screenshot. An agent can spawn a terminal per worker, put them in a group
-named after the job, read the results back and close what is done, and
-you can click into any worker and type, because each one is a real shell.
-Every action is announced and animated so you always see what it did.
-
 **Shells that survive a restart.** Each shell runs in its own detached
 host. Quit or crash the app, and the next start reattaches to every shell
 with its scrollback, colours and whatever full-screen program was up.
 
-**And a good terminal.** GPU rendering, crisp text at every zoom, a
-keyboard-driven Control Deck for saved commands and settings, an animated
-cursor, a typing trail and paste rain if you like effects, and careful
-handling of the clipboard, pastes and links.
+**A good terminal.** Crisp text at every zoom, tabs that tear off and
+merge, a Control Deck for saved commands and settings that works entirely
+from the keyboard, an animated cursor, a typing trail and paste rain if
+you like effects, and careful handling of the clipboard, pastes and links.
+
+**Open to agents.** Turn on the control API and any MCP client gets a tool
+for everything you can do on the canvas: create terminals with a command,
+read screens and scrollback, type, arrange, group, pin, watch a job for
+silence, take a screenshot. An agent can spawn a terminal per worker, put
+them in a group named after the job, read the results back and close what
+is done, while you click into any worker and type. Every action is
+announced and animated so you always see what it did.
 
 ## Prerequisites
 
