@@ -377,6 +377,21 @@ impl App {
                     }
                     return true;
                 }
+                // Alt+Left/Right: previous / next tab.
+                NamedKey::ArrowRight if alt && !ctrl && !shift => {
+                    let n = self.wins[self.cur].canvases.len();
+                    if n > 0 {
+                        self.switch_tab((self.wins[self.cur].active + 1) % n);
+                    }
+                    return true;
+                }
+                NamedKey::ArrowLeft if alt && !ctrl && !shift => {
+                    let n = self.wins[self.cur].canvases.len();
+                    if n > 0 {
+                        self.switch_tab((self.wins[self.cur].active + n - 1) % n);
+                    }
+                    return true;
+                }
                 NamedKey::PageUp if shift && !ctrl => {
                     self.scroll_active(Scroll::PageUp);
                     return true;
