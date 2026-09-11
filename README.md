@@ -198,7 +198,7 @@ or `state.toml`, and edits to those files apply live.
 | `Ctrl+Shift+K` | New empty canvas tab |
 | `Ctrl+Shift+F` / `A` / `G` / `P` | Focus mode / fit all / group selection / pin |
 | `Ctrl+Shift+=` `-` `0` | Canvas zoom in / out / reset (font size on a plain tab) |
-| `Ctrl+Tab`, `Alt+Left`/`Right`, `Alt+1`…`9` | Next tab, previous / next tab, jump to tab N |
+| `Ctrl+Tab`, `Ctrl+Shift+Left`/`Right`, `Alt+1`…`9` | Next tab, previous / next tab, jump to tab N |
 | `Ctrl+Shift+O` | Tab switcher |
 | `Shift+PageUp/Down`, `Shift+Home/End` | Scroll history |
 | `Ctrl`+hover / click | Underline / open a link (URLs and OSC 8; the target shows in the status line) |

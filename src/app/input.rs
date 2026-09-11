@@ -377,15 +377,16 @@ impl App {
                     }
                     return true;
                 }
-                // Alt+Left/Right: previous / next tab.
-                NamedKey::ArrowRight if alt && !ctrl && !shift => {
+                // Ctrl+Shift+Left/Right: previous / next tab (kitty's convention;
+                // Alt+arrows stay with the shell for word movement).
+                NamedKey::ArrowRight if ctrl && shift && !alt => {
                     let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
                         self.switch_tab((self.wins[self.cur].active + 1) % n);
                     }
                     return true;
                 }
-                NamedKey::ArrowLeft if alt && !ctrl && !shift => {
+                NamedKey::ArrowLeft if ctrl && shift && !alt => {
                     let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
                         self.switch_tab((self.wins[self.cur].active + n - 1) % n);
