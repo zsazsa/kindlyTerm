@@ -137,6 +137,9 @@ pub struct TerminalConfig {
     /// Run each shell in a detached host process so it survives closing
     /// and reopening kindlyTerm. Closing a tab or terminal still ends it.
     pub persistent_sessions: bool,
+    /// How long switching tabs slides the old screen out and the new one
+    /// in, in milliseconds. 0 switches instantly.
+    pub tab_slide_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -171,7 +174,7 @@ impl Default for FontConfig {
 
 impl Default for TerminalConfig {
     fn default() -> Self {
-        Self { scrollback: 10_000, shell: None, shell_args: vec![], padding: 6.0, cursor: "block".into(), cursor_animation: "breathe".into(), chomp: "laser".into(), osc52: "copy".into(), persistent_sessions: true }
+        Self { scrollback: 10_000, shell: None, shell_args: vec![], padding: 6.0, cursor: "block".into(), cursor_animation: "breathe".into(), chomp: "laser".into(), osc52: "copy".into(), persistent_sessions: true, tab_slide_ms: 180 }
     }
 }
 

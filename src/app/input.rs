@@ -359,21 +359,21 @@ impl App {
                     let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
                         let next = if shift { (self.wins[self.cur].active + n - 1) % n } else { (self.wins[self.cur].active + 1) % n };
-                        self.switch_tab(next);
+                        self.switch_tab_dir(next, if shift { -1.0 } else { 1.0 });
                     }
                     return true;
                 }
                 NamedKey::PageDown if ctrl && !shift => {
                     let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
-                        self.switch_tab((self.wins[self.cur].active + 1) % n);
+                        self.switch_tab_dir((self.wins[self.cur].active + 1) % n, 1.0);
                     }
                     return true;
                 }
                 NamedKey::PageUp if ctrl && !shift => {
                     let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
-                        self.switch_tab((self.wins[self.cur].active + n - 1) % n);
+                        self.switch_tab_dir((self.wins[self.cur].active + n - 1) % n, -1.0);
                     }
                     return true;
                 }
@@ -382,14 +382,14 @@ impl App {
                 NamedKey::ArrowRight if ctrl && shift && !alt => {
                     let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
-                        self.switch_tab((self.wins[self.cur].active + 1) % n);
+                        self.switch_tab_dir((self.wins[self.cur].active + 1) % n, 1.0);
                     }
                     return true;
                 }
                 NamedKey::ArrowLeft if ctrl && shift && !alt => {
                     let n = self.wins[self.cur].canvases.len();
                     if n > 0 {
-                        self.switch_tab((self.wins[self.cur].active + n - 1) % n);
+                        self.switch_tab_dir((self.wins[self.cur].active + n - 1) % n, -1.0);
                     }
                     return true;
                 }

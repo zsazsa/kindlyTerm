@@ -272,8 +272,48 @@ impl App {
             }
     }
 
-    /// Draw the active terminal at the window's grid origin (tabs mode).
+    /// Draw the active tab's screen. Right after a tab switch the old screen
+    /// slides out while the new one slides in, both clipped to the area
+    /// below the tab bar.
     pub(super) fn draw_terminal(&mut self, l: Layout) {
+        let w = &mut self.wins[self.cur];
+        let slide = w.slide.filter(|s| s.from < w.canvases.len() && s.from != w.active);
+        let progress = slide.and_then(|s| s.progress(Instant::now()));
+        let (Some(slide), Some(p)) = (slide, progress) else {
+            w.slide = None;
+            self.draw_tab_screen(l);
+            return;
+        };
+        let area = l.area;
+        let to = w.active;
+        // Outgoing screen moves off by `p` of the width, incoming trails it.
+        let out_x = -slide.dir * p * area.w;
+        let in_x = out_x + slide.dir * area.w;
+        w.batch.push_clip(area.x, area.y, area.w, area.h);
+        // Each sheet is clipped to its own moving rect so a canvas item that
+        // lies past one tab's edge never shows through the other.
+        w.active = slide.from;
+        w.batch.push_clip(area.x + out_x, area.y, area.w, area.h);
+        w.batch.set_offset(out_x, 0.0);
+        self.draw_tab_screen(l);
+        let w = &mut self.wins[self.cur];
+        w.batch.pop_clip();
+        w.active = to;
+        w.batch.push_clip(area.x + in_x, area.y, area.w, area.h);
+        w.batch.set_offset(in_x, 0.0);
+        self.draw_tab_screen(l);
+        let w = &mut self.wins[self.cur];
+        w.batch.pop_clip();
+        w.batch.set_offset(0.0, 0.0);
+        // A hairline at the seam so the two screens read as separate sheets.
+        let seam = if slide.dir > 0.0 { area.x + in_x } else { area.x + out_x };
+        w.batch.rect(seam.round(), area.y, 1.0, area.h, self.theme.highlight);
+        w.batch.pop_clip();
+        self.request_redraw();
+    }
+
+    /// Draw the active tab's screen at the window's grid origin.
+    fn draw_tab_screen(&mut self, l: Layout) {
         let theme = &self.theme;
         let anim_mode = self.config.terminal.cursor_animation.clone();
         let chomp = self.config.terminal.chomp.clone();

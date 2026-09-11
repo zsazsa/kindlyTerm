@@ -140,6 +140,7 @@ impl App {
             rename: None,
             last_tab_click: None,
             cheat: false,
+            slide: None,
         });
         let wi = self.wins.len() - 1;
         self.cur = wi;

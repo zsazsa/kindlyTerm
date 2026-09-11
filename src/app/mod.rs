@@ -122,6 +122,30 @@ struct Layout {
     rows: usize,
 }
 
+/// The screen sliding from one tab to another after a switch.
+#[derive(Clone, Copy, Debug)]
+struct TabSlide {
+    /// Index of the tab sliding out.
+    from: usize,
+    /// +1.0: the new tab arrives from the right (index went up), -1.0: from the left.
+    dir: f32,
+    start: Instant,
+    ms: u64,
+}
+
+impl TabSlide {
+    /// Eased progress in 0..1, or None once finished.
+    fn progress(&self, now: Instant) -> Option<f32> {
+        let t = now.duration_since(self.start).as_secs_f32() * 1000.0 / self.ms.max(1) as f32;
+        if t >= 1.0 {
+            return None;
+        }
+        // Ease-out cubic: fast start, gentle landing.
+        let u = 1.0 - t;
+        Some(1.0 - u * u * u)
+    }
+}
+
 /// A tab being dragged in the tab bar.
 #[derive(Clone, Copy, Debug)]
 struct TabDrag {
@@ -286,6 +310,8 @@ struct Win {
     frame: u64,
     deck: Deck,
     drag: Option<TabDrag>,
+    /// Tab-switch slide in flight, if any.
+    slide: Option<TabSlide>,
     /// Inline tab rename in progress: (tab index, text so far, whole title
     /// selected so the next keystroke replaces it).
     rename: Option<(usize, String, bool)>,
@@ -982,9 +1008,20 @@ impl App {
         self.request_redraw();
     }
 
+    /// Switch to tab `index`; the screen slides the way the index moved.
     fn switch_tab(&mut self, index: usize) {
+        let dir = if index > self.wins[self.cur].active { 1.0 } else { -1.0 };
+        self.switch_tab_dir(index, dir);
+    }
+
+    /// Switch to tab `index`, sliding the new screen in from the right
+    /// (`dir` = +1.0) or the left (-1.0). Next/previous use this so wrapping
+    /// around the end keeps sliding the same way.
+    fn switch_tab_dir(&mut self, index: usize, dir: f32) {
         if index < self.wins[self.cur].canvases.len() && index != self.wins[self.cur].active {
+            let ms = self.config.terminal.tab_slide_ms;
             let w = &mut self.wins[self.cur];
+            w.slide = (ms > 0).then(|| TabSlide { from: w.active, dir, start: Instant::now(), ms });
             w.active = index;
             w.selecting = false;
             w.cdrag = CDrag::None;

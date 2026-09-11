@@ -252,6 +252,7 @@ cursor_animation = "breathe"   # breathe | blink | none
 chomp = "laser"                # laser | none
 osc52 = "copy"                 # copy | none | both: what programs may do with the clipboard
 persistent_sessions = true     # shells survive a restart
+tab_slide_ms = 180             # tab switches slide the screen across; 0 = instant
 
 [colors]
 opacity = 1.0                  # 0.3..1.0 window translucency

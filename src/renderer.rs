@@ -64,6 +64,8 @@ pub struct Batch {
     pub segments: Vec<Segment>,
     clip_stack: Vec<Clip>,
     current_image: Option<ImageId>,
+    /// Pixel translation added to everything pushed (clips are not moved).
+    offset: [f32; 2],
 }
 
 /// Integer pixel rectangle used as a scissor.
@@ -110,6 +112,13 @@ impl Batch {
         self.segments.clear();
         self.clip_stack.clear();
         self.current_image = None;
+        self.offset = [0.0, 0.0];
+    }
+
+    /// Translate everything pushed from now on by whole pixels. Clip rects
+    /// stay in screen space, so a shifted scene still cuts at a fixed edge.
+    pub fn set_offset(&mut self, x: f32, y: f32) {
+        self.offset = [x.round(), y.round()];
     }
 
     fn current_clip(&self) -> Option<Clip> {
@@ -134,7 +143,9 @@ impl Batch {
         }
     }
 
-    fn push(&mut self, inst: Instance, image: Option<ImageId>) {
+    fn push(&mut self, mut inst: Instance, image: Option<ImageId>) {
+        inst.pos[0] += self.offset[0];
+        inst.pos[1] += self.offset[1];
         self.segment_for(image);
         self.instances.push(inst);
         if let Some(seg) = self.segments.last_mut() {
