@@ -412,6 +412,10 @@ pub struct App {
     voice: Option<crate::voice::Voice>,
     /// When the voice key went down (a long hold is push-to-talk).
     voice_key_down: Option<Instant>,
+    /// Window that started the current voice session. Text goes to its
+    /// focused terminal, only it shows the indicator, and listening stops
+    /// when it loses focus or closes.
+    voice_owner: Option<winit::window::WindowId>,
     /// What this launch was asked for (deck, startup token). The token is
     /// spent by the next window created.
     launch_request: crate::instance::Request,
@@ -516,6 +520,7 @@ impl App {
             instance: None,
             voice: None,
             voice_key_down: None,
+            voice_owner: None,
             launch_request,
             wins: Vec::new(),
             cur: 0,
@@ -2112,6 +2117,9 @@ impl ApplicationHandler<UserEvent> for App {
             WindowEvent::MouseWheel { delta, .. } => self.on_wheel(delta),
             WindowEvent::Focused(f) => {
                 self.wins[self.cur].focused = f;
+                if !f {
+                    self.voice_window_unfocused();
+                }
                 if f
                     && let Some(v) = self.wins[self.cur].view_mut() {
                         v.cursor_anim.pulse_start = Some(Instant::now());

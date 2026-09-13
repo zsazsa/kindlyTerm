@@ -286,7 +286,9 @@ Fetch the models once (about 500 MB, into `~/.local/share/kindlyterm/voice`):
 ```
 
 The first press after a start loads the model (a few seconds); the tab bar
-shows the state and a level meter. `[voice]` in the config sets the
+shows the state and a level meter. A session belongs to the window it was
+started in: moving between cards or canvases keeps it listening, while
+switching to another window or application, or closing the window, stops it. `[voice]` in the config sets the
 endpoint, the hold threshold and the thread count. GPU inference needs a
 build with `cargo build --release --features voice-cuda`, which compiles
 sherpa-onnx from source and requires cmake, the CUDA toolkit and cuDNN.

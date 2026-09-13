@@ -213,6 +213,7 @@ impl App {
             self.save_state();
         }
         let last = self.wins.len() == 1;
+        self.voice_window_closing(self.wins[wi].window.id());
         let w = self.wins.remove(wi);
         for t in &w.terms {
             if last {
