@@ -261,6 +261,8 @@ endpoint_ms = 300              # silence that ends an utterance and types it
 hold_ms = 350                  # hold the key at least this long for push-to-talk
 trailing_space = true          # a space after each utterance
 threads = 4                    # CPU threads for the recognizer
+# say one of these on its own to press the key instead of typing it
+commands = { enter = "enter", return = "enter", "new line" = "enter", tab = "tab", escape = "escape", backspace = "backspace" }
 
 [colors]
 opacity = 1.0                  # 0.3..1.0 window translucency
@@ -277,6 +279,12 @@ listening, an utterance is typed as soon as you pause for `endpoint_ms`.
 Text is sent as ordinary keystrokes, so it works at a shell prompt and
 inside programs such as Claude Code alike; nothing is typed until you stop
 speaking, because keystrokes cannot be taken back.
+
+To press a key, pause and say just the command word: "enter" (also
+"return" or "new line"), "tab", "escape" or "backspace". Only an utterance
+that is exactly the phrase counts, so "press enter to continue" is typed as
+text. The `commands` table in `[voice]` renames or removes them; the key
+names it accepts are enter, tab, escape, backspace and space.
 
 Fetch the models once (about 500 MB, into `~/.local/share/kindlyterm/voice`):
 

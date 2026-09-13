@@ -60,11 +60,20 @@ pub struct VoiceConfig {
     pub trailing_space: bool,
     /// CPU threads for the recognizer.
     pub threads: usize,
+    /// Spoken commands: an utterance that is exactly one of these phrases
+    /// presses the named key instead of being typed. Keys: "enter", "tab",
+    /// "escape", "backspace", "space". The phrase inside a longer sentence
+    /// is typed as text. Empty table: no commands.
+    pub commands: std::collections::BTreeMap<String, String>,
 }
 
 impl Default for VoiceConfig {
     fn default() -> Self {
-        Self { model_dir: None, device: "cpu".into(), endpoint_ms: 300, hold_ms: 350, trailing_space: true, threads: 4 }
+        let commands = [("enter", "enter"), ("return", "enter"), ("new line", "enter"), ("tab", "tab"), ("escape", "escape"), ("backspace", "backspace")]
+            .into_iter()
+            .map(|(p, k)| (p.to_string(), k.to_string()))
+            .collect();
+        Self { model_dir: None, device: "cpu".into(), endpoint_ms: 300, hold_ms: 350, trailing_space: true, threads: 4, commands }
     }
 }
 

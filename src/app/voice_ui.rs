@@ -129,17 +129,24 @@ impl App {
     /// Type recognized text into the owning window's focused terminal as
     /// keystrokes (no bracketed paste, so the program sees ordinary typing).
     fn voice_type(&mut self, text: &str) {
-        let mut text = Self::sanitize_paste(text).replace("\r\n", "\r").replace('\n', "\r");
-        if text.is_empty() {
-            return;
-        }
-        if self.config.voice.trailing_space {
-            text.push(' ');
-        }
+        // An utterance that is just a command word ("enter") presses the key.
+        let bytes = match crate::voice::command_bytes(text, &self.config.voice.commands) {
+            Some(key) => key.to_vec(),
+            None => {
+                let mut text = Self::sanitize_paste(text).replace("\r\n", "\r").replace('\n', "\r");
+                if text.is_empty() {
+                    return;
+                }
+                if self.config.voice.trailing_space {
+                    text.push(' ');
+                }
+                text.into_bytes()
+            }
+        };
         let Some(owner) = self.voice_owner else { return };
         let Some(w) = self.wins.iter().find(|w| w.window.id() == owner) else { return };
         if let Some(tab) = w.active_term() {
-            tab.write(text.into_bytes());
+            tab.write(bytes);
             tab.scroll(Scroll::Bottom);
         }
     }

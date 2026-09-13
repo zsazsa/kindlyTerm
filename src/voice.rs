@@ -337,6 +337,52 @@ impl Engine {
     }
 }
 
+/// Bytes for a spoken command, if `text` is exactly one of the configured
+/// phrases. Case, punctuation and extra spaces the recognizer adds are
+/// ignored ("Enter." matches "enter"); a phrase inside a longer sentence
+/// does not match, so "press enter to continue" is typed as text.
+pub fn command_bytes(text: &str, commands: &std::collections::BTreeMap<String, String>) -> Option<&'static [u8]> {
+    let said = normalize_phrase(text);
+    if said.is_empty() {
+        return None;
+    }
+    let key = commands.iter().find(|(phrase, _)| normalize_phrase(phrase) == said).map(|(_, k)| k.as_str())?;
+    key_bytes(key)
+}
+
+/// Lowercase letters and digits only, single spaces between words.
+fn normalize_phrase(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut space = false;
+    for ch in s.chars() {
+        if ch.is_alphanumeric() {
+            if space && !out.is_empty() {
+                out.push(' ');
+            }
+            space = false;
+            out.extend(ch.to_lowercase());
+        } else if ch.is_whitespace() || ch.is_ascii_punctuation() {
+            space = true;
+        }
+    }
+    out
+}
+
+/// What a key name from the config sends to the terminal.
+fn key_bytes(key: &str) -> Option<&'static [u8]> {
+    Some(match key.trim().to_ascii_lowercase().as_str() {
+        "enter" | "return" => b"\r",
+        "tab" => b"\t",
+        "escape" | "esc" => b"\x1b",
+        "backspace" => b"\x7f",
+        "space" => b" ",
+        other => {
+            log::warn!("voice: unknown key {other:?} in [voice].commands");
+            return None;
+        }
+    })
+}
+
 /// Input level on a log scale: silence → 0, a loud voice → 1.
 fn level_of(samples: &[f32]) -> f32 {
     if samples.is_empty() {
@@ -462,6 +508,35 @@ mod tests {
         let mut d = Downmix::new(1, 48_000, 16_000);
         let total: usize = (0..10).map(|_| d.push((0..480).map(|i| i as f32)).len()).sum();
         assert_eq!(total, 1600);
+    }
+
+    #[test]
+    fn a_bare_command_word_presses_the_key() {
+        let cmds = VoiceConfig::default().commands;
+        assert_eq!(command_bytes("Enter.", &cmds), Some(&b"\r"[..]));
+        assert_eq!(command_bytes("  new line ", &cmds), Some(&b"\r"[..]));
+        assert_eq!(command_bytes("Tab", &cmds), Some(&b"\t"[..]));
+        assert_eq!(command_bytes("Escape!", &cmds), Some(&b"\x1b"[..]));
+    }
+
+    #[test]
+    fn a_command_word_inside_a_sentence_is_text() {
+        let cmds = VoiceConfig::default().commands;
+        assert_eq!(command_bytes("press enter to continue", &cmds), None);
+        assert_eq!(command_bytes("enter enter", &cmds), None);
+        assert_eq!(command_bytes("", &cmds), None);
+        assert_eq!(command_bytes("...", &cmds), None);
+    }
+
+    #[test]
+    fn commands_can_be_renamed_or_removed() {
+        let mut cmds = std::collections::BTreeMap::new();
+        cmds.insert("go".to_string(), "enter".to_string());
+        assert_eq!(command_bytes("Go.", &cmds), Some(&b"\r"[..]));
+        assert_eq!(command_bytes("enter", &cmds), None);
+        cmds.insert("zap".to_string(), "no-such-key".to_string());
+        assert_eq!(command_bytes("zap", &cmds), None);
+        assert_eq!(command_bytes("anything", &Default::default()), None);
     }
 
     #[test]
