@@ -30,6 +30,9 @@ serde_json = "1"
 libc = "0.2"
 notify = "8"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+# Voice input: Parakeet-TDT + Silero VAD through sherpa-onnx (prebuilt shared libraries).
+sherpa-rs = { version = "0.6.8", default-features = false, features = ["download-binaries"] }
+cpal = "0.18.2"
 
 [profile.release]
 opt-level = 3
@@ -39,3 +42,8 @@ strip = true
 
 [profile.dev.package."*"]
 opt-level = 2
+
+[features]
+# GPU inference for voice input. Builds sherpa-onnx from source: needs cmake
+# and the CUDA toolkit + cuDNN; set voice.device = "cuda" in config.toml.
+voice-cuda = ["sherpa-rs/cuda"]

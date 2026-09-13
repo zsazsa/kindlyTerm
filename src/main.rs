@@ -18,6 +18,7 @@ mod renderer;
 mod session;
 mod terminal;
 mod theme;
+mod voice;
 
 use anyhow::Result;
 use winit::event_loop::{ControlFlow, EventLoop};

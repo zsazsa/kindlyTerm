@@ -200,6 +200,7 @@ or `state.toml`, and edits to those files apply live.
 | `Ctrl+Shift+=` `-` `0` | Canvas zoom in / out / reset (font size on a plain tab) |
 | `Ctrl+Tab`, `Ctrl+Shift+Left`/`Right`, `Alt+1`…`9` | Next tab, previous / next tab, jump to tab N |
 | `Ctrl+Shift+O` | Tab switcher |
+| `Ctrl+Shift+M` | Voice input: tap to toggle listening, hold to talk (see below) |
 | `Shift+PageUp/Down`, `Shift+Home/End` | Scroll history |
 | `Ctrl`+hover / click | Underline / open a link (URLs and OSC 8; the target shows in the status line) |
 | `Ctrl+Shift+C` / `V` | Copy / paste. `Ctrl+C` copies when text is selected, `Ctrl+V` pastes at a prompt |
@@ -254,10 +255,41 @@ osc52 = "copy"                 # copy | none | both: what programs may do with t
 persistent_sessions = true     # shells survive a restart
 tab_slide_ms = 180             # tab switches slide the screen across; 0 = instant
 
+[voice]
+device = "cpu"                 # cpu | cuda (cuda needs a --features voice-cuda build)
+endpoint_ms = 300              # silence that ends an utterance and types it
+hold_ms = 350                  # hold the key at least this long for push-to-talk
+trailing_space = true          # a space after each utterance
+threads = 4                    # CPU threads for the recognizer
+
 [colors]
 opacity = 1.0                  # 0.3..1.0 window translucency
 # ... see the generated file for every key
 ```
+
+## Voice input
+
+Ctrl+Shift+M dictates into the focused terminal. Recognition runs on this
+machine with NVIDIA's Parakeet-TDT 0.6B model through sherpa-onnx; nothing
+leaves the computer. Tap the key to start listening and tap again to stop.
+Hold it for push-to-talk: what you said is typed when you let go. While
+listening, an utterance is typed as soon as you pause for `endpoint_ms`.
+Text is sent as ordinary keystrokes, so it works at a shell prompt and
+inside programs such as Claude Code alike; nothing is typed until you stop
+speaking, because keystrokes cannot be taken back.
+
+Fetch the models once (about 500 MB, into `~/.local/share/kindlyterm/voice`):
+
+```sh
+./voice-models.sh        # multilingual Parakeet-TDT v3 (25 European languages)
+./voice-models.sh v2     # English-only v2 instead
+```
+
+The first press after a start loads the model (a few seconds); the tab bar
+shows the state and a level meter. `[voice]` in the config sets the
+endpoint, the hold threshold and the thread count. GPU inference needs a
+build with `cargo build --release --features voice-cuda`, which compiles
+sherpa-onnx from source and requires cmake, the CUDA toolkit and cuDNN.
 
 Saved commands live in `commands.toml` and are editable by hand:
 

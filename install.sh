@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build kindlyterm in release mode and install it for the current user:
 #   binary   -> ~/.local/bin/kindlyterm
+#   speech libraries (sherpa-onnx, onnxruntime) -> ~/.local/lib/kindlyterm/
 #   icon     -> ~/.local/share/icons/hicolor/scalable/apps/kindlyterm.svg
 #   launcher -> ~/.local/share/applications/kindlyterm.desktop
 # Pass --system to install under /usr/local instead (needs sudo).
@@ -25,6 +26,12 @@ cargo build --release
 
 echo "==> installing to $PREFIX"
 $SUDO install -Dm755 target/release/kindlyterm "$PREFIX/bin/kindlyterm"
+# Voice input links these shared libraries; the binary looks for them in
+# ../lib/kindlyterm relative to itself (rpath), so the prefix can move.
+$SUDO mkdir -p "$PREFIX/lib/kindlyterm"
+for lib in target/release/libsherpa-onnx-*.so target/release/libonnxruntime*.so*; do
+  [[ -e "$lib" ]] && $SUDO install -Dm644 "$lib" "$PREFIX/lib/kindlyterm/$(basename "$lib")"
+done
 $SUDO install -Dm644 assets/kindlyterm.svg "$ICONS/scalable/apps/kindlyterm.svg"
 # Point Exec at the absolute path so it works even if ~/.local/bin is not on PATH.
 sed "s|^Exec=kindlyterm|Exec=$PREFIX/bin/kindlyterm|; s|^TryExec=kindlyterm|TryExec=$PREFIX/bin/kindlyterm|" \
@@ -48,4 +55,5 @@ command -v gtk-update-icon-cache >/dev/null 2>&1 && $SUDO gtk-update-icon-cache 
 
 echo
 echo "Installed. Press Super and type 'term' — kindlyTerm shows up in GNOME search."
+echo "Voice input (Ctrl+Shift+M) needs the speech models once: ./voice-models.sh"
 echo "Uninstall with: ./install.sh --uninstall"

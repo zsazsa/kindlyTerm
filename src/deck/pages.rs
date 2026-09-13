@@ -630,6 +630,7 @@ impl Deck {
             ("Ctrl+Shift+Space", "Deck: quick-run"),
             ("Ctrl+Shift+S", "Deck: save a shortcut"),
             ("Ctrl+Shift+O", "Tab switcher"),
+            ("Ctrl+Shift+M", "Voice input: tap toggles, hold to talk"),
             ("Ctrl+Shift+T", "New tab"),
             ("Ctrl+Shift+W", "Close tab / focused canvas terminal"),
             ("Ctrl+Shift+Enter", "Canvas: add a terminal"),

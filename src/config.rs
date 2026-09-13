@@ -37,6 +37,35 @@ pub struct Config {
     pub clipboard: ClipboardConfig,
     pub input: InputConfig,
     pub mcp: McpConfig,
+    pub voice: VoiceConfig,
+}
+
+/// Voice input (Ctrl+Shift+M): on-device speech recognition with
+/// NVIDIA Parakeet-TDT and the Silero voice activity detector.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct VoiceConfig {
+    /// Folder holding the Parakeet model folder and silero_vad.onnx.
+    /// Defaults to ~/.local/share/kindlyterm/voice (voice-models.sh fills it).
+    pub model_dir: Option<String>,
+    /// "cpu" or "cuda" (cuda needs a build with --features voice-cuda).
+    pub device: String,
+    /// Silence after speech that ends an utterance and types it, in ms.
+    /// Lower is snappier but may split sentences at pauses.
+    pub endpoint_ms: u64,
+    /// Holding the key at least this long makes it push-to-talk: release
+    /// types what was said. A shorter tap toggles listening on and off.
+    pub hold_ms: u64,
+    /// Type a space after each utterance so the next one does not run on.
+    pub trailing_space: bool,
+    /// CPU threads for the recognizer.
+    pub threads: usize,
+}
+
+impl Default for VoiceConfig {
+    fn default() -> Self {
+        Self { model_dir: None, device: "cpu".into(), endpoint_ms: 300, hold_ms: 350, trailing_space: true, threads: 4 }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]

@@ -33,6 +33,8 @@ pub const SYS_CONFIG_CHANGED: TabId = u64::MAX - 2;
 pub const SYS_CONTROL: TabId = u64::MAX - 3;
 /// Reserved `UserEvent.tab` value: another launch asked for a window.
 pub const SYS_INSTANCE: TabId = u64::MAX - 4;
+/// Reserved id: the voice worker has messages queued.
+pub const SYS_VOICE: TabId = u64::MAX - 5;
 
 /// Event sent from the PTY thread to the winit event loop.
 #[derive(Debug)]

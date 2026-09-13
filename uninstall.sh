@@ -6,6 +6,7 @@ for base in "$HOME/.local" /usr/local; do
            "$base/share/applications/kindlyterm.desktop" \
            "$base/share/icons/hicolor/scalable/apps/kindlyterm.svg" \
            "$base"/share/icons/hicolor/*/apps/kindlyterm.png 2>/dev/null || true
+  $S rm -rf "$base/lib/kindlyterm" 2>/dev/null || true
 done
 command -v update-desktop-database >/dev/null && update-desktop-database "$HOME/.local/share/applications" || true
-echo "kindlyTerm removed (config in ~/.config/kindlyterm kept)."
+echo "kindlyTerm removed (config in ~/.config/kindlyterm and speech models in ~/.local/share/kindlyterm kept)."

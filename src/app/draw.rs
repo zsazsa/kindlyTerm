@@ -61,6 +61,7 @@ impl App {
     }
 
     pub(super) fn draw_tab_bar(&mut self, l: Layout) {
+        let voice_status = self.voice_status();
         let theme = &self.theme;
         let opacity = self.config.colors.opacity.clamp(0.3, 1.0);
         let n_shortcuts = self.store.commands.len();
@@ -241,6 +242,14 @@ impl App {
                 "drag to reorder · pull down to detach".into()
             };
         }
+        let mut right_color = theme.muted;
+        if right.is_empty()
+            && let Some((text, live)) = voice_status {
+                right = text;
+                if live {
+                    right_color = theme.accent;
+                }
+            }
         if right.is_empty()
             && let Some((msg, at)) = &w.status
                 && at.elapsed().as_secs() < 4 {
@@ -257,7 +266,7 @@ impl App {
         let rx = right_edge - 14.0 * s - rw;
         if rx > x + 12.0 * s {
             let ry = ((bar_h - fonts.line_height_for(rfont * 1.12)) / 2.0).floor();
-            ui_text(fonts, batch, rx, ry, &right, rfont, theme.muted, false);
+            ui_text(fonts, batch, rx, ry, &right, rfont, right_color, false);
         }
 
         // The dragged tab on top, following the pointer.

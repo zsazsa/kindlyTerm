@@ -63,6 +63,7 @@ macro_rules! deck_env {
 
 mod canvas_ui;
 mod control_api;
+mod voice_ui;
 mod debug;
 mod groups;
 mod images;
@@ -407,6 +408,10 @@ pub struct App {
     control: Option<crate::control::Server>,
     /// Single-instance socket: second launches land here as new windows.
     instance: Option<crate::instance::Listener>,
+    /// Voice input engine, created on the first Ctrl+Shift+M.
+    voice: Option<crate::voice::Voice>,
+    /// When the voice key went down (a long hold is push-to-talk).
+    voice_key_down: Option<Instant>,
     /// What this launch was asked for (deck, startup token). The token is
     /// spent by the next window created.
     launch_request: crate::instance::Request,
@@ -509,6 +514,8 @@ impl App {
             _watcher: watcher,
             control: None,
             instance: None,
+            voice: None,
+            voice_key_down: None,
             launch_request,
             wins: Vec::new(),
             cur: 0,
@@ -2016,6 +2023,12 @@ impl ApplicationHandler<UserEvent> for App {
         }
         if event.tab == crate::terminal::SYS_INSTANCE {
             self.drain_instance_requests(event_loop);
+            return;
+        }
+        if event.tab == crate::terminal::SYS_VOICE {
+            if !self.wins.is_empty() {
+                self.drain_voice();
+            }
             return;
         }
         if event.tab == 0 {

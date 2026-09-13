@@ -61,6 +61,11 @@ impl App {
                 self.theme = Theme::from_config(&self.config.colors);
                 self.preview_colors = None;
             }
+            if old.voice != new.voice {
+                // The engine reads its settings at start; the next press reloads it.
+                self.voice = None;
+                self.voice_key_down = None;
+            }
             if (old.terminal.padding - new.terminal.padding).abs() > 0.01 {
                 self.relayout_all();
             }

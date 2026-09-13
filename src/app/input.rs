@@ -35,6 +35,22 @@ impl App {
                 _ => {}
             }
         }
+        // Ctrl+Shift+M: voice input. Tap to toggle, hold to talk. The release
+        // is matched on the key alone, so letting go of Ctrl first is fine.
+        let is_m = matches!(&event.key_without_modifiers(), Key::Character(c) if c.eq_ignore_ascii_case("m"));
+        if is_m {
+            let chord = self.mods.control_key() && self.mods.shift_key() && !self.mods.alt_key();
+            if event.state == ElementState::Pressed && chord {
+                if !event.repeat {
+                    self.voice_press();
+                }
+                return;
+            }
+            if event.state == ElementState::Released && self.voice_key_down.is_some() {
+                self.voice_release();
+                return;
+            }
+        }
         if event.state != ElementState::Pressed {
             // Key releases matter only to applications using the kitty
             // keyboard protocol with event reporting.

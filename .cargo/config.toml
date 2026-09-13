@@ -1,0 +1,4 @@
+[target.x86_64-unknown-linux-gnu]
+# sherpa-onnx and onnxruntime are shared libraries copied next to the binary
+# by the sherpa-rs-sys build script; install.sh puts them in ../lib/kindlyterm.
+rustflags = ["-C", "link-args=-Wl,-rpath,$ORIGIN/../lib/kindlyterm,-rpath,$ORIGIN"]
