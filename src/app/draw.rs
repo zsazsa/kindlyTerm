@@ -5,8 +5,9 @@ use crate::effects::EffectsConfig;
 use crate::terminal::Terminal;
 
 impl App {
-    pub(super) fn draw(&mut self) -> Result<()> {
-        let Some(l) = self.wins[self.cur].layout else { return Ok(()) };
+    /// Build the whole frame into the window's batch: everything a
+    /// screenshot or a render needs, in one place so nothing drifts.
+    pub(super) fn draw_frame(&mut self, l: Layout) {
         self.wins[self.cur].batch.clear();
         // Tab bar after the Deck so scrolled Deck content never spills onto it.
         self.draw_terminal(l);
@@ -16,19 +17,17 @@ impl App {
         self.draw_palette(l);
         self.draw_menu(l);
         self.draw_cheat(l);
+    }
+
+    pub(super) fn draw(&mut self) -> Result<()> {
+        let Some(l) = self.wins[self.cur].layout else { return Ok(()) };
+        self.draw_frame(l);
         self.wins[self.cur].frame += 1;
         let actions_frame = if self.debug.actions_frame > 0 { self.debug.actions_frame } else { self.debug.screenshot_frame.saturating_sub(1) };
         if self.wins[self.cur].frame == actions_frame && self.debug.actions_after.is_none() && !self.debug.actions.is_empty() {
             self.run_debug_actions(None);
             // Rebuild the batch with the new state.
-            self.wins[self.cur].batch.clear();
-            self.draw_terminal(l);
-            self.draw_dock(l);
-            self.draw_deck(l);
-            self.draw_tab_bar(l);
-            self.draw_palette(l);
-            self.draw_menu(l);
-            self.draw_cheat(l);
+            self.draw_frame(l);
         }
         if self.wins[self.cur].deck.animating() {
             self.request_redraw();

@@ -9,13 +9,7 @@ impl App {
         if self.debug.shot_done {
             return;
         }
-        self.wins[self.cur].batch.clear();
-        self.draw_terminal(l);
-        self.draw_deck(l);
-        self.draw_tab_bar(l);
-        self.draw_palette(l);
-        self.draw_menu(l);
-        self.draw_cheat(l);
+        self.draw_frame(l);
         let Some(path) = self.debug.screenshot.clone() else { return };
         let bg = with_alpha(self.theme.bg, self.config.colors.opacity.clamp(0.3, 1.0));
         let w = &mut self.wins[self.cur];

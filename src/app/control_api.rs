@@ -855,12 +855,7 @@ impl App {
                     return Err("path must end in .png".into());
                 }
                 let l = self.win().layout.ok_or("no layout")?;
-                self.wins[self.cur].batch.clear();
-                self.draw_terminal(l);
-                self.draw_deck(l);
-                self.draw_tab_bar(l);
-                self.draw_palette(l);
-                self.draw_menu(l);
+                self.draw_frame(l);
                 let bg = with_alpha(self.theme.bg, self.config.colors.opacity.clamp(0.3, 1.0));
                 let w = &mut self.wins[self.cur];
                 w.renderer.screenshot(&mut w.fonts, &w.batch, bg, &path).map_err(|e| format!("{e:#}"))?;
