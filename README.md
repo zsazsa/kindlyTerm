@@ -258,7 +258,7 @@ tab_slide_ms = 180             # tab switches slide the screen across; 0 = insta
 
 [voice]
 device = "cpu"                 # cpu | cuda (cuda needs a --features voice-cuda build)
-endpoint_ms = 300              # silence that ends an utterance and types it
+endpoint_ms = 450              # silence that ends an utterance and types it
 hold_ms = 350                  # hold the key at least this long for push-to-talk
 trailing_space = true          # a space after each utterance
 threads = 4                    # CPU threads for the recognizer
@@ -295,7 +295,9 @@ you clicked one, and your words still land where you aimed them. To dictate
 somewhere else, say "switch to build" (also "go to", "focus", "jump to"):
 the card or tab whose name best matches is focused and becomes the target.
 Names you gave cards and canvases outrank live titles, so name the ones you
-use. "Next tab" and "previous tab" work too. The `navigate` list in
+use. Filler is ignored ("switch to the build card"), a bare "switch" waits
+for the name in your next breath, and a name with a stray word on the end
+still finds its card. "Next tab" and "previous tab" work too. The `navigate` list in
 `[voice]` sets the prefixes; empty it to turn navigation off.
 
 To keep the card you talk to in view while you jump between canvases,

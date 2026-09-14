@@ -149,7 +149,24 @@ impl App {
         if adopt && (self.voice_owner.is_none() || self.voice_target.is_none()) {
             self.voice_pin_here();
         }
+        // "Switch." … pause … "to the build card": glue the name onto the
+        // prefix that came just before it.
+        let joined;
+        let text: &str = match self.voice_pending.take() {
+            Some((prefix, at)) if at.elapsed().as_secs() < 6 => {
+                let rest = crate::voice::normalize_phrase(text);
+                let rest = rest.strip_prefix("to ").unwrap_or(&rest).to_string();
+                joined = format!("{prefix} {rest}");
+                &joined
+            }
+            _ => text,
+        };
         match crate::voice::command_action(text, &self.config.voice) {
+            Some(VoiceAction::NavPrefix(prefix)) => {
+                self.voice_pending = Some((prefix, Instant::now()));
+                self.set_status("Voice: switch to where? Say the name.".into());
+                "waiting for a name".into()
+            }
             Some(VoiceAction::Key(bytes)) => {
                 self.voice_send(bytes.to_vec());
                 format!("key: {}", text.trim())
@@ -210,11 +227,12 @@ impl App {
     /// "Switch to <query>": fuzzy-match card names and titles and tab names
     /// across all windows, then focus the best one and pin dictation to it.
     /// Names the user gave (a renamed card or canvas) outrank live titles.
-    fn voice_navigate(&mut self, query: &str) -> String {
+    /// Best card or tab for `query` across all windows:
+    /// (score, window, canvas, item, label).
+    fn voice_find(&self, query: &str) -> Option<(u32, usize, usize, Option<ItemId>, String)> {
         let pattern = Pattern::parse(query, CaseMatching::Ignore, Normalization::Smart);
         let mut matcher = Matcher::new(MatcherConfig::DEFAULT);
         let mut buf = Vec::new();
-        // (score, window, canvas, item, label)
         let mut best: Option<(u32, usize, usize, Option<ItemId>, String)> = None;
         for (wi, w) in self.wins.iter().enumerate() {
             for (ci, c) in w.canvases.iter().enumerate() {
@@ -249,7 +267,25 @@ impl App {
                 }
             }
         }
-        let Some((_, wi, ci, item, label)) = best else {
+        best
+    }
+
+    /// "Switch to <query>": fuzzy-match card names and titles and tab names
+    /// across all windows, then focus the best one and pin dictation to it.
+    /// Names the user gave (a renamed card or canvas) outrank live titles.
+    /// A query nothing matches is retried without its last word, then the
+    /// last two, since recognizers tack stray words onto names.
+    fn voice_navigate(&mut self, query: &str) -> String {
+        let words: Vec<&str> = query.split_whitespace().collect();
+        let mut found = None;
+        for drop in 0..=(2usize).min(words.len().saturating_sub(1)) {
+            let q = words[..words.len() - drop].join(" ");
+            if let Some(b) = self.voice_find(&q) {
+                found = Some(b);
+                break;
+            }
+        }
+        let Some((_, wi, ci, item, label)) = found else {
             self.set_status(format!("Voice: nothing called \"{query}\""));
             return format!("no card or tab matches {query:?}");
         };

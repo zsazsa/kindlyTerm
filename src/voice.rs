@@ -346,6 +346,8 @@ pub enum VoiceAction {
     PrevTab,
     /// "switch to <query>": focus the best-matching card or tab.
     Navigate(String),
+    /// Just "switch to" (or "switch"): the name comes in the next utterance.
+    NavPrefix(String),
 }
 
 /// The action for `text`, if it is exactly a configured command phrase or
@@ -368,12 +370,37 @@ pub fn command_action(text: &str, cfg: &VoiceConfig) -> Option<VoiceAction> {
         }
         if let Some(rest) = said.strip_prefix(prefix.as_str())
             && let Some(query) = rest.strip_prefix(' ')
-            && !query.trim().is_empty()
         {
-            return Some(VoiceAction::Navigate(query.trim().to_string()));
+            let query = clean_query(query);
+            if !query.is_empty() {
+                return Some(VoiceAction::Navigate(query));
+            }
+        }
+        // The prefix alone, or its first word ("switch." then a pause):
+        // the name is still coming.
+        let first = prefix.split(' ').next().unwrap_or("");
+        if said == prefix || (first.len() >= 2 && prefix.contains(' ') && said == first) {
+            return Some(VoiceAction::NavPrefix(prefix));
         }
     }
     None
+}
+
+/// A spoken target minus the filler around it: "the American Solarpunk
+/// canvas" → "american solarpunk". "campus" is what recognizers make of
+/// "canvas" often enough to earn a place here.
+pub fn clean_query(q: &str) -> String {
+    const LEAD: &[&str] = &["the", "a", "my", "to"];
+    const TAIL: &[&str] = &["canvas", "campus", "card", "tab", "window", "screen"];
+    let norm = normalize_phrase(q);
+    let mut words: Vec<&str> = norm.split(' ').filter(|w| !w.is_empty()).collect();
+    while words.len() > 1 && LEAD.contains(&words[0]) {
+        words.remove(0);
+    }
+    while words.len() > 1 && TAIL.contains(words.last().unwrap()) {
+        words.pop();
+    }
+    words.join(" ")
 }
 
 /// How strongly `label` matches a spoken `query` beyond fuzzy similarity:
@@ -587,10 +614,22 @@ mod tests {
         assert_eq!(command_action("Switch to build.", &cfg), Some(VoiceAction::Navigate("build".into())));
         assert_eq!(command_action("go to American solarpunk", &cfg), Some(VoiceAction::Navigate("american solarpunk".into())));
         assert_eq!(command_action("Focus status board", &cfg), Some(VoiceAction::Navigate("status board".into())));
-        // The bare prefix, or a word that merely starts with it, is text.
-        assert_eq!(command_action("switch to", &cfg), None);
+        // Filler around the name is dropped, including "canvas" heard as "campus".
+        assert_eq!(command_action("Switch to the American solar punk campus.", &cfg), Some(VoiceAction::Navigate("american solar punk".into())));
+        assert_eq!(command_action("go to the build card", &cfg), Some(VoiceAction::Navigate("build".into())));
+        // A word that merely starts with a prefix is text.
         assert_eq!(command_action("focused work", &cfg), None);
         assert_eq!(command_action("switch tomorrow", &cfg), None);
+    }
+
+    #[test]
+    fn a_bare_prefix_waits_for_the_name() {
+        let cfg = VoiceConfig::default();
+        assert_eq!(command_action("Switch to.", &cfg), Some(VoiceAction::NavPrefix("switch to".into())));
+        assert_eq!(command_action("Switch.", &cfg), Some(VoiceAction::NavPrefix("switch to".into())));
+        assert_eq!(command_action("focus", &cfg), Some(VoiceAction::NavPrefix("focus".into())));
+        assert_eq!(clean_query("to the American solar punk campus"), "american solar punk");
+        assert_eq!(clean_query("canvas"), "canvas");
     }
 
     #[test]

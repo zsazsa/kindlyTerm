@@ -88,7 +88,7 @@ impl Default for VoiceConfig {
         .map(|(p, k)| (p.to_string(), k.to_string()))
         .collect();
         let navigate = ["switch to", "go to", "focus", "jump to"].into_iter().map(String::from).collect();
-        Self { model_dir: None, device: "cpu".into(), endpoint_ms: 300, hold_ms: 350, trailing_space: true, threads: 4, commands, navigate }
+        Self { model_dir: None, device: "cpu".into(), endpoint_ms: 450, hold_ms: 350, trailing_space: true, threads: 4, commands, navigate }
     }
 }
 

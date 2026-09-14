@@ -425,6 +425,8 @@ pub struct App {
     /// started, or the one a spoken "switch to" landed on. Focus changes
     /// underneath (a tool creating cards, a click) do not move it.
     voice_target: Option<TabId>,
+    /// A spoken "switch to" whose name has not arrived yet, and when.
+    voice_pending: Option<(String, Instant)>,
     /// What this launch was asked for (deck, startup token). The token is
     /// spent by the next window created.
     launch_request: crate::instance::Request,
@@ -531,6 +533,7 @@ impl App {
             voice_key_down: None,
             voice_owner: None,
             voice_target: None,
+            voice_pending: None,
             launch_request,
             wins: Vec::new(),
             cur: 0,
