@@ -196,12 +196,12 @@ or `state.toml`, and edits to those files apply live.
 | `Ctrl+Shift+T` / `W` / `N` / `Q` | New tab / close tab (or the focused card) / new window / quit |
 | `Ctrl+Shift+Enter` | Add a terminal beside this one (a plain tab becomes a canvas) |
 | `Ctrl+Shift+K` | New empty canvas tab |
-| `Ctrl+Shift+F` / `A` / `G` / `P` | Focus mode / fit all / group selection / pin |
+| `Ctrl+Shift+F` / `A` / `G` / `P` | Focus mode / fit all / group selection / pin in place on this canvas |
 | `Ctrl+Shift+=` `-` `0` | Canvas zoom in / out / reset (font size on a plain tab) |
 | `Ctrl+Tab`, `Ctrl+Shift+Left`/`Right`, `Alt+1`…`9` | Next tab, previous / next tab, jump to tab N |
 | `Ctrl+Shift+O` | Tab switcher |
 | `Ctrl+Shift+M` | Voice input: tap to toggle listening, hold to talk (see below) |
-| `Ctrl+Shift+D` | Show the focused terminal top right on every screen, or stop |
+| `Ctrl+Shift+D` | Pin the focused terminal to every screen (top right), or unpin it |
 | `Shift+PageUp/Down`, `Shift+Home/End` | Scroll history |
 | `Ctrl`+hover / click | Underline / open a link (URLs and OSC 8; the target shows in the status line) |
 | `Ctrl+Shift+C` / `V` | Copy / paste. `Ctrl+C` copies when text is selected, `Ctrl+V` pastes at a prompt |
@@ -301,11 +301,14 @@ still finds its card. "Next tab" and "previous tab" work too. The `navigate` lis
 `[voice]` sets the prefixes; empty it to turn navigation off.
 
 To keep the card you talk to in view while you jump between canvases,
-right-click it and choose "Show on every screen", or press `Ctrl+Shift+D`.
+right-click it and choose "Pin to every screen", or press `Ctrl+Shift+D`.
 It then floats in the top-right corner of every other tab in that window,
 live, with the latest lines and the prompt visible. Click it to go to its
-card, scroll it with the wheel, right-click to stop. It hides on the canvas
-that holds it and comes back after a restart.
+card, scroll it with the wheel, right-click it to unpin. It hides on the
+canvas that holds it and comes back after a restart. This is different from
+"Pin in place on this canvas" (`Ctrl+Shift+P`), which keeps a card still
+while you pan one canvas; on a card pinned to every screen, `Ctrl+Shift+P`
+unpins it too.
 
 For tools driving kindlyTerm, `list_terminals` reports each card's
 `foreground` program and, when it is a coding agent, `agent` ("claude",

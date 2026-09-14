@@ -204,7 +204,13 @@ impl App {
                         // On a canvas: pin the focused terminal. Elsewhere the
                         // old quick-run binding still works (Ctrl+Shift+Space
                         // is the primary one now).
-                        if self.on_free_canvas()
+                        let docked_here = self.win().active_term().map(|t| t.id).filter(|&t| self.is_docked(t));
+                        if let Some(t) = docked_here
+                            && !self.win().canvas().and_then(|c| c.focus).map(|f| self.is_pinned(f)).unwrap_or(false)
+                        {
+                            // Pinned to every screen: "unpin" removes that.
+                            self.toggle_dock_tab(t);
+                        } else if self.on_free_canvas()
                             && let Some(f) = self.win().canvas().and_then(|c| c.focus)
                         {
                             self.toggle_pin(f);

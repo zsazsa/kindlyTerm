@@ -33,9 +33,9 @@ impl App {
         w.dock_rect = None;
         w.dirty = true;
         if was {
-            self.set_status(format!("{title} is no longer shown on every screen"));
+            self.set_status(format!("{title} unpinned from every screen"));
         } else {
-            self.set_status(format!("{title} now shows top right on every screen (right-click it to stop)"));
+            self.set_status(format!("{title} pinned to every screen, top right (right-click it to unpin)"));
         }
         self.request_redraw();
     }
@@ -101,7 +101,7 @@ impl App {
         let lh = w.fonts.line_height_for(fs * 1.12);
         let ty = sr.y + (title_h - lh) / 2.0;
         let pad = 10.0;
-        let hint = "click: go there · right-click: stop";
+        let hint = "click: go there · right-click: unpin";
         let hint_fs = 10.0;
         let hint_w = ui_text_width(&w.fonts, hint, hint_fs);
         let title = format!("⧉ {}", w.terms[ti].display_title());

@@ -181,7 +181,7 @@ impl Menu {
         let items = vec![
             MenuItem::new("Go to it", "click", MenuAction::GoToTab(tab)),
             MenuItem::sep(),
-            MenuItem::new("Stop showing on every screen", "Ctrl+Shift+D", MenuAction::UndockTab(tab)),
+            MenuItem::new("Unpin from every screen", "Ctrl+Shift+D", MenuAction::UndockTab(tab)),
         ];
         Self::new(x, y, items)
     }
@@ -190,7 +190,7 @@ impl Menu {
     pub fn for_image(x: f32, y: f32, item: crate::canvas::ItemId, pinned: bool) -> Self {
         let items = vec![
             MenuItem::new("Focus mode", "Ctrl+Shift+F", MenuAction::FocusMode),
-            MenuItem::new(if pinned { "Unpin from screen" } else { "Pin to screen" }, "Ctrl+Shift+P", MenuAction::TogglePin(item)),
+            MenuItem::new(if pinned { "Unpin from this canvas" } else { "Pin in place on this canvas" }, "Ctrl+Shift+P", MenuAction::TogglePin(item)),
             MenuItem::new("Rename…", "double-click title", MenuAction::RenameItem(item)),
             MenuItem::sep(),
             MenuItem::new("Remove image", "Ctrl+Shift+W", MenuAction::CloseItem(item)),
@@ -221,8 +221,8 @@ impl Menu {
             MenuItem::new("Paste", "Ctrl+Shift+V", MenuAction::Paste),
             MenuItem::sep(),
             MenuItem::new("Focus mode", "Ctrl+Shift+F", MenuAction::FocusMode),
-            MenuItem::new(if pinned { "Unpin from screen" } else { "Pin to screen" }, "Ctrl+Shift+P", MenuAction::TogglePin(item)),
-            MenuItem::new(if docked { "Stop showing on every screen" } else { "Show on every screen (top right)" }, "Ctrl+Shift+D", MenuAction::ToggleDock(item)),
+            MenuItem::new(if docked { "Unpin from every screen" } else { "Pin to every screen (top right)" }, "Ctrl+Shift+D", MenuAction::ToggleDock(item)),
+            MenuItem::new(if pinned { "Unpin from this canvas" } else { "Pin in place on this canvas" }, "Ctrl+Shift+P", MenuAction::TogglePin(item)),
             MenuItem::new("Mirror here", "", MenuAction::MirrorItem(item)),
             match monitor {
                 Some(s) => MenuItem::new(&format!("Stop watching for quiet ({s}s)"), "", MenuAction::SetMonitor(item, None)),
