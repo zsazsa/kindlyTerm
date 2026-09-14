@@ -222,6 +222,13 @@ impl App {
                         self.open_palette(Mode::Tabs);
                         return true;
                     }
+                    "d" => {
+                        // Show the focused terminal on every screen, or stop.
+                        if let Some(t) = self.win().active_term().map(|t| t.id) {
+                            self.toggle_dock_tab(t);
+                        }
+                        return true;
+                    }
                     "s" => {
                         self.open_shortcut_editor();
                         return true;
@@ -803,6 +810,20 @@ impl App {
             return;
         }
 
+        // The dock (a terminal shown on every screen) sits above everything
+        // below the tab bar: click to go to it, right-click for its menu.
+        if state == ElementState::Pressed
+            && let Some(d) = self.dock_hit(mx, my)
+        {
+            match button {
+                MouseButton::Left => self.focus_terminal(d.tab),
+                MouseButton::Right => self.win_mut().menu = Some(Menu::for_dock(mx, my, d.tab)),
+                _ => {}
+            }
+            self.request_redraw();
+            return;
+        }
+
         // Free canvas: items, panning, resizing.
         if (self.on_free_canvas() || matches!(self.win().cdrag, CDrag::Pan { .. }))
             && self.canvas_mouse_button(state, button, event_loop) {
@@ -1073,6 +1094,18 @@ impl App {
         }
         let Some(l) = self.wins[self.cur].layout else { return };
         if self.wins[self.cur].menu.is_some() {
+            return;
+        }
+        // The wheel over the dock scrolls the docked terminal.
+        let (mx, my) = (self.wins[self.cur].mouse.x as f32, self.wins[self.cur].mouse.y as f32);
+        if let Some(d) = self.dock_hit(mx, my) {
+            let lines = match delta {
+                MouseScrollDelta::LineDelta(_, y) => (y * 3.0) as i32,
+                MouseScrollDelta::PixelDelta(p) => (p.y / 20.0) as i32,
+            };
+            if lines != 0 {
+                self.scroll_tab(d.tab, lines);
+            }
             return;
         }
         if self.wins[self.cur].deck.is_open() && self.wins[self.cur].deck.panel_contains(self.wins[self.cur].mouse.x as f32, self.wins[self.cur].mouse.y as f32) {

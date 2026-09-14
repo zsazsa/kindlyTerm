@@ -639,6 +639,7 @@ impl Deck {
             ("Ctrl+Shift+A", "Canvas: fit all"),
             ("Ctrl+Shift+G", "Canvas: group selected terminals"),
             ("Ctrl+Shift+P", "Canvas: pin / unpin focused terminal"),
+            ("Ctrl+Shift+D", "Show focused terminal on every screen (top right)"),
             ("Ctrl+Shift+= / − / 0", "Canvas: zoom in / out / reset"),
             ("Ctrl+Tab / Ctrl+Shift+Tab", "Next / previous tab"),
             ("Alt+1 … Alt+9", "Jump to tab"),

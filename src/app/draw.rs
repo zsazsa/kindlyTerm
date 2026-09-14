@@ -10,6 +10,7 @@ impl App {
         self.wins[self.cur].batch.clear();
         // Tab bar after the Deck so scrolled Deck content never spills onto it.
         self.draw_terminal(l);
+        self.draw_dock(l);
         self.draw_deck(l);
         self.draw_tab_bar(l);
         self.draw_palette(l);
@@ -22,6 +23,7 @@ impl App {
             // Rebuild the batch with the new state.
             self.wins[self.cur].batch.clear();
             self.draw_terminal(l);
+            self.draw_dock(l);
             self.draw_deck(l);
             self.draw_tab_bar(l);
             self.draw_palette(l);

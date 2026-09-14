@@ -141,6 +141,8 @@ impl App {
             last_tab_click: None,
             cheat: false,
             slide: None,
+            dock: None,
+            dock_rect: None,
         });
         let wi = self.wins.len() - 1;
         self.cur = wi;

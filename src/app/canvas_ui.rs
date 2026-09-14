@@ -2,6 +2,7 @@
 //! management, and layout persistence.
 
 use super::*;
+use crate::canvas::SavedDock;
 use super::draw::{draw_term_view, TermPlace};
 use crate::canvas::{item_part, Edge, GroupId, GroupPart, Viewport, EDGE_PX, MAX_ZOOM, MIN_ZOOM, SNAP_PX};
 
@@ -480,9 +481,10 @@ impl App {
         let others: Vec<(usize, String)> = (0..w.canvases.len()).filter(|&i| i != w.active).map(|i| (i, w.tab_title(i))).collect();
         let has_saved = !self.store.commands.is_empty();
         let (pinned, mirror, monitor) = c.item(id).map(|i| (i.pin.is_some(), i.mirror, i.monitor)).unwrap_or((false, false, None));
+        let docked = w.dock.map(|d| d.tab == tab).unwrap_or(false);
         let link = self.link_under_pointer().map(|h| h.uri);
         let groups: Vec<(GroupId, String, bool)> = c.groups.iter().map(|g| (g.id, g.name.clone(), g.members.contains(&id))).collect();
-        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others, pinned, mirror, monitor, link.as_deref(), &groups));
+        self.win_mut().menu = Some(Menu::for_item(x, y, wx, wy, tab, id, has_selection, has_saved, &others, pinned, docked, mirror, monitor, link.as_deref(), &groups));
         self.request_redraw();
     }
 
@@ -727,7 +729,7 @@ impl App {
     }
 
     /// Scroll a specific terminal's history (used by wheel-where-you-look).
-    fn scroll_tab(&mut self, tab: TabId, lines: i32) {
+    pub(super) fn scroll_tab(&mut self, tab: TabId, lines: i32) {
         let Some(t) = self.win().term(tab) else { return };
         let mode = *t.term.lock().mode();
         if mode.contains(TermMode::ALT_SCREEN) && mode.contains(TermMode::ALTERNATE_SCROLL) {
@@ -1069,7 +1071,16 @@ impl App {
                 }
             }
             let size = w.window.inner_size();
-            st.windows.push(SavedWindow { width: size.width, height: size.height, maximized: w.window.is_maximized(), canvases, active: w.active });
+            // The dock is remembered by its item, which persists; the terminal
+            // behind it is recreated on restore.
+            let dock = w.dock.and_then(|d| {
+                w.canvases
+                    .iter()
+                    .flat_map(|c| c.items.iter())
+                    .find(|i| !i.mirror && matches!(i.kind, ItemKind::Terminal(t) if t == d.tab))
+                    .map(|i| SavedDock { item: i.id, corner: d.corner })
+            });
+            st.windows.push(SavedWindow { width: size.width, height: size.height, maximized: w.window.is_maximized(), canvases, active: w.active, dock });
         }
         if let Err(e) = st.save() {
             log::warn!("could not save state: {e}");
@@ -1253,6 +1264,13 @@ impl App {
             if c.focus.and_then(|f| c.item(f)).is_none() {
                 c.focus = c.items.last().map(|i| i.id);
             }
+        }
+        if let Some(sd) = saved.dock {
+            let tab = self.win().canvases.iter().flat_map(|c| c.items.iter()).find(|i| i.id == sd.item).and_then(|i| match i.kind {
+                ItemKind::Terminal(t) => Some(t),
+                _ => None,
+            });
+            self.win_mut().dock = tab.map(|tab| super::dock::Dock { tab, corner: sd.corner });
         }
         self.win_mut().active = saved.active.min(n - 1);
         self.relayout();

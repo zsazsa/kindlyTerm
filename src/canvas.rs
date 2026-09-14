@@ -604,6 +604,15 @@ pub struct SavedWindow {
     /// Tabs, in tab-bar order.
     pub canvases: Vec<Canvas>,
     pub active: usize,
+    /// Terminal shown in a corner of every screen, by its item.
+    #[serde(default)]
+    pub dock: Option<SavedDock>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct SavedDock {
+    pub item: ItemId,
+    pub corner: Corner,
 }
 
 impl SavedWindow {

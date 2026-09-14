@@ -47,6 +47,10 @@ pub enum MenuAction {
     /// Move this item into an existing group and re-tidy it.
     AddToGroup(crate::canvas::ItemId, crate::canvas::GroupId),
     TogglePin(crate::canvas::ItemId),
+    /// Show this item's terminal on every screen of the window, or stop.
+    ToggleDock(crate::canvas::ItemId),
+    UndockTab(crate::terminal::TabId),
+    GoToTab(crate::terminal::TabId),
     OpenLink(String),
     CopyLink(String),
     /// Inactivity monitor threshold in seconds (None = off).
@@ -172,6 +176,16 @@ impl Menu {
         }
     }
 
+    /// Menu for a right-click on the dock (a terminal shown on every screen).
+    pub fn for_dock(x: f32, y: f32, tab: crate::terminal::TabId) -> Self {
+        let items = vec![
+            MenuItem::new("Go to it", "click", MenuAction::GoToTab(tab)),
+            MenuItem::sep(),
+            MenuItem::new("Stop showing on every screen", "Ctrl+Shift+D", MenuAction::UndockTab(tab)),
+        ];
+        Self::new(x, y, items)
+    }
+
     /// Menu for a right-click on an image item.
     pub fn for_image(x: f32, y: f32, item: crate::canvas::ItemId, pinned: bool) -> Self {
         let items = vec![
@@ -200,7 +214,7 @@ impl Menu {
     /// Menu for a right-click on a terminal item of a free canvas.
     #[allow(clippy::too_many_arguments)]
     #[allow(clippy::too_many_arguments)]
-    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)], pinned: bool, mirror: bool, monitor: Option<u32>, link: Option<&str>, groups: &[(crate::canvas::GroupId, String, bool)]) -> Self {
+    pub fn for_item(x: f32, y: f32, wx: f32, wy: f32, tab: crate::terminal::TabId, item: crate::canvas::ItemId, has_selection: bool, has_saved: bool, other_tabs: &[(usize, String)], pinned: bool, docked: bool, mirror: bool, monitor: Option<u32>, link: Option<&str>, groups: &[(crate::canvas::GroupId, String, bool)]) -> Self {
         let mut items = Self::link_items(link);
         items.extend(vec![
             MenuItem::new("Copy", "Ctrl+Shift+C", MenuAction::Copy).enabled(has_selection),
@@ -208,6 +222,7 @@ impl Menu {
             MenuItem::sep(),
             MenuItem::new("Focus mode", "Ctrl+Shift+F", MenuAction::FocusMode),
             MenuItem::new(if pinned { "Unpin from screen" } else { "Pin to screen" }, "Ctrl+Shift+P", MenuAction::TogglePin(item)),
+            MenuItem::new(if docked { "Stop showing on every screen" } else { "Show on every screen (top right)" }, "Ctrl+Shift+D", MenuAction::ToggleDock(item)),
             MenuItem::new("Mirror here", "", MenuAction::MirrorItem(item)),
             match monitor {
                 Some(s) => MenuItem::new(&format!("Stop watching for quiet ({s}s)"), "", MenuAction::SetMonitor(item, None)),

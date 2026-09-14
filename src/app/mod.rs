@@ -63,6 +63,7 @@ macro_rules! deck_env {
 
 mod canvas_ui;
 mod control_api;
+mod dock;
 mod voice_ui;
 mod debug;
 mod groups;
@@ -313,6 +314,10 @@ struct Win {
     drag: Option<TabDrag>,
     /// Tab-switch slide in flight, if any.
     slide: Option<TabSlide>,
+    /// A terminal shown in a corner of every screen of this window.
+    dock: Option<dock::Dock>,
+    /// Where the dock was drawn last frame (None when hidden).
+    dock_rect: Option<WRect>,
     /// Inline tab rename in progress: (tab index, text so far, whole title
     /// selected so the next keystroke replaces it).
     rename: Option<(usize, String, bool)>,
@@ -1742,6 +1747,9 @@ impl App {
             MenuAction::NewGroupWith(id) => self.new_group_with(id),
             MenuAction::AddToGroup(id, g) => self.add_item_to_group(id, g),
             MenuAction::TogglePin(id) => self.toggle_pin(id),
+            MenuAction::ToggleDock(id) => self.toggle_dock(id),
+            MenuAction::UndockTab(t) => self.toggle_dock_tab(t),
+            MenuAction::GoToTab(t) => self.focus_terminal(t),
             MenuAction::OpenLink(uri) => self.open_link(&uri, true),
             MenuAction::CopyLink(uri) => {
                 if let Some(cb) = self.clipboard.as_mut() {

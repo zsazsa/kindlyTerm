@@ -260,6 +260,7 @@ impl App {
                     v["session"] = json!(term.session);
                     v["idle_seconds"] = json!(term.last_output.elapsed().as_secs());
                     v["quiet_alert"] = json!(term.quiet_alert);
+                    v["docked"] = json!(w.dock.map(|d| d.tab == *t).unwrap_or(false));
                     // What is in the foreground, and whether it is a coding agent
                     // (so a dispatcher can find "the Claude on canvas X").
                     if let Some(fg) = term.pid.and_then(crate::procs::foreground_of) {
@@ -323,6 +324,16 @@ impl App {
                     }
                 }
                 Ok(json!(out))
+            }
+            "dock_terminal" => {
+                let tab = need_u64(p, "terminal_id")?;
+                let on = p.get("on").and_then(|v| v.as_bool()).unwrap_or(true);
+                let (wi, _) = self.find_term(tab).ok_or("no such terminal")?;
+                self.cur = wi;
+                if self.is_docked(tab) != on {
+                    self.toggle_dock_tab(tab);
+                }
+                Ok(json!({"docked": on}))
             }
             "voice_utterance" => {
                 // Text as if dictated: commands and navigation act, the rest

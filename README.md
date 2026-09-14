@@ -201,6 +201,7 @@ or `state.toml`, and edits to those files apply live.
 | `Ctrl+Tab`, `Ctrl+Shift+Left`/`Right`, `Alt+1`…`9` | Next tab, previous / next tab, jump to tab N |
 | `Ctrl+Shift+O` | Tab switcher |
 | `Ctrl+Shift+M` | Voice input: tap to toggle listening, hold to talk (see below) |
+| `Ctrl+Shift+D` | Show the focused terminal top right on every screen, or stop |
 | `Shift+PageUp/Down`, `Shift+Home/End` | Scroll history |
 | `Ctrl`+hover / click | Underline / open a link (URLs and OSC 8; the target shows in the status line) |
 | `Ctrl+Shift+C` / `V` | Copy / paste. `Ctrl+C` copies when text is selected, `Ctrl+V` pastes at a prompt |
@@ -296,6 +297,13 @@ the card or tab whose name best matches is focused and becomes the target.
 Names you gave cards and canvases outrank live titles, so name the ones you
 use. "Next tab" and "previous tab" work too. The `navigate` list in
 `[voice]` sets the prefixes; empty it to turn navigation off.
+
+To keep the card you talk to in view while you jump between canvases,
+right-click it and choose "Show on every screen", or press `Ctrl+Shift+D`.
+It then floats in the top-right corner of every other tab in that window,
+live, with the latest lines and the prompt visible. Click it to go to its
+card, scroll it with the wheel, right-click to stop. It hides on the canvas
+that holds it and comes back after a restart.
 
 For tools driving kindlyTerm, `list_terminals` reports each card's
 `foreground` program and, when it is a coding agent, `agent` ("claude",
