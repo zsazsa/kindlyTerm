@@ -1,11 +1,16 @@
-//! Voice input glue: the Ctrl+Shift+M key, worker messages, typing the text.
+//! Voice input glue: the Ctrl+Shift+M key, worker messages, typing the
+//! text, spoken commands and navigation.
 //!
-//! A voice session belongs to the window it was started in. Moving between
-//! cards or canvases inside that window keeps it going; switching to another
-//! window or application, or closing the window, stops it.
+//! A voice session belongs to the window it was started in and dictation
+//! is pinned to the terminal that was focused at that moment. Moving
+//! between cards or canvases keeps it going; switching to another window
+//! or application, or closing the window, stops it. "Switch to <name>"
+//! moves both the focus and the pin.
 
 use super::*;
-use crate::voice::{Voice, VoiceMsg, VoiceState};
+use crate::voice::{Voice, VoiceAction, VoiceMsg, VoiceState};
+use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Config as MatcherConfig, Matcher, Utf32Str};
 
 impl App {
     /// The voice key went down. Tap: toggle listening. Hold: push-to-talk
@@ -14,7 +19,6 @@ impl App {
     pub(super) fn voice_press(&mut self) {
         self.chord_armed = None;
         self.voice_key_down = Some(Instant::now());
-        let here = self.win().window.id();
         let needs_engine = self.voice.as_ref().map(|v| v.state == VoiceState::Error).unwrap_or(true);
         if needs_engine {
             let proxy = self.proxy.clone();
@@ -23,33 +27,42 @@ impl App {
             });
             v.start_when_ready = true;
             self.voice = Some(v);
-            self.voice_owner = Some(here);
+            self.voice_pin_here();
             self.set_status("Loading the voice model…".into());
             return;
         }
-        let v = self.voice.as_mut().expect("voice");
-        match v.state {
+        let state = self.voice.as_ref().map(|v| v.state).expect("voice");
+        match state {
             VoiceState::Loading => {
                 // A second tap while the model loads cancels the first.
+                let v = self.voice.as_mut().expect("voice");
                 v.start_when_ready = !v.start_when_ready;
-                let armed = v.start_when_ready;
-                self.voice_owner = armed.then_some(here);
-                if !armed {
+                if v.start_when_ready {
+                    self.voice_pin_here();
+                } else {
+                    self.voice_owner = None;
                     self.voice_key_down = None;
                 }
             }
             VoiceState::Idle => {
-                v.start();
-                self.voice_owner = Some(here);
+                self.voice.as_ref().expect("voice").start();
+                self.voice_pin_here();
             }
             VoiceState::Listening | VoiceState::Transcribing => {
-                v.stop(true);
+                self.voice.as_ref().expect("voice").stop(true);
                 // This press ended the session; its release must not act.
                 self.voice_key_down = None;
             }
             VoiceState::Error => {}
         }
         self.request_redraw();
+    }
+
+    /// Make the current window the session owner and pin dictation to its
+    /// focused terminal.
+    fn voice_pin_here(&mut self) {
+        self.voice_owner = Some(self.win().window.id());
+        self.voice_target = self.win().active_term().map(|t| t.id);
     }
 
     /// The voice key came up. After a long hold this is the end of
@@ -118,7 +131,7 @@ impl App {
             }
         }
         for t in texts {
-            self.voice_type(&t);
+            self.voice_handle_text(&t, false);
         }
         if let Some(e) = error {
             self.set_status(e);
@@ -126,29 +139,136 @@ impl App {
         self.request_redraw_all();
     }
 
-    /// Type recognized text into the owning window's focused terminal as
-    /// keystrokes (no bracketed paste, so the program sees ordinary typing).
-    fn voice_type(&mut self, text: &str) {
-        // An utterance that is just a command word ("enter") presses the key.
-        let bytes = match crate::voice::command_bytes(text, &self.config.voice.commands) {
-            Some(key) => key.to_vec(),
+    /// Act on one dictated utterance: a spoken command presses a key or
+    /// switches tabs, a navigation phrase focuses a card, anything else is
+    /// typed into the pinned terminal. With `adopt`, a missing session
+    /// pins itself to the current window's focused terminal first (the
+    /// control API uses this to test voice flows without a microphone).
+    /// Returns a short description of what happened.
+    pub(super) fn voice_handle_text(&mut self, text: &str, adopt: bool) -> String {
+        if adopt && (self.voice_owner.is_none() || self.voice_target.is_none()) {
+            self.voice_pin_here();
+        }
+        match crate::voice::command_action(text, &self.config.voice) {
+            Some(VoiceAction::Key(bytes)) => {
+                self.voice_send(bytes.to_vec());
+                format!("key: {}", text.trim())
+            }
+            Some(VoiceAction::NextTab) => self.voice_switch_tab(1.0),
+            Some(VoiceAction::PrevTab) => self.voice_switch_tab(-1.0),
+            Some(VoiceAction::Navigate(query)) => self.voice_navigate(&query),
             None => {
                 let mut text = Self::sanitize_paste(text).replace("\r\n", "\r").replace('\n', "\r");
                 if text.is_empty() {
-                    return;
+                    return "nothing to type".into();
                 }
                 if self.config.voice.trailing_space {
                     text.push(' ');
                 }
-                text.into_bytes()
+                self.voice_send(text.into_bytes());
+                "typed".into()
             }
-        };
-        let Some(owner) = self.voice_owner else { return };
-        let Some(w) = self.wins.iter().find(|w| w.window.id() == owner) else { return };
-        if let Some(tab) = w.active_term() {
+        }
+    }
+
+    /// Write bytes to the pinned terminal; fall back to the owner window's
+    /// focused terminal, then the current window's.
+    fn voice_send(&mut self, bytes: Vec<u8>) {
+        let pinned = self.voice_target.and_then(|t| self.find_term(t)).map(|(wi, ti)| &self.wins[wi].terms[ti]);
+        let tab = pinned.or_else(|| {
+            let wi = self.voice_owner.and_then(|id| self.wins.iter().position(|w| w.window.id() == id)).unwrap_or(self.cur);
+            self.wins[wi].active_term()
+        });
+        if let Some(tab) = tab {
             tab.write(bytes);
             tab.scroll(Scroll::Bottom);
         }
+    }
+
+    /// Index of the window that owns the session (the current one if none).
+    fn voice_owner_index(&self) -> usize {
+        self.voice_owner.and_then(|id| self.wins.iter().position(|w| w.window.id() == id)).unwrap_or(self.cur)
+    }
+
+    /// "Next tab" / "previous tab" in the owning window; dictation follows.
+    fn voice_switch_tab(&mut self, dir: f32) -> String {
+        let wi = self.voice_owner_index();
+        self.cur = wi;
+        let n = self.wins[wi].canvases.len();
+        if n < 2 {
+            return "only one tab".into();
+        }
+        let cur = self.wins[wi].active;
+        let next = if dir > 0.0 { (cur + 1) % n } else { (cur + n - 1) % n };
+        self.switch_tab_dir(next, dir);
+        self.voice_target = self.wins[wi].active_term().map(|t| t.id);
+        let title = self.wins[wi].tab_title(next);
+        self.set_status(format!("Voice: {title}"));
+        format!("switched to tab {title:?}")
+    }
+
+    /// "Switch to <query>": fuzzy-match card names and titles and tab names
+    /// across all windows, then focus the best one and pin dictation to it.
+    /// Names the user gave (a renamed card or canvas) outrank live titles.
+    fn voice_navigate(&mut self, query: &str) -> String {
+        let pattern = Pattern::parse(query, CaseMatching::Ignore, Normalization::Smart);
+        let mut matcher = Matcher::new(MatcherConfig::DEFAULT);
+        let mut buf = Vec::new();
+        // (score, window, canvas, item, label)
+        let mut best: Option<(u32, usize, usize, Option<ItemId>, String)> = None;
+        for (wi, w) in self.wins.iter().enumerate() {
+            for (ci, c) in w.canvases.iter().enumerate() {
+                let mut cands: Vec<(String, bool, Option<ItemId>)> = Vec::new();
+                if c.is_single() {
+                    // A plain tab: its terminal is the only target.
+                } else if !c.name.is_empty() {
+                    cands.push((c.name.clone(), true, None));
+                } else {
+                    cands.push((w.tab_title(ci), false, None));
+                }
+                for it in &c.items {
+                    let ItemKind::Terminal(t) = &it.kind else { continue };
+                    if it.mirror {
+                        continue;
+                    }
+                    let Some(term) = w.term(*t) else { continue };
+                    if let Some(n) = term.custom_title.as_ref().or(it.name.as_ref()) {
+                        cands.push((n.clone(), true, Some(it.id)));
+                    }
+                    cands.push((term.display_title().to_string(), false, Some(it.id)));
+                }
+                for (label, named, item) in cands {
+                    buf.clear();
+                    let hay = Utf32Str::new(&label, &mut buf);
+                    if let Some(s) = pattern.score(hay, &mut matcher) {
+                        let s = s + if named { 1000 } else { 0 };
+                        if best.as_ref().map(|b| s > b.0).unwrap_or(true) {
+                            best = Some((s, wi, ci, item, label));
+                        }
+                    }
+                }
+            }
+        }
+        let Some((_, wi, ci, item, label)) = best else {
+            self.set_status(format!("Voice: nothing called \"{query}\""));
+            return format!("no card or tab matches {query:?}");
+        };
+        // Own the destination window before focusing it, so the old
+        // window's focus-loss does not end the session.
+        self.voice_owner = Some(self.wins[wi].window.id());
+        self.cur = wi;
+        self.switch_tab(ci);
+        if let Some(id) = item {
+            self.focus_item(id);
+            if let Some(t) = self.tab_of_item_pub(id) {
+                self.focus_terminal(t);
+            }
+        }
+        self.wins[wi].window.focus_window();
+        self.voice_target = self.wins[wi].active_term().map(|t| t.id);
+        self.set_status(format!("Voice: switched to {label}"));
+        self.request_redraw_all();
+        format!("switched to {label:?}")
     }
 
     /// Text for the tab bar's status area while voice input is active in

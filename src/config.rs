@@ -64,16 +64,31 @@ pub struct VoiceConfig {
     /// presses the named key instead of being typed. Keys: "enter", "tab",
     /// "escape", "backspace", "space". The phrase inside a longer sentence
     /// is typed as text. Empty table: no commands.
+    /// Special keys "next-tab" and "previous-tab" switch tabs.
     pub commands: std::collections::BTreeMap<String, String>,
+    /// Navigation prefixes: "switch to build" focuses the card or tab whose
+    /// name (or title) best matches "build" and moves dictation there.
+    /// Empty list: no navigation by voice.
+    pub navigate: Vec<String>,
 }
 
 impl Default for VoiceConfig {
     fn default() -> Self {
-        let commands = [("enter", "enter"), ("return", "enter"), ("new line", "enter"), ("tab", "tab"), ("escape", "escape"), ("backspace", "backspace")]
-            .into_iter()
-            .map(|(p, k)| (p.to_string(), k.to_string()))
-            .collect();
-        Self { model_dir: None, device: "cpu".into(), endpoint_ms: 300, hold_ms: 350, trailing_space: true, threads: 4, commands }
+        let commands = [
+            ("enter", "enter"),
+            ("return", "enter"),
+            ("new line", "enter"),
+            ("tab", "tab"),
+            ("escape", "escape"),
+            ("backspace", "backspace"),
+            ("next tab", "next-tab"),
+            ("previous tab", "previous-tab"),
+        ]
+        .into_iter()
+        .map(|(p, k)| (p.to_string(), k.to_string()))
+        .collect();
+        let navigate = ["switch to", "go to", "focus", "jump to"].into_iter().map(String::from).collect();
+        Self { model_dir: None, device: "cpu".into(), endpoint_ms: 300, hold_ms: 350, trailing_space: true, threads: 4, commands, navigate }
     }
 }
 

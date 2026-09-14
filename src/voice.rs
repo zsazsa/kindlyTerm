@@ -337,17 +337,43 @@ impl Engine {
     }
 }
 
-/// Bytes for a spoken command, if `text` is exactly one of the configured
-/// phrases. Case, punctuation and extra spaces the recognizer adds are
-/// ignored ("Enter." matches "enter"); a phrase inside a longer sentence
-/// does not match, so "press enter to continue" is typed as text.
-pub fn command_bytes(text: &str, commands: &std::collections::BTreeMap<String, String>) -> Option<&'static [u8]> {
+/// What a dictated utterance asks for besides plain text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VoiceAction {
+    /// Press a key: the bytes to send.
+    Key(&'static [u8]),
+    NextTab,
+    PrevTab,
+    /// "switch to <query>": focus the best-matching card or tab.
+    Navigate(String),
+}
+
+/// The action for `text`, if it is exactly a configured command phrase or
+/// starts with a navigation prefix. Case, punctuation and extra spaces the
+/// recognizer adds are ignored ("Enter." matches "enter"); a command word
+/// inside a longer sentence does not match, so "press enter to continue"
+/// is typed as text.
+pub fn command_action(text: &str, cfg: &VoiceConfig) -> Option<VoiceAction> {
     let said = normalize_phrase(text);
     if said.is_empty() {
         return None;
     }
-    let key = commands.iter().find(|(phrase, _)| normalize_phrase(phrase) == said).map(|(_, k)| k.as_str())?;
-    key_bytes(key)
+    if let Some(key) = cfg.commands.iter().find(|(phrase, _)| normalize_phrase(phrase) == said).map(|(_, k)| k.as_str()) {
+        return key_action(key);
+    }
+    for prefix in &cfg.navigate {
+        let prefix = normalize_phrase(prefix);
+        if prefix.is_empty() {
+            continue;
+        }
+        if let Some(rest) = said.strip_prefix(prefix.as_str())
+            && let Some(query) = rest.strip_prefix(' ')
+            && !query.trim().is_empty()
+        {
+            return Some(VoiceAction::Navigate(query.trim().to_string()));
+        }
+    }
+    None
 }
 
 /// Lowercase letters and digits only, single spaces between words.
@@ -368,14 +394,16 @@ fn normalize_phrase(s: &str) -> String {
     out
 }
 
-/// What a key name from the config sends to the terminal.
-fn key_bytes(key: &str) -> Option<&'static [u8]> {
+/// What a key name from the config does.
+fn key_action(key: &str) -> Option<VoiceAction> {
     Some(match key.trim().to_ascii_lowercase().as_str() {
-        "enter" | "return" => b"\r",
-        "tab" => b"\t",
-        "escape" | "esc" => b"\x1b",
-        "backspace" => b"\x7f",
-        "space" => b" ",
+        "enter" | "return" => VoiceAction::Key(b"\r"),
+        "tab" => VoiceAction::Key(b"\t"),
+        "escape" | "esc" => VoiceAction::Key(b"\x1b"),
+        "backspace" => VoiceAction::Key(b"\x7f"),
+        "space" => VoiceAction::Key(b" "),
+        "next-tab" => VoiceAction::NextTab,
+        "previous-tab" | "prev-tab" => VoiceAction::PrevTab,
         other => {
             log::warn!("voice: unknown key {other:?} in [voice].commands");
             return None;
@@ -512,31 +540,47 @@ mod tests {
 
     #[test]
     fn a_bare_command_word_presses_the_key() {
-        let cmds = VoiceConfig::default().commands;
-        assert_eq!(command_bytes("Enter.", &cmds), Some(&b"\r"[..]));
-        assert_eq!(command_bytes("  new line ", &cmds), Some(&b"\r"[..]));
-        assert_eq!(command_bytes("Tab", &cmds), Some(&b"\t"[..]));
-        assert_eq!(command_bytes("Escape!", &cmds), Some(&b"\x1b"[..]));
+        let cfg = VoiceConfig::default();
+        assert_eq!(command_action("Enter.", &cfg), Some(VoiceAction::Key(b"\r")));
+        assert_eq!(command_action("  new line ", &cfg), Some(VoiceAction::Key(b"\r")));
+        assert_eq!(command_action("Tab", &cfg), Some(VoiceAction::Key(b"\t")));
+        assert_eq!(command_action("Escape!", &cfg), Some(VoiceAction::Key(b"\x1b")));
+        assert_eq!(command_action("Next tab.", &cfg), Some(VoiceAction::NextTab));
+        assert_eq!(command_action("previous tab", &cfg), Some(VoiceAction::PrevTab));
     }
 
     #[test]
     fn a_command_word_inside_a_sentence_is_text() {
-        let cmds = VoiceConfig::default().commands;
-        assert_eq!(command_bytes("press enter to continue", &cmds), None);
-        assert_eq!(command_bytes("enter enter", &cmds), None);
-        assert_eq!(command_bytes("", &cmds), None);
-        assert_eq!(command_bytes("...", &cmds), None);
+        let cfg = VoiceConfig::default();
+        assert_eq!(command_action("press enter to continue", &cfg), None);
+        assert_eq!(command_action("enter enter", &cfg), None);
+        assert_eq!(command_action("", &cfg), None);
+        assert_eq!(command_action("...", &cfg), None);
+    }
+
+    #[test]
+    fn navigation_prefixes_carry_the_query() {
+        let cfg = VoiceConfig::default();
+        assert_eq!(command_action("Switch to build.", &cfg), Some(VoiceAction::Navigate("build".into())));
+        assert_eq!(command_action("go to American solarpunk", &cfg), Some(VoiceAction::Navigate("american solarpunk".into())));
+        assert_eq!(command_action("Focus status board", &cfg), Some(VoiceAction::Navigate("status board".into())));
+        // The bare prefix, or a word that merely starts with it, is text.
+        assert_eq!(command_action("switch to", &cfg), None);
+        assert_eq!(command_action("focused work", &cfg), None);
+        assert_eq!(command_action("switch tomorrow", &cfg), None);
     }
 
     #[test]
     fn commands_can_be_renamed_or_removed() {
-        let mut cmds = std::collections::BTreeMap::new();
-        cmds.insert("go".to_string(), "enter".to_string());
-        assert_eq!(command_bytes("Go.", &cmds), Some(&b"\r"[..]));
-        assert_eq!(command_bytes("enter", &cmds), None);
-        cmds.insert("zap".to_string(), "no-such-key".to_string());
-        assert_eq!(command_bytes("zap", &cmds), None);
-        assert_eq!(command_bytes("anything", &Default::default()), None);
+        let mut cfg = VoiceConfig::default();
+        cfg.commands.clear();
+        cfg.commands.insert("go".to_string(), "enter".to_string());
+        assert_eq!(command_action("Go.", &cfg), Some(VoiceAction::Key(b"\r")));
+        assert_eq!(command_action("enter", &cfg), None);
+        cfg.commands.insert("zap".to_string(), "no-such-key".to_string());
+        assert_eq!(command_action("zap", &cfg), None);
+        cfg.navigate.clear();
+        assert_eq!(command_action("switch to build", &cfg), None);
     }
 
     #[test]

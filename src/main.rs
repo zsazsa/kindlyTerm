@@ -14,6 +14,7 @@ mod keys;
 mod mcp;
 mod menu;
 mod palette;
+mod procs;
 mod renderer;
 mod session;
 mod terminal;

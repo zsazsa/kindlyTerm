@@ -120,12 +120,12 @@ impl App {
     }
 
     /// Locate a terminal by id across windows: (window, tab index in store).
-    fn find_term(&self, tab: TabId) -> Option<(usize, usize)> {
+    pub(super) fn find_term(&self, tab: TabId) -> Option<(usize, usize)> {
         self.wins.iter().enumerate().find_map(|(wi, w)| w.term_index(tab).map(|ti| (wi, ti)))
     }
 
     /// Locate an item by id: (window, canvas index).
-    fn find_item(&self, id: ItemId) -> Option<(usize, usize)> {
+    pub(super) fn find_item(&self, id: ItemId) -> Option<(usize, usize)> {
         self.wins.iter().enumerate().find_map(|(wi, w)| w.canvases.iter().position(|c| c.item(id).is_some()).map(|ci| (wi, ci)))
     }
 
@@ -134,7 +134,7 @@ impl App {
     }
 
     /// Make `(wi, ci)` the current window and active tab.
-    fn go_to(&mut self, wi: usize, ci: usize) {
+    pub(super) fn go_to(&mut self, wi: usize, ci: usize) {
         self.cur = wi;
         if self.wins[wi].active != ci {
             self.wins[wi].active = ci;
@@ -260,6 +260,13 @@ impl App {
                     v["session"] = json!(term.session);
                     v["idle_seconds"] = json!(term.last_output.elapsed().as_secs());
                     v["quiet_alert"] = json!(term.quiet_alert);
+                    // What is in the foreground, and whether it is a coding agent
+                    // (so a dispatcher can find "the Claude on canvas X").
+                    if let Some(fg) = term.pid.and_then(crate::procs::foreground_of) {
+                        v["foreground"] = json!(fg.name);
+                        v["foreground_pid"] = json!(fg.pid);
+                        v["agent"] = json!(crate::procs::agent_of(&fg));
+                    }
                 }
             }
             ItemKind::Image { path } => {
@@ -316,6 +323,14 @@ impl App {
                     }
                 }
                 Ok(json!(out))
+            }
+            "voice_utterance" => {
+                // Text as if dictated: commands and navigation act, the rest
+                // is typed into the dictation target. Lets voice flows be
+                // tested without a microphone.
+                let text = need_str(p, "text")?.to_string();
+                let what = self.voice_handle_text(&text, true);
+                Ok(json!({"result": what}))
             }
             "read_screen" | "read_scrollback" => {
                 let tab = need_u64(p, "terminal_id")?;

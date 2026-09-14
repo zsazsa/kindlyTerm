@@ -57,6 +57,7 @@ fn tools() -> Vec<Tool> {
         Tool { name: "remove_item", description: "Remove an image or mirror item (for terminals use close_terminal).", schema: obj(json!({"item_id": iid}), &["item_id"]) },
         Tool { name: "list_sessions", description: "Detached shell sessions (hosts) known to this machine, attached or not.", schema: obj(json!({}), &[]) },
         Tool { name: "set_window", description: "Resize the active window to width x height pixels (this un-maximizes it), or set maximized true/false. The compositor applies it a moment later; read set_viewport's area_w/area_h for the new canvas size.", schema: obj(json!({"width": {"type": "number"}, "height": {"type": "number"}, "maximized": {"type": "boolean"}}), &[]) },
+        Tool { name: "voice_utterance", description: "Handle text as if the user had dictated it: a spoken command (\"enter\", \"next tab\", \"switch to <name>\") acts, anything else is typed into the dictation target (the focused terminal when no voice session is active). For testing voice flows without a microphone.", schema: obj(json!({"text": {"type": "string"}}), &["text"]) },
         Tool { name: "screenshot", description: "Save a PNG of the active window to `path` (must end in .png).", schema: obj(json!({"path": {"type": "string"}}), &["path"]) },
     ]
 }

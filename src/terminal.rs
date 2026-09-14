@@ -155,6 +155,8 @@ pub struct Terminal {
     /// When an agent (control API) last typed here: the frame glows briefly
     /// so tool input is visible even on a small or unfocused terminal.
     pub agent_touch: Option<std::time::Instant>,
+    /// Process id of the shell (or hosted program), for foreground lookup.
+    pub pid: Option<u32>,
 }
 
 /// How long the agent-input glow lasts.
@@ -186,6 +188,7 @@ impl Terminal {
         };
 
         let pty = tty::new(&options, size.into(), id).context("spawning pty")?;
+        let pid = pty.child().id();
         let pty_loop = PtyEventLoop::new(Arc::clone(&term), event_proxy, pty, false, false)
             .context("creating pty event loop")?;
         let sender = pty_loop.channel();
@@ -196,6 +199,7 @@ impl Terminal {
             id,
             term,
             backend: Backend::Local { notifier, sender },
+            pid: Some(pid),
             session: None,
             title: None,
             custom_title: None,
@@ -333,6 +337,7 @@ impl Terminal {
             id,
             term,
             backend: Backend::Remote { tx },
+            pid: Some(info.pid),
             session: Some(session.to_string()),
             title: info.title.clone(),
             custom_title: None,

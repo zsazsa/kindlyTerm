@@ -416,6 +416,10 @@ pub struct App {
     /// focused terminal, only it shows the indicator, and listening stops
     /// when it loses focus or closes.
     voice_owner: Option<winit::window::WindowId>,
+    /// Terminal dictation is pinned to: the one focused when listening
+    /// started, or the one a spoken "switch to" landed on. Focus changes
+    /// underneath (a tool creating cards, a click) do not move it.
+    voice_target: Option<TabId>,
     /// What this launch was asked for (deck, startup token). The token is
     /// spent by the next window created.
     launch_request: crate::instance::Request,
@@ -521,6 +525,7 @@ impl App {
             voice: None,
             voice_key_down: None,
             voice_owner: None,
+            voice_target: None,
             launch_request,
             wins: Vec::new(),
             cur: 0,

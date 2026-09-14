@@ -262,7 +262,8 @@ hold_ms = 350                  # hold the key at least this long for push-to-tal
 trailing_space = true          # a space after each utterance
 threads = 4                    # CPU threads for the recognizer
 # say one of these on its own to press the key instead of typing it
-commands = { enter = "enter", return = "enter", "new line" = "enter", tab = "tab", escape = "escape", backspace = "backspace" }
+commands = { enter = "enter", return = "enter", "new line" = "enter", tab = "tab", escape = "escape", backspace = "backspace", "next tab" = "next-tab", "previous tab" = "previous-tab" }
+navigate = ["switch to", "go to", "focus", "jump to"]   # "switch to build" focuses that card
 
 [colors]
 opacity = 1.0                  # 0.3..1.0 window translucency
@@ -284,7 +285,24 @@ To press a key, pause and say just the command word: "enter" (also
 "return" or "new line"), "tab", "escape" or "backspace". Only an utterance
 that is exactly the phrase counts, so "press enter to continue" is typed as
 text. The `commands` table in `[voice]` renames or removes them; the key
-names it accepts are enter, tab, escape, backspace and space.
+names it accepts are enter, tab, escape, backspace, space, next-tab and
+previous-tab.
+
+Dictation is pinned to the terminal that was focused when you started
+listening. Focus can move underneath you, because a tool opened a card or
+you clicked one, and your words still land where you aimed them. To dictate
+somewhere else, say "switch to build" (also "go to", "focus", "jump to"):
+the card or tab whose name best matches is focused and becomes the target.
+Names you gave cards and canvases outrank live titles, so name the ones you
+use. "Next tab" and "previous tab" work too. The `navigate` list in
+`[voice]` sets the prefixes; empty it to turn navigation off.
+
+For tools driving kindlyTerm, `list_terminals` reports each card's
+`foreground` program and, when it is a coding agent, `agent` ("claude",
+"codex", "gemini"), so an orchestrating session can find "the Claude on the
+solarpunk canvas" instead of guessing from titles. `voice_utterance` feeds
+text through the dictation path (commands, navigation, typing) for testing
+without a microphone.
 
 Fetch the models once (about 500 MB, into `~/.local/share/kindlyterm/voice`):
 
