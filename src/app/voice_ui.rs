@@ -241,7 +241,7 @@ impl App {
                     buf.clear();
                     let hay = Utf32Str::new(&label, &mut buf);
                     if let Some(s) = pattern.score(hay, &mut matcher) {
-                        let s = s + if named { 1000 } else { 0 };
+                        let s = s + crate::voice::rank_bonus(&label, query) + if named { 1000 } else { 0 };
                         if best.as_ref().map(|b| s > b.0).unwrap_or(true) {
                             best = Some((s, wi, ci, item, label));
                         }

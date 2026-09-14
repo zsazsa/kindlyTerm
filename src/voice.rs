@@ -376,8 +376,31 @@ pub fn command_action(text: &str, cfg: &VoiceConfig) -> Option<VoiceAction> {
     None
 }
 
+/// How strongly `label` matches a spoken `query` beyond fuzzy similarity:
+/// the whole name said exactly wins outright, a whole word inside the name
+/// beats a partial, and a longer name loses ties. Added to the fuzzy score
+/// so "build" picks the card named "build" over "LightOver (local build)".
+pub fn rank_bonus(label: &str, query: &str) -> u32 {
+    let l = normalize_phrase(label);
+    let q = normalize_phrase(query);
+    if q.is_empty() || l.is_empty() {
+        return 0;
+    }
+    let base: u32 = if l == q {
+        6000
+    } else if l.split(' ').any(|w| w == q) || l.starts_with(&format!("{q} ")) || l.ends_with(&format!(" {q}")) || l.contains(&format!(" {q} ")) {
+        2000
+    } else if l.contains(&q) {
+        500
+    } else {
+        0
+    };
+    // Shorter names win ties: a few points per character of extra length.
+    base.saturating_sub((l.len().saturating_sub(q.len()) as u32).min(400))
+}
+
 /// Lowercase letters and digits only, single spaces between words.
-fn normalize_phrase(s: &str) -> String {
+pub fn normalize_phrase(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut space = false;
     for ch in s.chars() {
@@ -568,6 +591,15 @@ mod tests {
         assert_eq!(command_action("switch to", &cfg), None);
         assert_eq!(command_action("focused work", &cfg), None);
         assert_eq!(command_action("switch tomorrow", &cfg), None);
+    }
+
+    #[test]
+    fn exact_names_outrank_partial_matches() {
+        assert!(rank_bonus("🔨 build", "build") > rank_bonus("LightOver v2 (local build)", "build"));
+        assert!(rank_bonus("build", "Build.") > rank_bonus("status board", "build"));
+        assert!(rank_bonus("american solarpunk", "solarpunk") > rank_bonus("solarpunknotes", "solarpunk"));
+        assert_eq!(rank_bonus("user@host: ~", "build"), 0);
+        assert_eq!(rank_bonus("anything", ""), 0);
     }
 
     #[test]
